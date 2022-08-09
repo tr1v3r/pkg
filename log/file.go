@@ -15,8 +15,14 @@ func NewFileLogger(dir string, opts ...FileLoggerOption) (*FileLogger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("find file abs path fail: %w", err)
 	}
-	if f, err := os.Stat(dir); err != nil || !f.IsDir() {
-		return nil, fmt.Errorf("set log dir fail: %w", err)
+	if f, err := os.Stat(dir); err != nil {
+		if os.IsNotExist(err) {
+			if os.MkdirAll(dir, 644) != nil {
+				return nil, fmt.Errorf("create dir fail: %w", err)
+			}
+		} else if !f.IsDir() {
+			return nil, fmt.Errorf("set log dir fail: %w", err)
+		}
 	}
 
 	logger := &FileLogger{
