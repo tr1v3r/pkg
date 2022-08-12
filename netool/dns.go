@@ -26,6 +26,10 @@ func LookupWithServer(domain string, servers []string, maxRetry int) (a []string
 				continue
 			}
 
+			if r.Answer == nil {
+				continue
+			}
+
 			for _, ans := range r.Answer {
 				switch ans := ans.(type) {
 				case *dns.CNAME:
