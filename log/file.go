@@ -17,7 +17,7 @@ func NewFileLogger(dir string, opts ...FileLoggerOption) (*FileLogger, error) {
 	}
 	if f, err := os.Stat(dir); err != nil {
 		if os.IsNotExist(err) {
-			if os.MkdirAll(dir, 644) != nil {
+			if os.MkdirAll(dir, 666) != nil {
 				return nil, fmt.Errorf("create dir fail: %w", err)
 			}
 		} else if !f.IsDir() {
