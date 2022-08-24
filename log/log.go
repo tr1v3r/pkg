@@ -29,6 +29,11 @@ func SetOutput(out io.Writer) {
 	defaultLogger.SetOutput(out)
 }
 
+// SetLevel set output log level
+func SetLevel(l Level) {
+	defaultLogger.SetLevel(l)
+}
+
 // Trace ...
 func Trace(format string, args ...interface{}) {
 	defaultLogger.Tracef(format, args...)
