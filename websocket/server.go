@@ -8,11 +8,11 @@ import (
 
 var upgrader = new(websocket.Upgrader)
 
-func WSHanlder(handle func([]byte) []byte) gin.HandlerFunc {
+func WSHanlder(handle func(*websocket.Conn, []byte) []byte) gin.HandlerFunc {
 	return WSHanlderWithUpgrader(upgrader, handle)
 }
 
-func WSHanlderWithUpgrader(upgrader *websocket.Upgrader, handle func([]byte) []byte) gin.HandlerFunc {
+func WSHanlderWithUpgrader(upgrader *websocket.Upgrader, handle func(*websocket.Conn, []byte) []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
@@ -26,12 +26,11 @@ func WSHanlderWithUpgrader(upgrader *websocket.Upgrader, handle func([]byte) []b
 				break
 			}
 
-			err = ws.WriteMessage(mt, handle(msg))
+			err = ws.WriteMessage(mt, handle(ws, msg))
 			if err != nil {
 				log.Warn("write message fail: %s", err)
 				break
 			}
 		}
 	}
-
 }

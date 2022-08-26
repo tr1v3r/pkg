@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"github.com/riverchu/pkg/log"
 
 	ws "github.com/riverchu/pkg/websocket"
@@ -22,7 +23,7 @@ func TestServer(t *testing.T) {
 	}
 }
 
-func handle(msg []byte) []byte {
+func handle(_ *websocket.Conn, msg []byte) []byte {
 	switch string(msg) {
 	case "ping":
 		return []byte("pong")
