@@ -15,6 +15,7 @@ func ConnectWebsocket(ctx context.Context, url string, header http.Header) (*web
 	return websocket.DefaultDialer.DialContext(ctx, url, header)
 }
 
+// Read read from websocket
 func Read(c *websocket.Conn) <-chan []byte {
 	msg := make(chan []byte, 64)
 	go func() {
@@ -31,6 +32,7 @@ func Read(c *websocket.Conn) <-chan []byte {
 	return msg
 }
 
+// Write write to websocket
 func Write(c *websocket.Conn, msg []byte) error {
 	return c.WriteMessage(websocket.TextMessage, msg)
 }
