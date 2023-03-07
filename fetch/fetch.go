@@ -38,25 +38,13 @@ func SetDefaultClient(client *http.Client) {
 }
 
 // Get ...
-func Get(url string) ([]byte, error) { return GetWithHeaders(url) }
-
-// GetWithToken ...
-func GetWithToken(url string, token string) ([]byte, error) {
-	return GetWithHeaders(url, WithHeader("Authorization", token))
-}
-
-// GetWithHeaders ...
-func GetWithHeaders(url string, opts ...RequestOption) ([]byte, error) {
+func Get(url string, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions("GET", url, opts, nil)
 	return content, err
 }
 
 // Post ...
-func Post(url string, body io.Reader) ([]byte, error) {
-	return PostWithHeaders(url, body, nil)
-}
-
-func PostWithHeaders(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
+func Post(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions("POST", url, opts, body)
 	return content, err
 }
