@@ -1,8 +1,8 @@
 package fetch
 
 import (
-	"bytes"
 	"crypto/tls"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -52,24 +52,24 @@ func GetWithHeaders(url string, opts ...RequestOption) ([]byte, error) {
 }
 
 // Post ...
-func Post(url string, body []byte) ([]byte, error) {
+func Post(url string, body io.Reader) ([]byte, error) {
 	return PostWithHeaders(url, body, nil)
 }
 
-func PostWithHeaders(url string, body []byte, opts ...RequestOption) ([]byte, error) {
+func PostWithHeaders(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions("POST", url, opts, body)
 	return content, err
 }
 
 // DoRequest 进行HTTP请求
-func DoRequest(method string, url string, body []byte) (statusCode int, content []byte, err error) {
+func DoRequest(method string, url string, body io.Reader) (statusCode int, content []byte, err error) {
 	statusCode, content, _, err = DoRequestWithOptions(method, url, nil, body)
 	return
 }
 
 // DoRequestWithOptions 进行HTTP请求并返回响应头
-func DoRequestWithOptions(method string, url string, opts []RequestOption, body []byte) (statusCode int, content []byte, respHeaders http.Header, err error) {
-	req, _ := http.NewRequest(method, url, bytes.NewBuffer(body))
+func DoRequestWithOptions(method string, url string, opts []RequestOption, body io.Reader) (statusCode int, content []byte, respHeaders http.Header, err error) {
+	req, _ := http.NewRequest(method, url, body)
 	for _, opt := range opts {
 		req = opt(req)
 	}
