@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"context"
 	"crypto/tls"
 	"io"
 	"io/ioutil"
@@ -43,15 +44,33 @@ func Get(url string, opts ...RequestOption) ([]byte, error) {
 	return content, err
 }
 
+// CtxGet ...
+func CtxGet(ctx context.Context, url string, opts ...RequestOption) ([]byte, error) {
+	_, content, _, err := DoRequestWithOptions("GET", url, append([]RequestOption{withContext(ctx)}, opts...), nil)
+	return content, err
+}
+
 // Post ...
 func Post(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions("POST", url, opts, body)
 	return content, err
 }
 
+// CtxPost ...
+func CtxPost(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
+	_, content, _, err := DoRequestWithOptions("POST", url, append([]RequestOption{withContext(ctx)}, opts...), body)
+	return content, err
+}
+
 // DoRequest 进行HTTP请求
 func DoRequest(method string, url string, body io.Reader) (statusCode int, content []byte, err error) {
 	statusCode, content, _, err = DoRequestWithOptions(method, url, nil, body)
+	return
+}
+
+// DoRequestWithContext 进行HTTP请求
+func DoRequestWithContext(ctx context.Context, method string, url string, body io.Reader) (statusCode int, content []byte, err error) {
+	statusCode, content, _, err = DoRequestWithOptions(method, url, []RequestOption{withContext(ctx)}, body)
 	return
 }
 

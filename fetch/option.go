@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"context"
 	"net/http"
 )
 
@@ -52,6 +53,13 @@ var (
 		return func(req *http.Request) *http.Request {
 			req.Header.Set("Authorization", token)
 			return req
+		}
+	}
+
+	// withContext wrap request with context
+	withContext = func(ctx context.Context) RequestOption {
+		return func(req *http.Request) *http.Request {
+			return req.WithContext(ctx)
 		}
 	}
 )
