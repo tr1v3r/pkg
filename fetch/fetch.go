@@ -62,6 +62,18 @@ func CtxPost(ctx context.Context, url string, body io.Reader, opts ...RequestOpt
 	return content, err
 }
 
+// Patch ...
+func Patch(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
+	_, content, _, err := DoRequestWithOptions("PATCH", url, opts, body)
+	return content, err
+}
+
+// CtxPatch ...
+func CtxPatch(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
+	_, content, _, err := DoRequestWithOptions("PATCH", url, append([]RequestOption{withContext(ctx)}, opts...), body)
+	return content, err
+}
+
 // DoRequest 进行HTTP请求
 func DoRequest(method string, url string, body io.Reader) (statusCode int, content []byte, err error) {
 	statusCode, content, _, err = DoRequestWithOptions(method, url, nil, body)
