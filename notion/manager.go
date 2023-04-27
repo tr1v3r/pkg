@@ -8,7 +8,7 @@ import (
 
 const (
 	notionAPIHostScheme = "https"
-	notionAPIHost       = "api.notion.so"
+	notionAPIHost       = "api.notion.com"
 	apiBasePath         = "v1"
 )
 
