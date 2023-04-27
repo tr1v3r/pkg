@@ -90,7 +90,7 @@ func (dm *DatabaseManager) Query(filter *Filter) (results []Object, err error) {
 
 	var api = dm.api(queryOp)
 
-	resp, err := fetch.Post(api, bytes.NewBuffer(filter.Payload()), dm.Headers()...)
+	resp, err := fetch.Post(api, bytes.NewReader(filter.Payload()), dm.Headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
 	}
@@ -108,7 +108,7 @@ func (dm *DatabaseManager) Query(filter *Filter) (results []Object, err error) {
 	log.Debug("fetch %d items, next cursor: %s", len(obj.Results), obj.NextCursor)
 
 	for obj.HasMore {
-		resp, err := fetch.Post(api, bytes.NewBuffer((&Filter{StartCursor: obj.NextCursor}).Payload()), dm.Headers()...)
+		resp, err := fetch.Post(api, bytes.NewReader((&Filter{StartCursor: obj.NextCursor}).Payload()), dm.Headers()...)
 		if err != nil {
 			return nil, fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
 		}

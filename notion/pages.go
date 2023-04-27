@@ -39,7 +39,7 @@ func (pm *PageManager) Update(properties ...*Property) error {
 	payload, _ := json.Marshal(map[string]interface{}{"properties": PropertyArray(properties).ForUpdate()})
 	log.Debug("update page with payload: %s", string(payload))
 
-	resp, err := fetch.Patch(pm.api(updateOp), bytes.NewBuffer(payload), pm.Headers()...)
+	resp, err := fetch.Patch(pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
 	if err != nil {
 		return fmt.Errorf("update database %s fail: %w", pm.ID, err)
 	}
@@ -58,7 +58,7 @@ func (pm *PageManager) Update(properties ...*Property) error {
 
 // api return database api
 func (pm *PageManager) api(typ operateType) string {
-	baseAPI := notionAPI() + "/databases"
+	baseAPI := notionAPI() + "/pages"
 	switch typ {
 	case createOp: // POST https://api.notion.com/v1/pages
 		return baseAPI
