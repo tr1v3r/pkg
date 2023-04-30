@@ -1,5 +1,7 @@
 package notion
 
+import "encoding/json"
+
 // PropertyType property type
 type PropertyType string
 
@@ -46,9 +48,22 @@ func (p *Property) ForUpdate() map[PropertyType]interface{} {
 	}
 }
 
-// ParseRichTextToPlainText parse rich text to plain text
-func (p *Property) ParseRichTextToPlainText() string {
-	return ""
+// PlainText parse rich text to plain text
+func (p *Property) PlainText() (text string) {
+	if p.Type != RichTextProp || p.RichText == nil {
+		return ""
+	}
+
+	data, _ := json.Marshal(p.RichText)
+	texts := make([]TextObject, 0, 4)
+	if err := json.Unmarshal(data, &texts); err != nil {
+		return ""
+	}
+
+	for _, t := range texts {
+		text += t.PlainText
+	}
+	return text
 }
 
 type PropertyArray []*Property
