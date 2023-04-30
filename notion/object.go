@@ -38,16 +38,16 @@ type PageItem struct {
 }
 
 type TextObject struct {
-	Type        string     `json:"type"`
-	Text        TextItem   `json:"text"`
-	Annotations Annotation `json:"annotations"`
-	PlainText   string     `json:"plain_text"`
-	Href        string     `json:"href"`
+	Type        string      `json:"type,omitempty"`
+	Text        TextItem    `json:"text"`
+	Annotations *Annotation `json:"annotations,omitempty"`
+	PlainText   string      `json:"plain_text,omitempty"`
+	Href        *string     `json:"href,omitempty"`
 }
 
 type TextItem struct {
-	Content string `json:"content"`
-	Link    string `json:"link"`
+	Content string  `json:"content"`
+	Link    *string `json:"link,omitempty"`
 }
 
 type Annotation struct {
