@@ -33,8 +33,9 @@ type PureObject struct {
 }
 
 type PageItem struct {
-	Type   string `json:"type"`
-	PageID string `json:"page_id"`
+	Type       string `json:"type,omitempty"`
+	PageID     string `json:"page_id,omitempty"`
+	DatabaseID string `json:"database_id,omitempty"`
 }
 
 type TextObject struct {

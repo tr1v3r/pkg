@@ -30,6 +30,29 @@ func (pm PageManager) WithID(id string) *PageManager {
 	return &pm
 }
 
+// Create create page
+// docs: https://developers.notion.com/reference/post-page
+// POST https://api.notion.com/v1/pages
+func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
+	log.Debug("create page from parent: %+v", parent)
+
+	payload, _ := json.Marshal(&struct {
+		Parent     PageItem    `json:"parent"`
+		Properties interface{} `json:"properties"`
+	}{
+		Parent:     parent,
+		Properties: PropertyArray(properties).ForUpdate(),
+	})
+	statusCode, resp, _, err := fetch.DoRequestWithOptions("POST", pm.api(createOp), pm.Headers(), bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("create page fail: %w", err)
+	}
+	if statusCode != 200 {
+		return fmt.Errorf("create page fail: [%d] %s", statusCode, string(resp))
+	}
+	return nil
+}
+
 // Update update page
 // docs: https://developers.notion.com/reference/patch-page
 // PATCH https://api.notion.com/v1/pages/{page_id}

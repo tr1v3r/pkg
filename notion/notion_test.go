@@ -50,3 +50,19 @@ func TestQuery_Database_all(t *testing.T) {
 	// data, _ := json.Marshal(obj)
 	// t.Logf("query database all items success: %s", string(data))
 }
+
+func TestCreate_Page(t *testing.T) {
+	databaseID := os.Getenv("NOTION_DATABASE_ID")
+
+	mgr := NewManager(version, token)
+
+	err := mgr.PageManager.Create(PageItem{DatabaseID: databaseID},
+		&Property{Name: "Code", Type: RichTextProp, RichText: []TextObject{{
+			Text:        TextItem{Content: "000001"},
+			Annotations: &Annotation{Bold: true, Color: "default"},
+		}}},
+	)
+	if err != nil {
+		t.Errorf("create page fail: %s", err)
+	}
+}
