@@ -52,6 +52,14 @@ func NewManager(version, token string) *Manager {
 	}
 }
 
+func (i *Manager) Set(version, token string) {
+	i.DatabaseManager.Set(version, token)
+	i.PageManager.Set(version, token)
+	i.BlockManager.Set(version, token)
+	i.SearchManager.Set(version, token)
+	i.Set(version, token)
+}
+
 type baseInfo struct {
 	NotionVersion string
 	BearerToken   string
@@ -63,4 +71,9 @@ func (i *baseInfo) Headers() []fetch.RequestOption {
 		fetch.WithAuthToken("Bearer " + i.BearerToken),
 		fetch.WithContentTypeJSON(),
 	}
+}
+
+func (i *baseInfo) Set(version, token string) {
+	i.NotionVersion = version
+	i.BearerToken = token
 }
