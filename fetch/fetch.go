@@ -46,7 +46,7 @@ func Get(url string, opts ...RequestOption) ([]byte, error) {
 
 // CtxGet ...
 func CtxGet(ctx context.Context, url string, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("GET", url, append([]RequestOption{withContext(ctx)}, opts...), nil)
+	_, content, _, err := DoRequestWithOptions("GET", url, append([]RequestOption{WithContext(ctx)}, opts...), nil)
 	return content, err
 }
 
@@ -58,7 +58,7 @@ func Post(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 
 // CtxPost ...
 func CtxPost(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("POST", url, append([]RequestOption{withContext(ctx)}, opts...), body)
+	_, content, _, err := DoRequestWithOptions("POST", url, append([]RequestOption{WithContext(ctx)}, opts...), body)
 	return content, err
 }
 
@@ -70,7 +70,7 @@ func Patch(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 
 // CtxPatch ...
 func CtxPatch(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("PATCH", url, append([]RequestOption{withContext(ctx)}, opts...), body)
+	_, content, _, err := DoRequestWithOptions("PATCH", url, append([]RequestOption{WithContext(ctx)}, opts...), body)
 	return content, err
 }
 
@@ -81,8 +81,8 @@ func DoRequest(method string, url string, body io.Reader) (statusCode int, conte
 }
 
 // DoRequestWithContext 进行HTTP请求
-func DoRequestWithContext(ctx context.Context, method string, url string, body io.Reader) (statusCode int, content []byte, err error) {
-	statusCode, content, _, err = DoRequestWithOptions(method, url, []RequestOption{withContext(ctx)}, body)
+func DoRequestWithContext(ctx context.Context, method string, url string, opts []RequestOption, body io.Reader) (statusCode int, content []byte, err error) {
+	statusCode, content, _, err = DoRequestWithOptions(method, url, append(opts, WithContext(ctx)), body)
 	return
 }
 

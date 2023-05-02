@@ -56,8 +56,8 @@ var (
 		}
 	}
 
-	// withContext wrap request with context
-	withContext = func(ctx context.Context) RequestOption {
+	// WithContext wrap request with context
+	WithContext = func(ctx context.Context) RequestOption {
 		return func(req *http.Request) *http.Request {
 			return req.WithContext(ctx)
 		}
