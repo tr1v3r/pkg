@@ -134,7 +134,7 @@ func (dm *DatabaseManager) Query(filter *Filter) (results []Object, err error) {
 		}
 
 		results = append(results, obj.Results...)
-		log.Debug("catch %d items, next cursor: %s", len(results), obj.NextCursor)
+		log.Debug("fetch %d items, next cursor: %s", len(results), obj.NextCursor)
 	}
 
 	log.Debug("query database got %d items", len(results))

@@ -2,6 +2,7 @@ package notion
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -14,7 +15,7 @@ func NewPageManager(version, token string) *PageManager {
 	return &PageManager{baseInfo: &baseInfo{
 		NotionVersion: version,
 		BearerToken:   token,
-	}}
+	}, ctx: context.Background()}
 }
 
 // PageManager ...
@@ -22,11 +23,19 @@ type PageManager struct {
 	*baseInfo
 
 	ID string
+
+	ctx context.Context
 }
 
 // WithID set page id
 func (pm PageManager) WithID(id string) *PageManager {
 	pm.ID = id
+	return &pm
+}
+
+// WithContext set Context
+func (pm PageManager) WithContext(ctx context.Context) *PageManager {
+	pm.ctx = ctx
 	return &pm
 }
 
@@ -43,7 +52,8 @@ func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
 		Parent:     parent,
 		Properties: PropertyArray(properties).ForUpdate(),
 	})
-	statusCode, resp, _, err := fetch.DoRequestWithOptions("POST", pm.api(createOp), pm.Headers(), bytes.NewReader(payload))
+	statusCode, resp, _, err := fetch.DoRequestWithOptions("POST", pm.api(createOp),
+		append(pm.Headers(), fetch.WithContext(pm.ctx)), bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create page fail: %w", err)
 	}
@@ -62,7 +72,7 @@ func (pm *PageManager) Update(properties ...*Property) error {
 	payload, _ := json.Marshal(map[string]interface{}{"properties": PropertyArray(properties).ForUpdate()})
 	log.Debug("update page with payload: %s", string(payload))
 
-	resp, err := fetch.Patch(pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
+	resp, err := fetch.CtxPatch(pm.ctx, pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
 	if err != nil {
 		return fmt.Errorf("update database %s fail: %w", pm.ID, err)
 	}

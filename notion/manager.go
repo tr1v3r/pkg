@@ -1,6 +1,7 @@
 package notion
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/riverchu/pkg/fetch"
@@ -52,12 +53,20 @@ func NewManager(version, token string) *Manager {
 	}
 }
 
-func (i *Manager) Set(version, token string) {
-	i.DatabaseManager.Set(version, token)
-	i.PageManager.Set(version, token)
-	i.BlockManager.Set(version, token)
-	i.SearchManager.Set(version, token)
-	i.Set(version, token)
+func (mgr *Manager) Set(version, token string) {
+	mgr.DatabaseManager.Set(version, token)
+	mgr.PageManager.Set(version, token)
+	mgr.BlockManager.Set(version, token)
+	mgr.SearchManager.Set(version, token)
+	mgr.Set(version, token)
+}
+
+func (mgr Manager) WithContext(ctx context.Context) *Manager {
+	mgr.DatabaseManager = mgr.DatabaseManager.WithContext(ctx)
+	mgr.PageManager = mgr.PageManager.WithContext(ctx)
+	mgr.BlockManager = mgr.BlockManager.WithContext(ctx)
+	mgr.SearchManager = mgr.SearchManager.WithContext(ctx)
+	return &mgr
 }
 
 type baseInfo struct {
