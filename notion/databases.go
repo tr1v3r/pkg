@@ -2,6 +2,7 @@ package notion
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +16,7 @@ func NewDatabaseManager(version, token string) *DatabaseManager {
 	return &DatabaseManager{baseInfo: &baseInfo{
 		NotionVersion: version,
 		BearerToken:   token,
-	}}
+	}, ctx: context.Background()}
 }
 
 // DatabaseManager ...
@@ -23,11 +24,19 @@ type DatabaseManager struct {
 	*baseInfo
 
 	ID string
+
+	ctx context.Context
 }
 
 // WithID set database id
 func (dm DatabaseManager) WithID(id string) *DatabaseManager {
 	dm.ID = id
+	return &dm
+}
+
+// WithContext set Context
+func (dm DatabaseManager) WithContext(ctx context.Context) *DatabaseManager {
+	dm.ctx = ctx
 	return &dm
 }
 
@@ -48,7 +57,8 @@ func (dm *DatabaseManager) Create(parent PageItem, title []TextObject, propertie
 		Title:      title,
 		Properties: properties,
 	})
-	statusCode, resp, _, err := fetch.DoRequestWithOptions("POST", dm.api(createOp), dm.Headers(), bytes.NewReader(payload))
+	statusCode, resp, _, err := fetch.DoRequestWithOptions("POST", dm.api(createOp),
+		append(dm.Headers(), fetch.WithContext(dm.ctx)), bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("create database fail: %w", err)
 	}
@@ -64,7 +74,7 @@ func (dm *DatabaseManager) Create(parent PageItem, title []TextObject, propertie
 func (dm *DatabaseManager) Retrieve() (*Object, error) {
 	log.Debug("retrieve database %s", dm.ID)
 
-	resp, err := fetch.Get(dm.api(retrieveOp), dm.Headers()...)
+	resp, err := fetch.CtxGet(dm.ctx, dm.api(retrieveOp), dm.Headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
 	}
@@ -90,7 +100,7 @@ func (dm *DatabaseManager) Query(filter *Filter) (results []Object, err error) {
 
 	var api = dm.api(queryOp)
 
-	resp, err := fetch.Post(api, bytes.NewReader(filter.Payload()), dm.Headers()...)
+	resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(filter.Payload()), dm.Headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
 	}
@@ -108,7 +118,7 @@ func (dm *DatabaseManager) Query(filter *Filter) (results []Object, err error) {
 	log.Debug("fetch %d items, next cursor: %s", len(obj.Results), obj.NextCursor)
 
 	for obj.HasMore {
-		resp, err := fetch.Post(api, bytes.NewReader((&Filter{StartCursor: obj.NextCursor}).Payload()), dm.Headers()...)
+		resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader((&Filter{StartCursor: obj.NextCursor}).Payload()), dm.Headers()...)
 		if err != nil {
 			return nil, fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
 		}
@@ -124,7 +134,7 @@ func (dm *DatabaseManager) Query(filter *Filter) (results []Object, err error) {
 		}
 
 		results = append(results, obj.Results...)
-		log.Debug("catch %d items, next cursor: %s", len(obj.Results), obj.NextCursor)
+		log.Debug("catch %d items, next cursor: %s", len(results), obj.NextCursor)
 	}
 
 	log.Debug("query database got %d items", len(results))
@@ -137,7 +147,7 @@ func (dm *DatabaseManager) Query(filter *Filter) (results []Object, err error) {
 func (dm *DatabaseManager) Update(payload io.Reader) error {
 	log.Debug("update database %s", dm.ID)
 
-	resp, err := fetch.Patch(dm.api(updateOp), payload, dm.Headers()...)
+	resp, err := fetch.CtxPatch(dm.ctx, dm.api(updateOp), payload, dm.Headers()...)
 	if err != nil {
 		return fmt.Errorf("query api %s fail: %w", dm.ID, err)
 	}
