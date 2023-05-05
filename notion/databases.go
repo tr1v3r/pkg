@@ -95,50 +95,92 @@ func (dm *DatabaseManager) Retrieve() (*Object, error) {
 // Query query databases
 // docs: https://developers.notion.com/reference/post-database-query
 // POST https://api.notion.com/v1/databases/{database_id}/query
-func (dm *DatabaseManager) Query(filter *Filter) (results []Object, err error) {
+func (dm *DatabaseManager) Query(filter *Filter) (objects []Object, err error) {
+	ch, errCh := dm.asyncQuery(filter)
+	for obj := range ch {
+		objects = append(objects, obj)
+	}
+	if err = <-errCh; err != nil {
+		return nil, err
+	}
+	return objects, nil
+}
+
+// AsynQuery ...
+func (dm *DatabaseManager) AsynQuery(filter *Filter) <-chan Object {
+	ch, _ := dm.asyncQuery(filter)
+	return ch
+}
+
+// asyncQuery query databases in async mode
+// docs: https://developers.notion.com/reference/post-database-query
+// POST https://api.notion.com/v1/databases/{database_id}/query
+func (dm *DatabaseManager) asyncQuery(filter *Filter) (<-chan Object, <-chan error) {
 	log.Debug("query database %s", dm.ID)
 
-	var api = dm.api(queryOp)
+	ch := make(chan Object, 4096)
+	errCh := make(chan error, 1)
 
-	resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(filter.Payload()), dm.Headers()...)
-	if err != nil {
-		return nil, fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
+	output := func(objs []Object) {
+		for _, obj := range objs {
+			ch <- obj
+		}
 	}
 
-	var obj = new(Object)
-	if err := json.Unmarshal(resp, obj); err != nil {
-		return nil, fmt.Errorf("unmarshal database %s fail: %w", dm.ID, err)
-	}
-	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-	if obj.Object == "error" {
-		return nil, fmt.Errorf("query database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
-	}
-	// build a new array for results, or array will be owerwritten because of the same memory address with obj.Results
-	results = append(make([]Object, 0, len(obj.Results)), obj.Results...)
-	log.Debug("fetch %d items, next cursor: %s", len(obj.Results), obj.NextCursor)
+	go func() {
+		defer close(ch)
+		defer close(errCh)
+		var count int
+		var api = dm.api(queryOp)
 
-	for obj.HasMore {
-		resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader((&Filter{StartCursor: obj.NextCursor}).Payload()), dm.Headers()...)
+		resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(filter.Payload()), dm.Headers()...)
 		if err != nil {
-			return nil, fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
+			errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
+			return
 		}
 
-		obj = new(Object)
+		var obj = new(Object)
 		if err := json.Unmarshal(resp, obj); err != nil {
-			return nil, fmt.Errorf("unmarshal database %s fail: %w", dm.ID, err)
+			errCh <- fmt.Errorf("unmarshal database %s fail: %w", dm.ID, err)
+			return
 		}
-
 		// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 		if obj.Object == "error" {
-			return nil, fmt.Errorf("query database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
+			errCh <- fmt.Errorf("query database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
+			return
+		}
+		// build a new array for results, or array will be owerwritten because of the same memory address with obj.Results
+		output(obj.Results)
+		count += len(obj.Results)
+		log.Debug("fetch %d items, next cursor: %s", count, obj.NextCursor)
+
+		for obj.HasMore {
+			resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader((&Filter{StartCursor: obj.NextCursor}).Payload()), dm.Headers()...)
+			if err != nil {
+				errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
+				return
+			}
+
+			obj = new(Object)
+			if err := json.Unmarshal(resp, obj); err != nil {
+				errCh <- fmt.Errorf("unmarshal database %s fail: %w", dm.ID, err)
+				return
+			}
+
+			// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
+			if obj.Object == "error" {
+				errCh <- fmt.Errorf("query database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
+				return
+			}
+
+			output(obj.Results)
+			count += len(obj.Results)
+			log.Debug("fetch %d items, next cursor: %s", count, obj.NextCursor)
 		}
 
-		results = append(results, obj.Results...)
-		log.Debug("fetch %d items, next cursor: %s", len(results), obj.NextCursor)
-	}
-
-	log.Debug("query database got %d items", len(results))
-	return results, nil
+		log.Debug("query database got %d items", count)
+	}()
+	return ch, errCh
 }
 
 // Update update database
