@@ -2,15 +2,16 @@ package notion
 
 import "encoding/json"
 
-// Filter query filter
-type Filter struct {
-	PageSize    int             `json:"page_size,omitempty"`
-	StartCursor string          `json:"start_cursor,omitempty"`
-	Filter      FilterCondition `json:"filter"`
+// Condition query filter
+type Condition struct {
+	PageSize    int                 `json:"page_size,omitempty"`
+	StartCursor string              `json:"start_cursor,omitempty"`
+	Filter      *FilterCondition    `json:"filter,omitempty"`
+	Sorts       []PropSortCondition `json:"sorts,omitempty"`
 }
 
 // Payload return payload
-func (f *Filter) Payload() (data []byte) {
+func (f *Condition) Payload() (data []byte) {
 	if f == nil {
 		return nil
 	}
@@ -20,14 +21,19 @@ func (f *Filter) Payload() (data []byte) {
 	if f.PageSize != 0 {
 		payload["page_size"] = f.PageSize
 	}
-
 	if f.StartCursor != "" {
 		payload["start_cursor"] = f.StartCursor
-		data, _ = json.Marshal(payload)
-		return data
+	}
+	if f.Filter != nil {
+		payload["filter"] = f.Filter
+	}
+	if f.Sorts != nil {
+		payload["sorts"] = f.Sorts
 	}
 
-	payload["filter"] = &f.Filter
+	if len(payload) == 0 {
+		return nil
+	}
 
 	data, _ = json.Marshal(payload)
 	return data
@@ -118,4 +124,9 @@ type NumberFilter struct {
 type FilesFilter struct {
 	IsEmpty    bool `json:"is_empty,omitempty"`
 	IsNotEmpty bool `json:"is_not_empty,omitempty"`
+}
+
+type PropSortCondition struct {
+	Property  string `json:"property"`
+	Direction string `json:"direction"` // "ascending" or "descending"
 }

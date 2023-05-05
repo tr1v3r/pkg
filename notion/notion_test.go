@@ -37,7 +37,9 @@ func TestQuery_Database_all(t *testing.T) {
 	mgr.DatabaseManager.ID = os.Getenv("NOTION_DATABASE_ID")
 
 	// query all
-	results, err := mgr.DatabaseManager.Query(nil)
+	results, err := mgr.DatabaseManager.Query(&Condition{
+		Sorts: []PropSortCondition{{Property: "总市值", Direction: "descending"}},
+	})
 	if err != nil {
 		t.Errorf("query fail: %s", err)
 		return

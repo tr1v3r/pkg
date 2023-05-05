@@ -95,8 +95,8 @@ func (dm *DatabaseManager) Retrieve() (*Object, error) {
 // Query query databases
 // docs: https://developers.notion.com/reference/post-database-query
 // POST https://api.notion.com/v1/databases/{database_id}/query
-func (dm *DatabaseManager) Query(filter *Filter) (objects []Object, err error) {
-	ch, errCh := dm.asyncQuery(filter)
+func (dm *DatabaseManager) Query(cond *Condition) (objects []Object, err error) {
+	ch, errCh := dm.asyncQuery(cond)
 	for obj := range ch {
 		objects = append(objects, obj)
 	}
@@ -107,15 +107,15 @@ func (dm *DatabaseManager) Query(filter *Filter) (objects []Object, err error) {
 }
 
 // AsynQuery ...
-func (dm *DatabaseManager) AsynQuery(filter *Filter) <-chan Object {
-	ch, _ := dm.asyncQuery(filter)
+func (dm *DatabaseManager) AsynQuery(cond *Condition) <-chan Object {
+	ch, _ := dm.asyncQuery(cond)
 	return ch
 }
 
 // asyncQuery query databases in async mode
 // docs: https://developers.notion.com/reference/post-database-query
 // POST https://api.notion.com/v1/databases/{database_id}/query
-func (dm *DatabaseManager) asyncQuery(filter *Filter) (<-chan Object, <-chan error) {
+func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan error) {
 	log.Debug("query database %s", dm.ID)
 
 	ch := make(chan Object, 4096)
@@ -127,13 +127,17 @@ func (dm *DatabaseManager) asyncQuery(filter *Filter) (<-chan Object, <-chan err
 		}
 	}
 
+	if cond == nil {
+		cond = new(Condition)
+	}
+
 	go func() {
 		defer close(ch)
 		defer close(errCh)
 		var count int
 		var api = dm.api(queryOp)
 
-		resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(filter.Payload()), dm.Headers()...)
+		resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)
 		if err != nil {
 			errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
 			return
@@ -155,7 +159,8 @@ func (dm *DatabaseManager) asyncQuery(filter *Filter) (<-chan Object, <-chan err
 		log.Debug("fetch %d items, next cursor: %s", count, obj.NextCursor)
 
 		for obj.HasMore {
-			resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader((&Filter{StartCursor: obj.NextCursor}).Payload()), dm.Headers()...)
+			cond.StartCursor = obj.NextCursor
+			resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)
 			if err != nil {
 				errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
 				return
