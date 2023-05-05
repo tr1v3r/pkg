@@ -74,13 +74,13 @@ func (pm *PageManager) Update(properties ...*Property) error {
 
 	resp, err := fetch.CtxPatch(pm.ctx, pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
 	if err != nil {
-		return fmt.Errorf("update database %s fail: %w", pm.ID, err)
+		return fmt.Errorf("update page fail: %w", err)
 	}
 	log.Debug("update page got response %s", string(resp))
 
 	var obj Object
 	if err := json.Unmarshal(resp, &obj); err != nil {
-		return fmt.Errorf("unmarshal page %s fail: %w", pm.ID, err)
+		return fmt.Errorf("unmarshal page fail: %w", err)
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 	if obj.Object == "error" {
@@ -89,7 +89,7 @@ func (pm *PageManager) Update(properties ...*Property) error {
 	return nil
 }
 
-// api return database api
+// api return page api
 func (pm *PageManager) api(typ operateType) string {
 	baseAPI := notionAPI() + "/pages"
 	switch typ {
