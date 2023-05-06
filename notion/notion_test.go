@@ -21,7 +21,7 @@ func init() {
 
 func TestRetrieve_Database(t *testing.T) {
 	mgr := NewManager(version, token)
-	mgr.DatabaseManager.ID = os.Getenv("NOTION_DATABASE_ID")
+	mgr.DatabaseManager.id = os.Getenv("NOTION_DATABASE_ID")
 	obj, err := mgr.DatabaseManager.Retrieve()
 	if err != nil {
 		t.Errorf("query fail: %s", err)
@@ -34,10 +34,12 @@ func TestRetrieve_Database(t *testing.T) {
 
 func TestQuery_Database_all(t *testing.T) {
 	mgr := NewManager(version, token)
-	mgr.DatabaseManager.ID = os.Getenv("NOTION_DATABASE_ID")
+	mgr.DatabaseManager.WithID(os.Getenv("NOTION_DATABASE_ID"))
 
 	// query all
-	results, err := mgr.DatabaseManager.Query(nil)
+	results, err := mgr.DatabaseManager.Query(&Condition{
+		Sorts: []PropSortCondition{{Property: "总市值", Direction: "descending"}},
+	})
 	if err != nil {
 		t.Errorf("query fail: %s", err)
 		return
@@ -49,4 +51,20 @@ func TestQuery_Database_all(t *testing.T) {
 
 	// data, _ := json.Marshal(obj)
 	// t.Logf("query database all items success: %s", string(data))
+}
+
+func TestCreate_Page(t *testing.T) {
+	databaseID := os.Getenv("NOTION_DATABASE_ID")
+
+	mgr := NewManager(version, token)
+
+	err := mgr.PageManager.Create(PageItem{DatabaseID: databaseID},
+		&Property{Name: "Code", Type: RichTextProp, RichText: []TextObject{{
+			Text:        TextItem{Content: "000001"},
+			Annotations: &Annotation{Bold: true, Color: "default"},
+		}}},
+	)
+	if err != nil {
+		t.Errorf("create page fail: %s", err)
+	}
 }
