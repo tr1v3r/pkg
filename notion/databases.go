@@ -47,6 +47,11 @@ func (dm DatabaseManager) WithLimiter(limiter *rate.Limiter) *DatabaseManager {
 	return &dm
 }
 
+// ID get database id
+func (dm *DatabaseManager) ID() string {
+	return dm.id
+}
+
 // Create create database
 // docs: https://developers.notion.com/reference/create-a-database
 // POST https://api.notion.com/v1/databases

@@ -40,3 +40,8 @@ func (bm BlockManager) WithLimiter(limiter *rate.Limiter) *BlockManager {
 	bm.limiter = limiter
 	return &bm
 }
+
+// ID get block id
+func (bm *BlockManager) ID() string {
+	return bm.id
+}
