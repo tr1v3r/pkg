@@ -46,6 +46,11 @@ func (pm PageManager) WithLimiter(limiter *rate.Limiter) *PageManager {
 	return &pm
 }
 
+// ID get page id
+func (pm *PageManager) ID() string {
+	return pm.id
+}
+
 // Create create page
 // docs: https://developers.notion.com/reference/post-page
 // POST https://api.notion.com/v1/pages
