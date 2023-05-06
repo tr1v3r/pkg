@@ -64,6 +64,7 @@ func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
 		Parent:     parent,
 		Properties: PropertyArray(properties).ForUpdate(),
 	})
+	_ = pm.limiter.Wait(pm.ctx)
 	statusCode, resp, _, err := fetch.DoRequestWithOptions("POST", pm.api(createOp),
 		append(pm.Headers(), fetch.WithContext(pm.ctx)), bytes.NewReader(payload))
 	if err != nil {
@@ -84,6 +85,7 @@ func (pm *PageManager) Update(properties ...*Property) error {
 	payload, _ := json.Marshal(map[string]interface{}{"properties": PropertyArray(properties).ForUpdate()})
 	log.Debug("update page with payload: %s", string(payload))
 
+	_ = pm.limiter.Wait(pm.ctx)
 	resp, err := fetch.CtxPatch(pm.ctx, pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
 	if err != nil {
 		return fmt.Errorf("update page fail: %w", err)
