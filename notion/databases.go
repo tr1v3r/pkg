@@ -69,6 +69,8 @@ func (dm *DatabaseManager) Create(parent PageItem, title []TextObject, propertie
 		Title:      title,
 		Properties: properties,
 	})
+
+	_ = dm.limiter.Wait(dm.ctx)
 	statusCode, resp, _, err := fetch.DoRequestWithOptions("POST", dm.api(createOp),
 		append(dm.Headers(), fetch.WithContext(dm.ctx)), bytes.NewReader(payload))
 	if err != nil {
@@ -86,6 +88,7 @@ func (dm *DatabaseManager) Create(parent PageItem, title []TextObject, propertie
 func (dm *DatabaseManager) Retrieve() (*Object, error) {
 	log.Debug("retrieve database %s", dm.id)
 
+	_ = dm.limiter.Wait(dm.ctx)
 	resp, err := fetch.CtxGet(dm.ctx, dm.api(retrieveOp), dm.Headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("retrieve database %s fail: %w", dm.id, err)
@@ -149,6 +152,7 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 		var count int
 		var api = dm.api(queryOp)
 
+		_ = dm.limiter.Wait(dm.ctx)
 		resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)
 		if err != nil {
 			errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.id, err)
@@ -172,6 +176,7 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 
 		for obj.HasMore {
 			cond.StartCursor = obj.NextCursor
+			_ = dm.limiter.Wait(dm.ctx)
 			resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)
 			if err != nil {
 				errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.id, err)
@@ -206,6 +211,7 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 func (dm *DatabaseManager) Update(payload io.Reader) error {
 	log.Debug("update database %s", dm.id)
 
+	_ = dm.limiter.Wait(dm.ctx)
 	resp, err := fetch.CtxPatch(dm.ctx, dm.api(updateOp), payload, dm.Headers()...)
 	if err != nil {
 		return fmt.Errorf("query api %s fail: %w", dm.id, err)
