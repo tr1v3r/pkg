@@ -8,6 +8,7 @@ import (
 
 	"github.com/riverchu/pkg/fetch"
 	"github.com/riverchu/pkg/log"
+	"golang.org/x/time/rate"
 )
 
 // NewPageManager return a new page manager
@@ -15,27 +16,33 @@ func NewPageManager(version, token string) *PageManager {
 	return &PageManager{baseInfo: &baseInfo{
 		NotionVersion: version,
 		BearerToken:   token,
-	}, ctx: context.Background()}
+	}, ctx: context.Background(), limiter: rate.NewLimiter(3, 12)}
 }
 
 // PageManager ...
 type PageManager struct {
 	*baseInfo
 
-	ID string
-
-	ctx context.Context
-}
-
-// WithID set page id
-func (pm PageManager) WithID(id string) *PageManager {
-	pm.ID = id
-	return &pm
+	ctx     context.Context
+	id      string
+	limiter *rate.Limiter
 }
 
 // WithContext set Context
 func (pm PageManager) WithContext(ctx context.Context) *PageManager {
 	pm.ctx = ctx
+	return &pm
+}
+
+// WithID set page id
+func (pm PageManager) WithID(id string) *PageManager {
+	pm.id = id
+	return &pm
+}
+
+// WithLimiter with limiiter
+func (pm PageManager) WithLimiter(limiter *rate.Limiter) *PageManager {
+	pm.limiter = limiter
 	return &pm
 }
 
@@ -67,7 +74,7 @@ func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
 // docs: https://developers.notion.com/reference/patch-page
 // PATCH https://api.notion.com/v1/pages/{page_id}
 func (pm *PageManager) Update(properties ...*Property) error {
-	log.Debug("update page %s", pm.ID)
+	log.Debug("update page %s", pm.id)
 
 	payload, _ := json.Marshal(map[string]interface{}{"properties": PropertyArray(properties).ForUpdate()})
 	log.Debug("update page with payload: %s", string(payload))
@@ -96,11 +103,11 @@ func (pm *PageManager) api(typ operateType) string {
 	case createOp: // POST https://api.notion.com/v1/pages
 		return baseAPI
 	case retrieveOp: // GET https://api.notion.com/v1/pages/{page_id}
-		return baseAPI + "/" + pm.ID
+		return baseAPI + "/" + pm.id
 	case retrievePropOp: // GET https://api.notion.com/v1/pages/{page_id}/properties/{property_id}
-		return baseAPI + "/" + pm.ID + "/properties/"
+		return baseAPI + "/" + pm.id + "/properties/"
 	case updateOp: // PATCH https://api.notion.com/v1/pages/{page_id}
-		return baseAPI + "/" + pm.ID
+		return baseAPI + "/" + pm.id
 	default:
 		return ""
 	}

@@ -21,7 +21,7 @@ func init() {
 
 func TestRetrieve_Database(t *testing.T) {
 	mgr := NewManager(version, token)
-	mgr.DatabaseManager.ID = os.Getenv("NOTION_DATABASE_ID")
+	mgr.DatabaseManager.id = os.Getenv("NOTION_DATABASE_ID")
 	obj, err := mgr.DatabaseManager.Retrieve()
 	if err != nil {
 		t.Errorf("query fail: %s", err)
@@ -34,7 +34,7 @@ func TestRetrieve_Database(t *testing.T) {
 
 func TestQuery_Database_all(t *testing.T) {
 	mgr := NewManager(version, token)
-	mgr.DatabaseManager.ID = os.Getenv("NOTION_DATABASE_ID")
+	mgr.DatabaseManager.WithID(os.Getenv("NOTION_DATABASE_ID"))
 
 	// query all
 	results, err := mgr.DatabaseManager.Query(&Condition{

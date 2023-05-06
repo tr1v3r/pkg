@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"golang.org/x/time/rate"
+
 	"github.com/riverchu/pkg/fetch"
 )
 
@@ -41,11 +43,12 @@ type Manager struct {
 
 // NewManager return a new notion manager
 func NewManager(version, token string) *Manager {
+	limiter := rate.NewLimiter(3, 12)
 	return &Manager{
-		DatabaseManager: NewDatabaseManager(version, token),
-		PageManager:     NewPageManager(version, token),
-		BlockManager:    NewBlockManager(version, token),
-		SearchManager:   NewSearchManager(version, token),
+		DatabaseManager: NewDatabaseManager(version, token).WithLimiter(limiter),
+		PageManager:     NewPageManager(version, token).WithLimiter(limiter),
+		BlockManager:    NewBlockManager(version, token).WithLimiter(limiter),
+		SearchManager:   NewSearchManager(version, token).WithLimiter(limiter),
 		baseInfo: &baseInfo{
 			NotionVersion: version,
 			BearerToken:   token,
@@ -53,6 +56,7 @@ func NewManager(version, token string) *Manager {
 	}
 }
 
+// Set set notion version and token
 func (mgr *Manager) Set(version, token string) {
 	mgr.DatabaseManager.Set(version, token)
 	mgr.PageManager.Set(version, token)
@@ -61,11 +65,21 @@ func (mgr *Manager) Set(version, token string) {
 	mgr.Set(version, token)
 }
 
+// WithContext set context for notion manager
 func (mgr Manager) WithContext(ctx context.Context) *Manager {
 	mgr.DatabaseManager = mgr.DatabaseManager.WithContext(ctx)
 	mgr.PageManager = mgr.PageManager.WithContext(ctx)
 	mgr.BlockManager = mgr.BlockManager.WithContext(ctx)
 	mgr.SearchManager = mgr.SearchManager.WithContext(ctx)
+	return &mgr
+}
+
+// WithLimiter set limiter for notion manager
+func (mgr Manager) WithLimiter(limiter *rate.Limiter) *Manager {
+	mgr.DatabaseManager = mgr.DatabaseManager.WithLimiter(limiter)
+	mgr.PageManager = mgr.PageManager.WithLimiter(limiter)
+	mgr.BlockManager = mgr.BlockManager.WithLimiter(limiter)
+	mgr.SearchManager = mgr.SearchManager.WithLimiter(limiter)
 	return &mgr
 }
 

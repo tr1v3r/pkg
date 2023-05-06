@@ -9,6 +9,7 @@ import (
 
 	"github.com/riverchu/pkg/fetch"
 	"github.com/riverchu/pkg/log"
+	"golang.org/x/time/rate"
 )
 
 // NewDatabaseManager return a new database manager
@@ -16,27 +17,33 @@ func NewDatabaseManager(version, token string) *DatabaseManager {
 	return &DatabaseManager{baseInfo: &baseInfo{
 		NotionVersion: version,
 		BearerToken:   token,
-	}, ctx: context.Background()}
+	}, ctx: context.Background(), limiter: rate.NewLimiter(3, 12)}
 }
 
 // DatabaseManager ...
 type DatabaseManager struct {
 	*baseInfo
 
-	ID string
-
-	ctx context.Context
-}
-
-// WithID set database id
-func (dm DatabaseManager) WithID(id string) *DatabaseManager {
-	dm.ID = id
-	return &dm
+	ctx     context.Context
+	id      string
+	limiter *rate.Limiter
 }
 
 // WithContext set Context
 func (dm DatabaseManager) WithContext(ctx context.Context) *DatabaseManager {
 	dm.ctx = ctx
+	return &dm
+}
+
+// WithID set database id
+func (dm DatabaseManager) WithID(id string) *DatabaseManager {
+	dm.id = id
+	return &dm
+}
+
+// WithLimiter with limiiter
+func (dm DatabaseManager) WithLimiter(limiter *rate.Limiter) *DatabaseManager {
+	dm.limiter = limiter
 	return &dm
 }
 
@@ -72,18 +79,18 @@ func (dm *DatabaseManager) Create(parent PageItem, title []TextObject, propertie
 // docs: https://developers.notion.com/reference/retrieve-a-database
 // GET https://api.notion.com/v1/databases/{database_id}
 func (dm *DatabaseManager) Retrieve() (*Object, error) {
-	log.Debug("retrieve database %s", dm.ID)
+	log.Debug("retrieve database %s", dm.id)
 
 	resp, err := fetch.CtxGet(dm.ctx, dm.api(retrieveOp), dm.Headers()...)
 	if err != nil {
-		return nil, fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
+		return nil, fmt.Errorf("retrieve database %s fail: %w", dm.id, err)
 	}
 
 	log.Debug("retrieve database got %s", string(resp))
 
 	var obj Object
 	if err := json.Unmarshal(resp, &obj); err != nil {
-		return nil, fmt.Errorf("unmarshal database %s fail: %w", dm.ID, err)
+		return nil, fmt.Errorf("unmarshal database %s fail: %w", dm.id, err)
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 	if obj.Object == "error" {
@@ -116,7 +123,7 @@ func (dm *DatabaseManager) AsynQuery(cond *Condition) <-chan Object {
 // docs: https://developers.notion.com/reference/post-database-query
 // POST https://api.notion.com/v1/databases/{database_id}/query
 func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan error) {
-	log.Debug("query database %s", dm.ID)
+	log.Debug("query database %s", dm.id)
 
 	ch := make(chan Object, 4096)
 	errCh := make(chan error, 1)
@@ -139,13 +146,13 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 
 		resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)
 		if err != nil {
-			errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
+			errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.id, err)
 			return
 		}
 
 		var obj = new(Object)
 		if err := json.Unmarshal(resp, obj); err != nil {
-			errCh <- fmt.Errorf("unmarshal database %s fail: %w", dm.ID, err)
+			errCh <- fmt.Errorf("unmarshal database %s fail: %w", dm.id, err)
 			return
 		}
 		// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
@@ -162,13 +169,13 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 			cond.StartCursor = obj.NextCursor
 			resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)
 			if err != nil {
-				errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.ID, err)
+				errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.id, err)
 				return
 			}
 
 			obj = new(Object)
 			if err := json.Unmarshal(resp, obj); err != nil {
-				errCh <- fmt.Errorf("unmarshal database %s fail: %w", dm.ID, err)
+				errCh <- fmt.Errorf("unmarshal database %s fail: %w", dm.id, err)
 				return
 			}
 
@@ -192,17 +199,17 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 // docs: https://developers.notion.com/reference/update-a-database
 // PATCH https://api.notion.com/v1/databases/{database_id}
 func (dm *DatabaseManager) Update(payload io.Reader) error {
-	log.Debug("update database %s", dm.ID)
+	log.Debug("update database %s", dm.id)
 
 	resp, err := fetch.CtxPatch(dm.ctx, dm.api(updateOp), payload, dm.Headers()...)
 	if err != nil {
-		return fmt.Errorf("query api %s fail: %w", dm.ID, err)
+		return fmt.Errorf("query api %s fail: %w", dm.id, err)
 	}
 	log.Debug("update database got %s", string(resp))
 
 	var obj Object
 	if err := json.Unmarshal(resp, &obj); err != nil {
-		return fmt.Errorf("unmarshal api response %s fail: %w", dm.ID, err)
+		return fmt.Errorf("unmarshal api response %s fail: %w", dm.id, err)
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 	if obj.Object == "error" {
@@ -218,11 +225,11 @@ func (dm *DatabaseManager) api(typ operateType) string {
 	case createOp: // POST https://api.notion.com/v1/databases
 		return baseAPI
 	case queryOp: // POST https://api.notion.com/v1/databases/{database_id}/query
-		return baseAPI + "/" + dm.ID + "/query"
+		return baseAPI + "/" + dm.id + "/query"
 	case retrieveOp: // GET https://api.notion.com/v1/databases/{database_id}
-		return baseAPI + "/" + dm.ID
+		return baseAPI + "/" + dm.id
 	case updateOp: // PATCH https://api.notion.com/v1/databases/{database_id}
-		return baseAPI + "/" + dm.ID
+		return baseAPI + "/" + dm.id
 	default:
 		return ""
 	}

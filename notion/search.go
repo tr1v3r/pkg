@@ -1,6 +1,10 @@
 package notion
 
-import "context"
+import (
+	"context"
+
+	"golang.org/x/time/rate"
+)
 
 // NewSearchManager return a new search manager
 func NewSearchManager(version, token string) *SearchManager {
@@ -14,11 +18,18 @@ func NewSearchManager(version, token string) *SearchManager {
 type SearchManager struct {
 	*baseInfo
 
-	ctx context.Context
+	ctx     context.Context
+	limiter *rate.Limiter
 }
 
 // WithContext set Context
 func (sm SearchManager) WithContext(ctx context.Context) *SearchManager {
 	sm.ctx = ctx
+	return &sm
+}
+
+// WithLimiter with limiiter
+func (sm SearchManager) WithLimiter(limiter *rate.Limiter) *SearchManager {
+	sm.limiter = limiter
 	return &sm
 }
