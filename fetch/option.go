@@ -10,19 +10,31 @@ type RequestOption func(req *http.Request) *http.Request
 
 var (
 	// WithHeader ...
-	WithHeader = func(key, value string) RequestOption {
+	WithHeader = func(key string, values ...string) RequestOption {
 		return func(req *http.Request) *http.Request {
-			req.Header.Add(key, value)
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
 			return req
 		}
 	}
 
 	// WithHeaders ...
-	WithHeaders = func(header map[string]string) RequestOption {
+	WithHeaders = func(header map[string][]string) RequestOption {
 		return func(req *http.Request) *http.Request {
-			for key, value := range header {
-				req.Header.Add(key, value)
+			for key, values := range header {
+				for _, value := range values {
+					req.Header.Add(key, value)
+				}
 			}
+			return req
+		}
+	}
+
+	// WithSetHeader set k,v in header
+	WithSetHeader = func(key, value string) RequestOption {
+		return func(req *http.Request) *http.Request {
+			req.Header.Set(key, value)
 			return req
 		}
 	}
