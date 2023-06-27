@@ -62,7 +62,7 @@ func (mgr *Manager) Set(version, token string) {
 	mgr.PageManager.Set(version, token)
 	mgr.BlockManager.Set(version, token)
 	mgr.SearchManager.Set(version, token)
-	mgr.Set(version, token)
+	mgr.baseInfo.Set(version, token)
 }
 
 // WithContext set context for notion manager
