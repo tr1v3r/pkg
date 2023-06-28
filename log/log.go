@@ -7,6 +7,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// TODO add logid info
+
 type Level = logrus.Level
 type Formatter = logrus.Formatter
 
