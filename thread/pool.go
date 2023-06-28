@@ -34,15 +34,13 @@ func NewTimeoutPoolWithDefaults() *TimeoutPool {
 
 // NewTimeoutPool 初始化一个带有执行超时时间的协程池，指定worker数量以及任务队列长度
 func NewTimeoutPool(workerQueueLen, jobQueueLen int) *TimeoutPool {
-	pool := &TimeoutPool{
+	return &TimeoutPool{
 		workerQueue: make(chan *worker, workerQueueLen),
 		jobQueue:    make(chan *Job, jobQueueLen),
 		jobRet:      make(chan struct{}, jobQueueLen),
 		stop:        make(chan struct{}),
 		terminated:  make(chan struct{}),
 	}
-
-	return pool
 }
 
 // Terminate 停止协程池运行，如果有正在运行中的任务会等待其运行完毕
