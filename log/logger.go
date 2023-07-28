@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
-	"time"
 )
 
 var defaultLogger = NewLogger()
@@ -14,9 +12,10 @@ var defaultLogger = NewLogger()
 // NewLogger new logger
 func NewLogger() Logger {
 	return &logger{
+		Formatter: NewFormatter(true),
+
 		level: InfoLevel,
 		out:   os.Stdout,
-		color: true,
 	}
 }
 
@@ -43,9 +42,10 @@ type Logger interface {
 }
 
 type logger struct {
+	*Formatter
+
 	level Level
 	out   io.Writer
-	color bool
 }
 
 // SetLevel set log level
@@ -92,16 +92,9 @@ func (l *logger) getLogID(ctx context.Context) string {
 	return ctx.Value("log_id").(string)
 }
 
-func (l *logger) format(level Level, logID string, format string) string {
-	if l.color {
-		return fmt.Sprintf("\033[38;5;%dm%s [%s]%s\033[0m\n", level.Color(), time.Now().Format(time.RFC3339), strings.ToUpper(level.String()), format)
-	}
-	return fmt.Sprintf("%s [%s]%s\n", time.Now().Format(time.RFC3339), strings.ToUpper(level.String()), format)
-}
-
 func (l *logger) output(level Level, ctx context.Context, format string, v ...any) (int, error) {
 	if !l.allowLevel(level) {
 		return 0, nil
 	}
-	return l.out.Write([]byte(fmt.Sprintf(l.format(level, l.getLogID(ctx), format), v...)))
+	return l.out.Write([]byte(fmt.Sprintf(l.Format(level, l.getLogID(ctx), format), v...)))
 }

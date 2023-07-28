@@ -2,7 +2,6 @@ package log
 
 import (
 	"testing"
-	"time"
 )
 
 func TestOutput(t *testing.T) {
@@ -15,6 +14,4 @@ func TestOutput(t *testing.T) {
 	Error("error message")
 	Fatal("fatal message")
 	Panic("panic message")
-
-	time.Sleep(time.Second)
 }

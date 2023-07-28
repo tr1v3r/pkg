@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/riverchu/pkg/log"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -16,7 +15,7 @@ var (
 
 func init() {
 	log.SetOutput(os.Stdout)
-	log.SetLevel(logrus.DebugLevel)
+	log.SetLevel(log.DebugLevel)
 }
 
 func TestRetrieve_Database(t *testing.T) {

@@ -35,7 +35,7 @@ func (l Level) String() string {
 	case FatalLevel:
 		return "Fatal"
 	case PanicLevel:
-		return "Panic"
+		return "Fatal"
 	default:
 		return ""
 	}
@@ -56,7 +56,7 @@ func (l Level) Color() int {
 	case FatalLevel:
 		return 160
 	case PanicLevel:
-		return 196
+		return 160
 	default:
 		return 0
 	}
