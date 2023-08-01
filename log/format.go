@@ -30,9 +30,9 @@ func (f *Formatter) Format(l Level, logid, format string) string {
 	buf.WriteByte('[')
 	buf.WriteString(strings.ToUpper(l.String()))
 	buf.WriteByte(']')
+	buf.WriteByte(' ')
 
 	if logid != "" {
-		buf.WriteByte(' ')
 		buf.WriteString(logid)
 		buf.WriteByte(' ')
 	}

@@ -14,4 +14,6 @@ func TestOutput(t *testing.T) {
 	Error("error message")
 	Fatal("fatal message")
 	Panic("panic message")
+
+	Flush()
 }

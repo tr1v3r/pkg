@@ -4,20 +4,20 @@ package log
 type Level uint32
 
 const (
-	// PanicLevel panic level
-	PanicLevel Level = iota
-	// FatalLevel fatal level
-	FatalLevel
-	// ErrorLevel error level
-	ErrorLevel
-	// WarnLevel warn level
-	WarnLevel
-	// InfoLevel info level
-	InfoLevel
+	// TraceLevel trace level
+	TraceLevel Level = iota
 	// DebugLevel debug level
 	DebugLevel
-	// TraceLevel trace level
-	TraceLevel
+	// InfoLevel info level
+	InfoLevel
+	// WarnLevel warn level
+	WarnLevel
+	// ErrorLevel error level
+	ErrorLevel
+	// FatalLevel fatal level
+	FatalLevel
+	// PanicLevel panic level
+	PanicLevel
 )
 
 func (l Level) String() string {
@@ -35,7 +35,7 @@ func (l Level) String() string {
 	case FatalLevel:
 		return "Fatal"
 	case PanicLevel:
-		return "Fatal"
+		return "Panic"
 	default:
 		return ""
 	}
@@ -56,7 +56,7 @@ func (l Level) Color() int {
 	case FatalLevel:
 		return 160
 	case PanicLevel:
-		return 160
+		return 196
 	default:
 		return 0
 	}
