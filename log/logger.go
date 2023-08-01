@@ -15,6 +15,7 @@ func NewLogger(handlers ...Handler) Logger { return &logger{handlers: handlers} 
 // Logger logger interface
 type Logger interface {
 	RegisterHandler(...Handler)
+	SetLevel(Level)
 
 	Flush()
 	Close()
@@ -48,6 +49,14 @@ type Handler interface {
 type logger struct {
 	mu       sync.RWMutex
 	handlers []Handler
+}
+
+func (l *logger) SetLevel(level Level) {
+	l.mu.RLock()
+	defer l.mu.RLock()
+	for _, handler := range l.handlers {
+		handler.SetLevel(level)
+	}
 }
 
 func (l *logger) RegisterHandler(handlers ...Handler) {
