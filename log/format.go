@@ -1,21 +1,27 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 )
 
-// NewFormatter create new formatter
-func NewFormatter(color bool) *Formatter {
-	return &Formatter{color: color}
+// Formatter log formatter
+type Formatter interface {
+	Format(l Level, ctx context.Context, format string) string
 }
 
-type Formatter struct {
+// NewStreamFormatter create new stream formatter
+func NewStreamFormatter(color bool) Formatter { return &StreamFormatter{color: color} }
+
+// StreamFormattera stream formatter
+type StreamFormatter struct {
 	color bool
 }
 
-func (f *Formatter) Format(l Level, logid, format string) string {
+// Format format log
+func (f *StreamFormatter) Format(l Level, ctx context.Context, format string) string {
 	var buf strings.Builder
 
 	if f.color {
@@ -32,8 +38,8 @@ func (f *Formatter) Format(l Level, logid, format string) string {
 	buf.WriteByte(']')
 	buf.WriteByte(' ')
 
-	if logid != "" {
-		buf.WriteString(logid)
+	if logID := f.getLogID(ctx); logID != "" {
+		buf.WriteString(logID)
 		buf.WriteByte(' ')
 	}
 
@@ -46,4 +52,11 @@ func (f *Formatter) Format(l Level, logid, format string) string {
 	buf.WriteByte('\n')
 
 	return buf.String()
+}
+
+func (f *StreamFormatter) getLogID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	return ctx.Value("log_id").(string)
 }

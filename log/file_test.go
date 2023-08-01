@@ -7,53 +7,54 @@ import (
 )
 
 func Test_FileName(t *testing.T) {
-	logger, err := NewFileLogger("/tmp/testlog")
+	handler, err := NewFileHandler(TraceLevel, "/tmp/testlog")
 	if err != nil {
-		t.Errorf("create new file logger fail: %s", err)
+		t.Errorf("create new file handler fail: %s", err)
 		return
 	}
+	fileHandler := handler.(*FileHandler)
 
 	expectedName := time.Now().Format("/tmp/testlog/2006-01-02T_15.log")
-	if logger.FileName() != expectedName {
-		t.Errorf("unexpect log file name: %s\n expect: %s", logger.FileName(), expectedName)
+	if fileHandler.FileName() != expectedName {
+		t.Errorf("unexpect log file name: %s\n expect: %s", fileHandler.FileName(), expectedName)
 	}
-	t.Logf("logger file name: %s", logger.FileName())
+	t.Logf("handler file name: %s", fileHandler.FileName())
 
-	logger, err = NewFileLogger("/tmp/testlog", FileLoggerInterval(time.Minute))
+	handler, err = NewFileHandler(TraceLevel, "/tmp/testlog", FileHandlerInterval(time.Minute))
 	if err != nil {
-		t.Errorf("create new file logger fail: %s", err)
+		t.Errorf("create new file handler fail: %s", err)
 	}
+	fileHandler = handler.(*FileHandler)
+
 	expectedName = time.Now().Format("/tmp/testlog/2006-01-02T_15_04.log")
-	if logger.FileName() != expectedName {
-		t.Errorf("unexpect log file name: %s\n expect: %s", logger.FileName(), expectedName)
+	if fileHandler.FileName() != expectedName {
+		t.Errorf("unexpect log file name: %s\n expect: %s", fileHandler.FileName(), expectedName)
 	}
-	t.Logf("logger file name: %s", logger.FileName())
+	t.Logf("handler file name: %s", fileHandler.FileName())
 
-	logger, err = NewFileLogger("/tmp/testlog", FileLoggerInterval(3*time.Hour))
+	handler, err = NewFileHandler(TraceLevel, "/tmp/testlog", FileHandlerInterval(3*time.Hour))
 	if err != nil {
-		t.Errorf("create new file logger fail: %s", err)
+		t.Errorf("create new file handler fail: %s", err)
 	}
+	fileHandler = handler.(*FileHandler)
+
 	expectedName = time.Now().Format("/tmp/testlog/2006-01-02T.log")
-	if logger.FileName() != expectedName {
-		t.Errorf("unexpect log file name: %s\n expect: %s", logger.FileName(), expectedName)
+	if fileHandler.FileName() != expectedName {
+		t.Errorf("unexpect log file name: %s\n expect: %s", fileHandler.FileName(), expectedName)
 	}
-	t.Logf("logger file name: %s", logger.FileName())
+	t.Logf("handler file name: %s", fileHandler.FileName())
 }
 
 func TestLog(t *testing.T) {
-	logger, err := NewFileLogger("/tmp/testlog",
-		FileLoggerInterval(time.Minute),
-		FileLoggerFormatter(func(log []byte) []byte {
-			return append([]byte(time.Now().Format("2006-01-02T15:04:05")+" "), log...)
-		}),
-	)
+	handler, err := NewFileHandler(TraceLevel, "/tmp/testlog", FileHandlerInterval(time.Minute))
+	fileHandler := handler.(*FileHandler)
 	if err != nil {
-		t.Errorf("create new file logger fail: %s", err)
+		t.Errorf("create new file handler fail: %s", err)
 	}
 
 	count := 0
 	for range time.Tick(time.Second) {
-		n, err := logger.Write([]byte("log:" + fmt.Sprint(count) + "\n"))
+		n, err := fileHandler.Write([]byte("log: " + fmt.Sprint(count) + "\n"))
 		count++
 		t.Logf("write log: %d %s", n, err)
 	}

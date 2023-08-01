@@ -8,11 +8,11 @@ import (
 // Flush flush log
 func Flush() { defaultLogger.Flush() }
 
-// SetOutput set output
-func SetOutput(out io.Writer) { defaultLogger.SetOutput(out) }
-
 // SetLevel set output log level
-func SetLevel(l Level) { defaultLogger.SetLevel(l) }
+func SetLevel(l Level) { defaultHandler.SetLevel(l) }
+
+// RegisterOutput register log output
+func RegisterOutput(out io.Writer) { defaultHandler.RegisterOutput(out) }
 
 // Trace ...
 func Trace(format string, args ...interface{}) {
