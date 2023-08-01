@@ -58,5 +58,8 @@ func (f *StreamFormatter) getLogID(ctx context.Context) string {
 	if ctx == nil {
 		return ""
 	}
-	return ctx.Value("log_id").(string)
+	if v := ctx.Value("log_id"); v != nil {
+		return v.(string)
+	}
+	return ""
 }
