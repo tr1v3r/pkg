@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sync"
 )
 
 // NewStreamHandler create new stream handler
@@ -17,7 +18,6 @@ func NewStreamHandler(level Level) Handler {
 		ch:    make(chan []byte, 8*1024),
 		out:   os.Stdout,
 	}
-	go handler.serve()
 	return handler
 }
 
@@ -28,6 +28,8 @@ type StreamHandler struct {
 	level Level
 	ch    chan []byte
 	out   io.Writer
+
+	once sync.Once
 }
 
 func (s *StreamHandler) SetLevel(level Level)        { s.level = level }
@@ -37,6 +39,7 @@ func (s *StreamHandler) SetOutput(out io.Writer)      { s.out = out }
 func (s *StreamHandler) RegisterOutput(out io.Writer) { s.out = io.MultiWriter(s.out, out) }
 
 func (s *StreamHandler) Output(level Level, ctx context.Context, format string, v ...any) {
+	s.once.Do(func() { go s.serve() })
 	if s.allowLevel(level) {
 		s.ch <- []byte(fmt.Sprintf(s.Format(level, ctx, format), v...))
 	}

@@ -8,6 +8,9 @@ import (
 // Flush flush log
 func Flush() { defaultLogger.Flush() }
 
+// Close close
+func Close() { defaultLogger.Close() }
+
 // SetLevel set output log level
 func SetLevel(l Level) { defaultHandler.SetLevel(l) }
 

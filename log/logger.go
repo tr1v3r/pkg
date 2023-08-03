@@ -111,10 +111,3 @@ func (l *logger) output(level Level, ctx context.Context, format string, v ...an
 		handler.Output(level, ctx, format, v...)
 	}
 }
-
-// func init() { go defaultLogger.(*logger).serve() }
-// func (l *logger) serve() {
-// 	for msg := range l.ch {
-// 		_, _ = l.out.Write([]byte(msg))
-// 	}
-// }

@@ -40,7 +40,6 @@ func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (Handler
 	for _, opt := range opts {
 		handler = opt(handler)
 	}
-	go handler.serve()
 	return handler, nil
 }
 
@@ -97,6 +96,8 @@ type FileHandler struct {
 
 	mu  sync.RWMutex
 	out *os.File
+
+	once sync.Once
 }
 
 func (f *FileHandler) SetLevel(level Level)        { f.level = level }
@@ -105,6 +106,7 @@ func (f *FileHandler) allowLevel(level Level) bool { return level >= f.level }
 func (f *FileHandler) RegisterOutput(out io.Writer) { /* do nothing */ }
 
 func (f *FileHandler) Output(level Level, ctx context.Context, format string, v ...any) {
+	f.once.Do(func() { go f.serve() })
 	if f.allowLevel(level) {
 		f.ch <- []byte(fmt.Sprintf(f.Format(level, ctx, format), v...))
 	}
