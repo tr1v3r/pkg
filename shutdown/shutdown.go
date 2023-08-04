@@ -20,3 +20,6 @@ func Cancelled() bool {
 		return false
 	}
 }
+
+// Stop call ctx's stop
+func Stop() { stop() }
