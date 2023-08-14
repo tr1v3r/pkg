@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/riverchu/pkg/fetch"
+	"github.com/tr1v3r/pkg/fetch"
 )
 
 const (

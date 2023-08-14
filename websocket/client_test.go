@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	ws "github.com/riverchu/pkg/websocket"
+	ws "github.com/tr1v3r/pkg/websocket"
 )
 
 const (

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/riverchu/pkg/fetch"
-	"github.com/riverchu/pkg/log"
+	"github.com/tr1v3r/pkg/fetch"
+	"github.com/tr1v3r/pkg/log"
 	"golang.org/x/time/rate"
 )
 

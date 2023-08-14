@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/riverchu/pkg/log"
+	"github.com/tr1v3r/pkg/log"
 )
 
 var (

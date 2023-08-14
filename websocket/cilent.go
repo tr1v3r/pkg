@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/riverchu/pkg/log"
+	"github.com/tr1v3r/pkg/log"
 )
 
 // ConnectWebsocket connect websocket

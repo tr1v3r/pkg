@@ -1,4 +1,4 @@
-module github.com/riverchu/pkg
+module github.com/tr1v3r/pkg
 
 go 1.18
 
