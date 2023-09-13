@@ -23,8 +23,8 @@ func Trace(format string, args ...interface{}) {
 }
 
 // CtxTrace ...
-func CtxTrace(_ context.Context, format string, args ...interface{}) {
-	defaultLogger.Trace(format, args...)
+func CtxTrace(ctx context.Context, format string, args ...interface{}) {
+	defaultLogger.CtxTrace(ctx, format, args...)
 }
 
 // Debug ...
@@ -33,8 +33,8 @@ func Debug(format string, args ...interface{}) {
 }
 
 // CtxDebug ...
-func CtxDebug(_ context.Context, format string, args ...interface{}) {
-	defaultLogger.Debug(format, args...)
+func CtxDebug(ctx context.Context, format string, args ...interface{}) {
+	defaultLogger.CtxDebug(ctx, format, args...)
 }
 
 // Info ...
@@ -43,8 +43,8 @@ func Info(format string, args ...interface{}) {
 }
 
 // CtxInfo ...
-func CtxInfo(_ context.Context, format string, args ...interface{}) {
-	defaultLogger.Info(format, args...)
+func CtxInfo(ctx context.Context, format string, args ...interface{}) {
+	defaultLogger.CtxInfo(ctx, format, args...)
 }
 
 // Warn ...
@@ -53,8 +53,8 @@ func Warn(format string, args ...interface{}) {
 }
 
 // CtxWarn ...
-func CtxWarn(_ context.Context, format string, args ...interface{}) {
-	defaultLogger.Warn(format, args...)
+func CtxWarn(ctx context.Context, format string, args ...interface{}) {
+	defaultLogger.CtxWarn(ctx, format, args...)
 }
 
 // Error ...
@@ -63,8 +63,8 @@ func Error(format string, args ...interface{}) {
 }
 
 // CtxError ...
-func CtxError(_ context.Context, format string, args ...interface{}) {
-	defaultLogger.Error(format, args...)
+func CtxError(ctx context.Context, format string, args ...interface{}) {
+	defaultLogger.CtxError(ctx, format, args...)
 }
 
 // Fatal ...
@@ -73,8 +73,8 @@ func Fatal(format string, args ...interface{}) {
 }
 
 // CtxFatal ...
-func CtxFatal(_ context.Context, format string, args ...interface{}) {
-	defaultLogger.Fatal(format, args...)
+func CtxFatal(ctx context.Context, format string, args ...interface{}) {
+	defaultLogger.CtxFatal(ctx, format, args...)
 }
 
 // Panic ...
@@ -83,6 +83,6 @@ func Panic(format string, args ...interface{}) {
 }
 
 // CtxPanic ...
-func CtxPanic(_ context.Context, format string, args ...interface{}) {
-	defaultLogger.Panic(format, args...)
+func CtxPanic(ctx context.Context, format string, args ...interface{}) {
+	defaultLogger.CtxPanic(ctx, format, args...)
 }

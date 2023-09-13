@@ -76,13 +76,13 @@ func (l *logger) Close() {
 	}
 }
 
-func (l *logger) Trace(format string, v ...any) { l.output(TraceLevel, nil, format, v...) }
-func (l *logger) Debug(format string, v ...any) { l.output(DebugLevel, nil, format, v...) }
-func (l *logger) Info(format string, v ...any)  { l.output(InfoLevel, nil, format, v...) }
-func (l *logger) Warn(format string, v ...any)  { l.output(WarnLevel, nil, format, v...) }
-func (l *logger) Error(format string, v ...any) { l.output(ErrorLevel, nil, format, v...) }
-func (l *logger) Fatal(format string, v ...any) { l.output(FatalLevel, nil, format, v...) }
-func (l *logger) Panic(format string, v ...any) { l.output(PanicLevel, nil, format, v...) }
+func (l *logger) Trace(format string, v ...any) { l.CtxTrace(nil, format, v...) } // nolint
+func (l *logger) Debug(format string, v ...any) { l.CtxDebug(nil, format, v...) } // nolint
+func (l *logger) Info(format string, v ...any)  { l.CtxInfo(nil, format, v...) }  // nolint
+func (l *logger) Warn(format string, v ...any)  { l.CtxWarn(nil, format, v...) }  // nolint
+func (l *logger) Error(format string, v ...any) { l.CtxError(nil, format, v...) } // nolint
+func (l *logger) Fatal(format string, v ...any) { l.CtxFatal(nil, format, v...) } // nolint
+func (l *logger) Panic(format string, v ...any) { l.CtxPanic(nil, format, v...) } // nolint
 
 func (l *logger) CtxTrace(ctx context.Context, format string, v ...any) {
 	l.output(TraceLevel, ctx, format, v...)
