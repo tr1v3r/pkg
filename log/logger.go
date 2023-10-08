@@ -6,8 +6,10 @@ import (
 	"sync"
 )
 
-var defaultHandler = NewStreamHandler(InfoLevel)
-var defaultLogger = NewLogger(defaultHandler)
+var (
+	defaultHandler = NewStreamHandler(InfoLevel)
+	defaultLogger  = NewLogger(defaultHandler)
+)
 
 // NewLogger new logger
 func NewLogger(handlers ...Handler) Logger { return &logger{handlers: handlers} }
@@ -15,6 +17,8 @@ func NewLogger(handlers ...Handler) Logger { return &logger{handlers: handlers} 
 // Logger logger interface
 type Logger interface {
 	RegisterHandler(...Handler)
+	ClearHandler()
+
 	SetLevel(Level)
 
 	Flush()
@@ -38,9 +42,11 @@ type Logger interface {
 }
 
 type Handler interface {
-	Output(level Level, ctx context.Context, format string, v ...any)
+	io.Writer
 
 	SetLevel(Level)
+	Output(level Level, ctx context.Context, format string, v ...any)
+
 	RegisterOutput(io.Writer)
 	Flush()
 	Close()
@@ -63,6 +69,12 @@ func (l *logger) RegisterHandler(handlers ...Handler) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.handlers = append(l.handlers, handlers...)
+}
+
+func (l *logger) ClearHandler() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.handlers = make([]Handler, 0, 4)
 }
 
 func (l *logger) Flush() {

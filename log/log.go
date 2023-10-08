@@ -11,6 +11,12 @@ func Flush() { defaultLogger.Flush() }
 // Close close
 func Close() { defaultLogger.Close() }
 
+// RegisterHandler register handlers
+func RegisterHandler(handlers ...Handler) { defaultLogger.RegisterHandler(handlers...) }
+
+// ClearHandler clear all handlers
+func ClearHandler() { defaultLogger.ClearHandler() }
+
 // SetLevel set output log level
 func SetLevel(l Level) { defaultHandler.SetLevel(l) }
 

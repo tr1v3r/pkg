@@ -33,7 +33,7 @@ func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (Handler
 
 		Dir: dir,
 
-		level:         InfoLevel,
+		level:         level,
 		ch:            make(chan []byte, 8*1024),
 		intervalLevel: IntervalHour,
 	}
@@ -145,7 +145,7 @@ func (f *FileHandler) file() (*os.File, error) {
 	return _f, nil
 }
 
-func (f *FileHandler) getOutput() (*os.File, error) {
+func (f *FileHandler) getOutput() (io.Writer, error) {
 	f.mu.RLock()
 	if f.out != nil {
 		if f.out.Name() == f.FileName() {
