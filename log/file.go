@@ -116,7 +116,7 @@ func (f *FileHandler) Output(level Level, ctx context.Context, format string, v 
 func (f *FileHandler) Write(p []byte) (int, error) {
 	output, err := f.getOutput()
 	if err != nil {
-		return 0, fmt.Errorf("get output log file handler fail: %w", err)
+		return 0, fmt.Errorf("get file output writer fail: %w", err)
 	}
 	return output.Write(p)
 }
