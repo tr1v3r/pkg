@@ -3,6 +3,7 @@ package fetch
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -88,7 +89,11 @@ func DoRequestWithContext(ctx context.Context, method string, url string, opts [
 
 // DoRequestWithOptions 进行HTTP请求并返回响应头
 func DoRequestWithOptions(method string, url string, opts []RequestOption, body io.Reader) (statusCode int, content []byte, respHeaders http.Header, err error) {
-	req, _ := http.NewRequest(method, url, body)
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("build new request fail: %w", err)
+	}
+
 	for _, opt := range opts {
 		req = opt(req)
 	}
