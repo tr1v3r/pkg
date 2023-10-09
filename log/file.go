@@ -180,6 +180,7 @@ func (f *FileHandler) checkOutput() *os.File {
 
 func (f *FileHandler) Flush() {
 	runtime.Gosched()
+	defer f.flush()
 	for {
 		select {
 		case msg := <-f.ch:
@@ -189,6 +190,13 @@ func (f *FileHandler) Flush() {
 		}
 	}
 }
+
+func (f *FileHandler) flush() {
+	if file := f.checkOutput(); file != nil {
+		_ = file.Sync()
+	}
+}
+
 func (f *FileHandler) Close() {
 	close(f.ch)
 	f.Flush()
