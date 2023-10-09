@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 // NewFileHandler 滚动文件日志
@@ -36,6 +38,8 @@ func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (Handler
 		level:         level,
 		ch:            make(chan []byte, 8*1024),
 		intervalLevel: IntervalHour,
+
+		limiter: rate.NewLimiter(100, 1000),
 	}
 	for _, opt := range opts {
 		handler = opt(handler)
@@ -97,7 +101,8 @@ type FileHandler struct {
 	mu  sync.RWMutex
 	out *os.File
 
-	once sync.Once
+	once    sync.Once
+	limiter *rate.Limiter
 }
 
 func (f *FileHandler) SetLevel(level Level)        { f.level = level }
@@ -107,18 +112,23 @@ func (f *FileHandler) SetOutput(out io.Writer)      { /* do nothing */ }
 func (f *FileHandler) RegisterOutput(out io.Writer) { /* do nothing */ }
 
 func (f *FileHandler) Output(level Level, ctx context.Context, format string, v ...any) {
-	f.once.Do(func() { go f.serve() })
+	f.once.Do(func() {
+		_ = f.refreshWriter()
+		go f.serve()
+	})
 	if f.allowLevel(level) {
 		f.ch <- []byte(fmt.Sprintf(f.Format(level, ctx, format), v...))
 	}
 }
 
 func (f *FileHandler) Write(p []byte) (int, error) {
-	output, err := f.getOutput()
-	if err != nil {
-		return 0, fmt.Errorf("get file output writer fail: %w", err)
+	if err := f.refreshWriter(); err != nil {
+		return 0, fmt.Errorf("refresh writer fail: %w", err)
 	}
-	return output.Write(p)
+
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.out.Write(p)
 }
 
 func (f *FileHandler) FileName() string {
@@ -147,54 +157,55 @@ func (f *FileHandler) file() (*os.File, error) {
 	return curFile, nil
 }
 
-func (f *FileHandler) getOutput() (io.Writer, error) {
-	if out := f.checkOutput(); out != nil {
-		return out, nil
+// checkOutput return f.out if valid, else return nil
+func (f *FileHandler) needRefreshWriter() bool {
+	if !f.limiter.Allow() {
+		return false
+	}
+
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.out == nil || f.out.Name() != f.FileName()
+}
+
+func (f *FileHandler) refreshWriter() error {
+	if !f.needRefreshWriter() {
+		return nil
 	}
 
 	// create new file output writer
 	output, err := f.file()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	f.mu.Lock()
+	if o := f.out; o != nil {
+		go o.Close()
+	}
 	f.out = output
 	f.mu.Unlock()
 
-	return output, nil
-}
-
-// checkOutput return f.out if valid, else return nil
-func (f *FileHandler) checkOutput() *os.File {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
-
-	// close file handler when filename not matched
-	if f.out != nil && f.out.Name() != f.FileName() {
-		f.out.Close()
-		return nil
-	}
-	return f.out // f.out is nil or f.out match file name
+	return nil
 }
 
 func (f *FileHandler) Flush() {
 	runtime.Gosched()
-	defer f.flush()
 	for {
 		select {
 		case msg := <-f.ch:
 			_, _ = f.Write(msg)
 		default:
+			f.flush()
 			return
 		}
 	}
 }
 
 func (f *FileHandler) flush() {
-	if file := f.checkOutput(); file != nil {
-		_ = file.Sync()
-	}
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	_ = f.out.Sync()
 }
 
 func (f *FileHandler) Close() {
