@@ -23,6 +23,9 @@ func SetLevel(l Level) { defaultHandler.SetLevel(l) }
 // RegisterOutput register log output
 func RegisterOutput(out io.Writer) { defaultHandler.RegisterOutput(out) }
 
+// SetOutput set log output
+func SetOutput(out io.Writer) { defaultHandler.SetOutput(out) }
+
 // Trace ...
 func Trace(format string, args ...interface{}) {
 	defaultLogger.Trace(format, args...)

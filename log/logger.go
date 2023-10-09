@@ -47,9 +47,11 @@ type Handler interface {
 	SetLevel(Level)
 	Output(level Level, ctx context.Context, format string, v ...any)
 
-	RegisterOutput(io.Writer)
 	Flush()
 	Close()
+
+	RegisterOutput(io.Writer)
+	SetOutput(io.Writer)
 }
 
 type logger struct {

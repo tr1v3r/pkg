@@ -103,6 +103,7 @@ type FileHandler struct {
 func (f *FileHandler) SetLevel(level Level)        { f.level = level }
 func (f *FileHandler) allowLevel(level Level) bool { return level >= f.level }
 
+func (f *FileHandler) SetOutput(out io.Writer)      { /* do nothing */ }
 func (f *FileHandler) RegisterOutput(out io.Writer) { /* do nothing */ }
 
 func (f *FileHandler) Output(level Level, ctx context.Context, format string, v ...any) {
@@ -133,30 +134,25 @@ func (f *FileHandler) FileName() string {
 		fileName.WriteString(time.Now().Format("2006-01-02"))
 	}
 	fileName.WriteString(".log")
+
 	return fileName.String()
 }
 
 func (f *FileHandler) file() (*os.File, error) {
 	logFileName := f.FileName()
-	_f, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	curFile, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("open log file %s fail: %w", logFileName, err)
 	}
-	return _f, nil
+	return curFile, nil
 }
 
 func (f *FileHandler) getOutput() (io.Writer, error) {
-	f.mu.RLock()
-	if f.out != nil {
-		if f.out.Name() == f.FileName() {
-			defer f.mu.RUnlock()
-			return f.out, nil
-		} else {
-			f.out.Close()
-		}
+	if out := f.checkOutput(); out != nil {
+		return out, nil
 	}
-	f.mu.RUnlock()
 
+	// create new file output writer
 	output, err := f.file()
 	if err != nil {
 		return nil, err
@@ -169,13 +165,26 @@ func (f *FileHandler) getOutput() (io.Writer, error) {
 	return output, nil
 }
 
+// checkOutput return f.out if valid, else return nil
+func (f *FileHandler) checkOutput() *os.File {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	// close file handler when filename not matched
+	if f.out != nil && f.out.Name() != f.FileName() {
+		f.out.Close()
+		return nil
+	}
+	return f.out // f.out is nil or f.out match file name
+}
+
 func (f *FileHandler) Flush() {
 	runtime.Gosched()
 	for {
 		select {
 		case msg := <-f.ch:
 			f.mu.RLock()
-			_, _ = f.out.Write(msg)
+			_, _ = f.Write(msg)
 			f.mu.RUnlock()
 		default:
 			return
@@ -189,8 +198,6 @@ func (f *FileHandler) Close() {
 
 func (f *FileHandler) serve() {
 	for msg := range f.ch {
-		f.mu.RLock()
-		_, _ = f.out.Write(msg)
-		f.mu.RUnlock()
+		_, _ = f.Write(msg)
 	}
 }

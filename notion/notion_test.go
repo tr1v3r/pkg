@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	log.SetOutput(os.Stdout)
+	log.RegisterOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
 }
 

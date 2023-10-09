@@ -27,7 +27,7 @@ type StreamHandler struct {
 
 	level Level
 	ch    chan []byte
-	out   io.Writer
+	out   io.Writer // thread-unsafe
 
 	once sync.Once
 }
@@ -52,7 +52,7 @@ func (s *StreamHandler) Flush() {
 	for {
 		select {
 		case msg := <-s.ch:
-			_, _ = s.out.Write(msg)
+			_, _ = s.Write(msg)
 		default:
 			return
 		}
@@ -66,6 +66,6 @@ func (s *StreamHandler) Close() {
 // func init() { go defaultLogger.(*logger).serve() }
 func (s *StreamHandler) serve() {
 	for msg := range s.ch {
-		_, _ = s.out.Write(msg)
+		_, _ = s.Write(msg)
 	}
 }

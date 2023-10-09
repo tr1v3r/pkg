@@ -1,7 +1,7 @@
 package log
 
 import (
-	"fmt"
+	"context"
 	"testing"
 	"time"
 )
@@ -38,7 +38,7 @@ func Test_FileName(t *testing.T) {
 	}
 	fileHandler = handler.(*FileHandler)
 
-	expectedName = time.Now().Format("/tmp/testlog/2006-01-02T.log")
+	expectedName = time.Now().Format("/tmp/testlog/2006-01-02.log")
 	if fileHandler.FileName() != expectedName {
 		t.Errorf("unexpect log file name: %s\n expect: %s", fileHandler.FileName(), expectedName)
 	}
@@ -54,8 +54,9 @@ func TestLog(t *testing.T) {
 
 	count := 0
 	for range time.Tick(time.Second) {
-		n, err := fileHandler.Write([]byte("log: " + fmt.Sprint(count) + "\n"))
+		// n, err := fileHandler.Write([]byte("log: " + fmt.Sprint(count) + "\n"))
 		count++
-		t.Logf("write log: %d %s", n, err)
+		// t.Logf("write log: %d %s", n, err)
+		fileHandler.Output(InfoLevel, context.TODO(), "log count: %d", count)
 	}
 }
