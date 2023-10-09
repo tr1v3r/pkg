@@ -183,9 +183,7 @@ func (f *FileHandler) Flush() {
 	for {
 		select {
 		case msg := <-f.ch:
-			f.mu.RLock()
 			_, _ = f.Write(msg)
-			f.mu.RUnlock()
 		default:
 			return
 		}
