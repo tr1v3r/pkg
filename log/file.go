@@ -73,6 +73,13 @@ var (
 			return handler
 		}
 	}
+	// FileHandlerLogFilePrefix set log file prefix
+	FileHandlerLogFilePrefix = func(prefix string) FileHandlerOption {
+		return func(handler *FileHandler) *FileHandler {
+			handler.filePrefix = prefix + "."
+			return handler
+		}
+	}
 )
 
 // IntervalLevel ...
@@ -94,6 +101,8 @@ type FileHandler struct {
 	Dir string
 
 	intervalLevel IntervalLevel
+
+	filePrefix string
 
 	level Level
 	ch    chan []byte
@@ -135,13 +144,16 @@ func (f *FileHandler) FileName() string {
 	fileName := bytes.NewBuffer([]byte(f.Dir))
 	fileName.WriteByte('/')
 
+	fileName.WriteString(f.filePrefix)
+
+	now := time.Now()
 	switch f.intervalLevel {
 	case IntervalMinute:
-		fileName.WriteString(time.Now().Format("2006-01-02T_15_04"))
+		fileName.WriteString(now.Format("2006-01-02T_15_04"))
 	case IntervalHour:
-		fileName.WriteString(time.Now().Format("2006-01-02T_15"))
+		fileName.WriteString(now.Format("2006-01-02T_15"))
 	case IntervalDay:
-		fileName.WriteString(time.Now().Format("2006-01-02"))
+		fileName.WriteString(now.Format("2006-01-02"))
 	}
 	fileName.WriteString(".log")
 
