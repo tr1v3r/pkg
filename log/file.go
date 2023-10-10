@@ -55,6 +55,8 @@ var (
 	FileHandlerInterval = func(interval time.Duration) FileHandlerOption {
 		return func(handler *FileHandler) *FileHandler {
 			switch {
+			case interval <= 0:
+				handler.intervalLevel = IntervalNone
 			case interval <= time.Minute:
 				handler.intervalLevel = IntervalMinute
 			case interval <= time.Hour:
@@ -82,15 +84,17 @@ var (
 	}
 )
 
-// IntervalLevel ...
+// IntervalLevel set interval level
 type IntervalLevel string
 
 const (
-	// IntervalMinute ...
+	// IntervalNone creat log file without interval
+	IntervalNone IntervalLevel = "none"
+	// IntervalMinute create log file every minute
 	IntervalMinute IntervalLevel = "minute"
-	// IntervalHour ...
+	// IntervalHour create log file every hour
 	IntervalHour IntervalLevel = "hour"
-	// IntervalDay ...
+	// IntervalDay create log file every day
 	IntervalDay IntervalLevel = "day"
 )
 
@@ -149,13 +153,13 @@ func (f *FileHandler) FileName() string {
 	now := time.Now()
 	switch f.intervalLevel {
 	case IntervalMinute:
-		fileName.WriteString(now.Format("2006-01-02T_15_04"))
+		fileName.WriteString(now.Format("2006-01-02T_15_04."))
 	case IntervalHour:
-		fileName.WriteString(now.Format("2006-01-02T_15"))
+		fileName.WriteString(now.Format("2006-01-02T_15."))
 	case IntervalDay:
-		fileName.WriteString(now.Format("2006-01-02"))
+		fileName.WriteString(now.Format("2006-01-02."))
 	}
-	fileName.WriteString(".log")
+	fileName.WriteString("log")
 
 	return fileName.String()
 }
