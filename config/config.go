@@ -63,10 +63,11 @@ func (c *Configure) LoadTo(v any, paths ...string) error {
 		r = bytes.NewReader(data)
 	}
 
-	return c.loadTo(v, r)
+	return c.LoadToFrom(v, r)
 }
 
-func (c *Configure) loadTo(v any, r io.Reader) error {
+// LoadToFrom load from r and parse to v
+func (c *Configure) LoadToFrom(v any, r io.Reader) error {
 	buf, err := io.ReadAll(r)
 	if err != nil {
 		return fmt.Errorf("read config fali: %w", err)
