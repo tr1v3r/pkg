@@ -17,6 +17,8 @@ func NewStreamHandler(level Level) Handler {
 		level: level,
 		ch:    make(chan []byte, 8*1024),
 		out:   os.Stdout,
+
+		closed: make(chan struct{}),
 	}
 	return handler
 }
@@ -28,6 +30,8 @@ type StreamHandler struct {
 	level Level
 	ch    chan []byte
 	out   io.Writer // thread-unsafe
+
+	closed chan struct{}
 
 	once sync.Once
 }
@@ -51,7 +55,10 @@ func (s *StreamHandler) Flush() {
 	runtime.Gosched()
 	for {
 		select {
-		case msg := <-s.ch:
+		case msg, ok := <-s.ch:
+			if !ok {
+				return
+			}
 			_, _ = s.Write(msg)
 		default:
 			return
@@ -61,6 +68,7 @@ func (s *StreamHandler) Flush() {
 func (s *StreamHandler) Close() {
 	close(s.ch)
 	s.Flush()
+	<-s.closed
 }
 
 // func init() { go defaultLogger.(*logger).serve() }
@@ -68,4 +76,5 @@ func (s *StreamHandler) serve() {
 	for msg := range s.ch {
 		_, _ = s.Write(msg)
 	}
+	close(s.closed)
 }
