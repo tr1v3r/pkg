@@ -2,24 +2,31 @@ package config_test
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"testing"
 
 	"github.com/tr1v3r/pkg/config"
+	"github.com/tr1v3r/pkg/guard"
 )
 
 // export functions
 
 func GetName() string { return c.Name }
 
-// configure
+func Cancel() <-chan struct{}  { return guard.Cancel() }
+func Cancelled() bool          { return guard.Cancelled() }
+func Context() context.Context { return guard.Context() }
 
+// configure
 var c = &MyConfig{
-	C: config.NewConfigure(),
+	ctx: guard.Context(),
+	C:   config.NewConfigure(),
 }
 
 type MyConfig struct {
-	C *config.Configure `json:"-"`
+	ctx context.Context   `json:"-"`
+	C   *config.Configure `json:"-"`
 
 	Name string `json:"name"`
 }

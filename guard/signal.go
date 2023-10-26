@@ -7,18 +7,14 @@ import (
 	"syscall"
 )
 
-var (
-	ctx  = context.Background()
-	stop = func() {}
-)
+var ctx, stop = signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 // InspectShutSignal inspect shutdown signal
 // default signals: syscall.SIGINT, syscall.SIGTERM
 func InspectShutSignal(signals ...os.Signal) {
 	if len(signals) != 0 {
+		stop()
 		ctx, stop = signal.NotifyContext(ctx, signals...)
-	} else {
-		ctx, stop = signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	}
 }
 
@@ -37,3 +33,6 @@ func Cancelled() bool {
 
 // Stop call ctx's stop
 func Stop() { stop() }
+
+// Context return context
+func Context() context.Context { return ctx }
