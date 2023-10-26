@@ -14,8 +14,10 @@ import (
 	"golang.org/x/time/rate"
 )
 
+var _ Handler = (*FileHandler)(nil)
+
 // NewFileHandler 滚动文件日志
-func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (Handler, error) {
+func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (*FileHandler, error) {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("find file abs path fail: %w", err)
@@ -38,6 +40,8 @@ func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (Handler
 		level:         level,
 		ch:            make(chan []byte, 8*1024),
 		intervalLevel: IntervalHour,
+
+		closed: make(chan struct{}),
 
 		limiter: rate.NewLimiter(100, 1000),
 	}
@@ -113,6 +117,8 @@ type FileHandler struct {
 
 	mu  sync.RWMutex
 	out *os.File
+
+	closed chan struct{}
 
 	once    sync.Once
 	limiter *rate.Limiter
@@ -227,10 +233,12 @@ func (f *FileHandler) flush() {
 func (f *FileHandler) Close() {
 	close(f.ch)
 	f.Flush()
+	<-f.closed
 }
 
 func (f *FileHandler) serve() {
 	for msg := range f.ch {
 		_, _ = f.Write(msg)
 	}
+	close(f.closed)
 }

@@ -12,8 +12,10 @@ type Formatter interface {
 	Format(l Level, ctx context.Context, format string) string
 }
 
+var _ Formatter = (*StreamFormatter)(nil)
+
 // NewStreamFormatter create new stream formatter
-func NewStreamFormatter(color bool) Formatter { return &StreamFormatter{color: color} }
+func NewStreamFormatter(color bool) *StreamFormatter { return &StreamFormatter{color: color} }
 
 // StreamFormattera stream formatter
 type StreamFormatter struct {

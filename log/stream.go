@@ -9,8 +9,10 @@ import (
 	"sync"
 )
 
+var _ Handler = (*StreamHandler)(nil)
+
 // NewStreamHandler create new stream handler
-func NewStreamHandler(level Level) Handler {
+func NewStreamHandler(level Level) *StreamHandler {
 	handler := &StreamHandler{
 		Formatter: NewStreamFormatter(true),
 
