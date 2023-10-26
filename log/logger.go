@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	defaultHandler = NewStreamHandler(InfoLevel)
-	defaultLogger  = NewLogger(defaultHandler)
+	defaultHandler Handler = NewStreamHandler(InfoLevel)
+	defaultLogger  Logger  = NewLogger(defaultHandler)
 )
 
 // NewLogger new logger
