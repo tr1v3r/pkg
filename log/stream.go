@@ -51,7 +51,10 @@ func (s *StreamHandler) Flush() {
 	runtime.Gosched()
 	for {
 		select {
-		case msg := <-s.ch:
+		case msg, ok := <-s.ch:
+			if !ok {
+				return
+			}
 			_, _ = s.Write(msg)
 		default:
 			return
