@@ -23,6 +23,9 @@ func (s *sorter[T]) Len() int           { return len(s.items) }
 func (s *sorter[T]) Swap(i, j int)      { s.items[i], s.items[j] = s.items[j], s.items[i] }
 func (s *sorter[T]) Less(i, j int) bool { return s.by(&s.items[i], &s.items[j]) }
 
+// ReverseBy return an reverse closure By
+func ReverseBy[T any](by By[T]) By[T] { return func(l, r *T) bool { return by(r, l) } }
+
 // ==== multi sort ====
 
 // MultiBy returns a Sorter that sorts using the less functions, in order.
