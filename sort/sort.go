@@ -2,6 +2,8 @@ package sort
 
 import "sort"
 
+// ============ single sort ============
+
 // By is the type of a "less" function that defines the ordering of its T arguments.
 type By[T any] func(l, r *T) bool
 
@@ -26,7 +28,7 @@ func (s *sorter[T]) Less(i, j int) bool { return s.by(&s.items[i], &s.items[j]) 
 // ReverseBy return an reverse closure By
 func ReverseBy[T any](by By[T]) By[T] { return func(l, r *T) bool { return by(r, l) } }
 
-// ==== multi sort ====
+// ============ multi sort ============
 
 // MultiBy returns a Sorter that sorts using the less functions, in order.
 // Call its Sort method to sort the data.

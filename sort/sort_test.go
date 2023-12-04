@@ -2,6 +2,7 @@ package sort_test
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/tr1v3r/pkg/sort"
@@ -13,16 +14,19 @@ type au float64
 
 // A Planet defines the properties of a solar system object.
 type Planet struct {
+	id       int
 	name     string
 	mass     earthMass
 	distance au
 }
 
+func (p Planet) ID() int { return p.id }
+
 var planets = []Planet{
-	{"Mercury", 0.055, 0.4},
-	{"Venus", 0.815, 0.7},
-	{"Earth", 1.0, 1.0},
-	{"Mars", 0.107, 1.5},
+	{1, "Mercury", 0.055, 0.4},
+	{2, "Venus", 0.815, 0.7},
+	{3, "Earth", 1.0, 1.0},
+	{4, "Mars", 0.107, 1.5},
 }
 
 // ExampleSortKeys demonstrates a technique for sorting a struct type using programmable sort criteria.
@@ -35,36 +39,51 @@ func Test_SortKeys(t *testing.T) {
 
 	// Sort the planets by the various criteria.
 	sort.By[Planet](name).Sort(planets)
-	fmt.Println("By name:", planets)
+	if order := []int{3, 4, 1, 2}; !matchIDSort(planets, order...) {
+		t.Errorf("mismatch sort result by name, expected: %+v, got: %+v", order, toIDSlice(planets))
+	}
+	t.Log("By name:", planets)
 
 	sort.By[Planet](mass).Sort(planets)
-	fmt.Println("By mass:", planets)
+	if order := []int{1, 4, 2, 3}; !matchIDSort(planets, order...) {
+		t.Errorf("mismatch sort result by mass, expected: %+v, got: %+v", order, toIDSlice(planets))
+	}
+	t.Log("By mass:", planets)
 
 	sort.By[Planet](distance).Sort(planets)
-	fmt.Println("By distance:", planets)
+	if order := []int{1, 2, 3, 4}; !matchIDSort(planets, order...) {
+		t.Errorf("mismatch sort result by distance, expected: %+v, got: %+v", order, toIDSlice(planets))
+	}
+	t.Log("By distance:", planets)
 
 	sort.By[Planet](decreasingDistance).Sort(planets)
-	fmt.Println("By decreasing distance:", planets)
+	if order := []int{4, 3, 2, 1}; !matchIDSort(planets, order...) {
+		t.Errorf("mismatch sort result by distance desc, expected: %+v, got: %+v", order, toIDSlice(planets))
+	}
+	t.Log("By decreasing distance:", planets)
 
 }
 
 // A Change is a record of source code changes, recording user, language, and delta size.
 type Change struct {
+	id       int
 	user     string
 	language string
 	lines    int
 }
 
+func (c Change) ID() int { return c.id }
+
 var changes = []Change{
-	{"gri", "Go", 100},
-	{"ken", "C", 150},
-	{"glenda", "Go", 200},
-	{"rsc", "Go", 200},
-	{"r", "Go", 100},
-	{"ken", "Go", 200},
-	{"dmr", "C", 100},
-	{"r", "C", 150},
-	{"gri", "Smalltalk", 80},
+	{1, "gri", "Go", 100},
+	{2, "ken", "C", 150},
+	{3, "glenda", "Go", 200},
+	{4, "rsc", "Go", 200},
+	{5, "r", "Go", 100},
+	{6, "ken", "Go", 200},
+	{7, "dmr", "C", 100},
+	{8, "r", "C", 150},
+	{9, "gri", "Smalltalk", 80},
 }
 
 // ExampleMultiKeys demonstrates a technique for sorting a struct type using different
@@ -79,19 +98,68 @@ func Test_SortMultiKeys(t *testing.T) {
 
 	// Simple use: Sort by user.
 	sort.MultiBy[Change](user).Sort(changes)
-	fmt.Println("By user:", changes)
+	if order := []int{7, 3, 1, 9, 2, 6, 5, 8, 4}; !matchIDSort(changes, order...) {
+		t.Errorf("mismatch sort result by user, expected: %+v, got: %+v", order, toIDSlice(changes))
+	}
+	t.Log("By user:", changes)
 
 	// More examples.
 	sort.MultiBy(user, increasingLines).Sort(changes)
-	fmt.Println("By user,<lines:", changes)
+	if order := []int{7, 3, 9, 1, 2, 6, 5, 8, 4}; !matchIDSort(changes, order...) {
+		t.Errorf("mismatch sort result by user,<lines , expected: %+v, got: %+v", order, toIDSlice(changes))
+	}
+	t.Log("By user,<lines:", changes)
 
 	sort.MultiBy(user, decreasingLines).Sort(changes)
-	fmt.Println("By user,>lines:", changes)
+	if order := []int{7, 3, 1, 9, 6, 2, 8, 5, 4}; !matchIDSort(changes, order...) {
+		t.Errorf("mismatch sort result by user,>lines , expected: %+v, got: %+v", order, toIDSlice(changes))
+	}
+	t.Log("By user,>lines:", changes)
 
 	sort.MultiBy(language, increasingLines).Sort(changes)
-	fmt.Println("By language,<lines:", changes)
+	if order := []int{7, 2, 8, 1, 5, 3, 6, 4, 9}; !matchIDSort(changes, order...) {
+		t.Errorf("mismatch sort result by language,<lines , expected: %+v, got: %+v", order, toIDSlice(changes))
+	}
+	t.Log("By language,<lines:", changes)
 
 	sort.MultiBy(language, increasingLines, user).Sort(changes)
-	fmt.Println("By language,<lines,user:", changes)
+	if order := []int{7, 2, 8, 1, 5, 3, 6, 4, 9}; !matchIDSort(changes, order...) {
+		t.Errorf("mismatch sort result by language,<lines,user , expected: %+v, got: %+v", order, toIDSlice(changes))
+	}
+	t.Log("By language,<lines,user:", changes)
 
+}
+
+type Item interface{ ID() int }
+
+func matchIDSort(tgt any, order ...int) bool {
+	t := reflect.ValueOf(tgt)
+
+	if t.Kind() != reflect.Slice {
+		panic(fmt.Errorf("invalid params: tgt must be a slice"))
+	}
+
+	if t.Len() != len(order) {
+		return false
+	}
+
+	for index, id := range order {
+		if t.Index(index).Interface().(Item).ID() != id {
+			return false
+		}
+	}
+	return true
+}
+
+func toIDSlice(tgt any) (ret []int) {
+	t := reflect.ValueOf(tgt)
+
+	if t.Kind() != reflect.Slice {
+		panic(fmt.Errorf("invalid params: tgt must be a slice"))
+	}
+
+	for i := 0; i < t.Len(); i++ {
+		ret = append(ret, t.Index(i).Interface().(Item).ID())
+	}
+	return ret
 }
