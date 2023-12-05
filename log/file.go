@@ -215,7 +215,10 @@ func (f *FileHandler) Flush() {
 	runtime.Gosched()
 	for {
 		select {
-		case msg := <-f.ch:
+		case msg, ok := <-f.ch:
+			if !ok {
+				return
+			}
 			_, _ = f.Write(msg)
 		default:
 			f.flush()
