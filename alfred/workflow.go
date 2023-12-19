@@ -78,7 +78,7 @@ type FlowItem struct {
 	// Mods (optional) the mod element gives you control over how the modifier keys react. It can alter the looks of a result (e.g. subtitle, icon) and output a different arg or session variables.
 	Mods map[ModifierKey]ItemReact `json:"mods,omitempty"`
 	// Action (OBJECT | ARRAY | STRING optional) this element defines the Universal Action items used when actioning the result, and overrides the arg being used for actioning. The action key can take a string or array for simple types, and the content type will automatically be derived by Alfred to file, url, or text.
-	Action any `json:"action"`
+	Action any `json:"action,omitempty"`
 	// Text (optional) Defines the text the user will get when copying the selected result row with ⌘C or displaying large type with ⌘L.
 	Text *ItemTextReact `json:"text,omitempty"`
 	// QuickLookURL (optional) a Quick Look URL which will be visible if the user uses the Quick Look feature within Alfred (tapping shift, or ⌘Y). quicklookurl will also accept a file path, both absolute and relative to home using ~/.
