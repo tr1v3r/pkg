@@ -32,7 +32,7 @@ type MyConfig struct {
 }
 
 func (c *MyConfig) Load(paths ...string) error { return c.C.LoadTo(c, paths...) }
-func (c *MyConfig) LoadFrom(r io.Reader) error { return c.C.LoadToFrom(c, r) }
+func (c *MyConfig) LoadFrom(r io.Reader) error { return c.C.LoadFromTo(r, c) }
 
 func TestGetName(t *testing.T) {
 	err := c.LoadFrom(bytes.NewReader([]byte(`{"name":"jing"}`)))
