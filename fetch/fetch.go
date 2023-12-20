@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"sync"
 	"time"
@@ -104,7 +103,7 @@ func DoRequestWithOptions(method string, url string, opts []RequestOption, body 
 	}
 	defer resp.Body.Close() // nolint
 
-	content, err = ioutil.ReadAll(resp.Body)
+	content, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return -1, nil, nil, err
 	}
