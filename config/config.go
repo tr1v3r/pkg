@@ -22,9 +22,10 @@ func NewConfigure() *Configure {
 }
 
 // Configure ...
-type Configure struct {
-	Parser
-}
+type Configure struct{ Parser }
+
+// WithParser set parser
+func (c *Configure) WithParser(p Parser) { c.Parser = p }
 
 // Load load config and parse to c
 // check env, input param
@@ -63,11 +64,11 @@ func (c *Configure) LoadTo(v any, paths ...string) error {
 		r = bytes.NewReader(data)
 	}
 
-	return c.LoadToFrom(v, r)
+	return c.LoadFromTo(r, v)
 }
 
-// LoadToFrom load from r and parse to v
-func (c *Configure) LoadToFrom(v any, r io.Reader) error {
+// LoadFromTo load from r and parse to v
+func (c *Configure) LoadFromTo(r io.Reader, v any) error {
 	buf, err := io.ReadAll(r)
 	if err != nil {
 		return fmt.Errorf("read config fali: %w", err)
