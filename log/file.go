@@ -118,7 +118,8 @@ type FileHandler struct {
 	mu  sync.RWMutex
 	out *os.File
 
-	closed chan struct{}
+	closeOnce sync.Once
+	closed    chan struct{}
 
 	once    sync.Once
 	limiter *rate.Limiter
@@ -213,10 +214,11 @@ func (f *FileHandler) refreshWriter() error {
 
 func (f *FileHandler) Flush() {
 	runtime.Gosched()
-	for {
+	for i := cap(f.ch); i > 0; i-- { // max try times less than capacity of ch
 		select {
 		case msg, ok := <-f.ch:
 			if !ok {
+				f.close() // in case serve goroutine not running
 				return
 			}
 			_, _ = f.Write(msg)
@@ -239,9 +241,13 @@ func (f *FileHandler) Close() {
 	<-f.closed
 }
 
+func (f *FileHandler) close() {
+	f.closeOnce.Do(func() { close(f.closed) })
+}
+
 func (f *FileHandler) serve() {
 	for msg := range f.ch {
 		_, _ = f.Write(msg)
 	}
-	close(f.closed)
+	f.close()
 }

@@ -33,7 +33,8 @@ type StreamHandler struct {
 	ch    chan []byte
 	out   io.Writer // thread-unsafe
 
-	closed chan struct{}
+	closeOnce sync.Once
+	closed    chan struct{}
 
 	once sync.Once
 }
@@ -55,10 +56,11 @@ func (s *StreamHandler) Write(p []byte) (int, error) { return s.out.Write(p) }
 
 func (s *StreamHandler) Flush() {
 	runtime.Gosched()
-	for {
+	for i := cap(s.ch); i > 0; i-- { // max try times less than capacity of ch
 		select {
 		case msg, ok := <-s.ch:
 			if !ok {
+				s.close() // in case serve goroutine not running
 				return
 			}
 			_, _ = s.Write(msg)
@@ -67,10 +69,15 @@ func (s *StreamHandler) Flush() {
 		}
 	}
 }
+
 func (s *StreamHandler) Close() {
 	close(s.ch)
 	s.Flush()
 	<-s.closed
+}
+
+func (s *StreamHandler) close() {
+	s.closeOnce.Do(func() { close(s.closed) })
 }
 
 // func init() { go defaultLogger.(*logger).serve() }
@@ -78,5 +85,5 @@ func (s *StreamHandler) serve() {
 	for msg := range s.ch {
 		_, _ = s.Write(msg)
 	}
-	close(s.closed)
+	s.close()
 }
