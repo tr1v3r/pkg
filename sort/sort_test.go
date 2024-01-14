@@ -22,7 +22,7 @@ type Planet struct {
 
 func (p Planet) ID() int { return p.id }
 
-var planets = []Planet{
+var planets = []*Planet{
 	{1, "Mercury", 0.055, 0.4},
 	{2, "Venus", 0.815, 0.7},
 	{3, "Earth", 1.0, 1.0},
@@ -74,7 +74,7 @@ type Change struct {
 
 func (c Change) ID() int { return c.id }
 
-var changes = []Change{
+var changes = []*Change{
 	{1, "gri", "Go", 100},
 	{2, "ken", "C", 150},
 	{3, "glenda", "Go", 200},
