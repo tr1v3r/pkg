@@ -12,7 +12,7 @@ func Test_FileName(t *testing.T) {
 		t.Errorf("create new file handler fail: %s", err)
 		return
 	}
-	fileHandler := handler.(*FileHandler)
+	fileHandler := handler
 
 	expectedName := time.Now().Format("/tmp/testlog/2006-01-02T_15.log")
 	if fileHandler.FileName() != expectedName {
@@ -24,7 +24,7 @@ func Test_FileName(t *testing.T) {
 	if err != nil {
 		t.Errorf("create new file handler fail: %s", err)
 	}
-	fileHandler = handler.(*FileHandler)
+	fileHandler = handler
 
 	expectedName = time.Now().Format("/tmp/testlog/2006-01-02T_15_04.log")
 	if fileHandler.FileName() != expectedName {
@@ -36,7 +36,7 @@ func Test_FileName(t *testing.T) {
 	if err != nil {
 		t.Errorf("create new file handler fail: %s", err)
 	}
-	fileHandler = handler.(*FileHandler)
+	fileHandler = handler
 
 	expectedName = time.Now().Format("/tmp/testlog/2006-01-02.log")
 	if fileHandler.FileName() != expectedName {
@@ -47,7 +47,7 @@ func Test_FileName(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	handler, err := NewFileHandler(TraceLevel, "/tmp/testlog", FileHandlerInterval(time.Minute))
-	fileHandler := handler.(*FileHandler)
+	fileHandler := handler
 	if err != nil {
 		t.Errorf("create new file handler fail: %s", err)
 	}
