@@ -1,6 +1,8 @@
 package fetch
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestGet(t *testing.T) {
 	data, err := Get("https://qq.com", WithContentTypeJSON())

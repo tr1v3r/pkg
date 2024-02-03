@@ -1,6 +1,8 @@
 package netool
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestAccessICMPDelay(t *testing.T) {
 	delay, err := ICMPDelay("127.0.0.1", 6)

@@ -1,6 +1,8 @@
 package log
 
-import "testing"
+import (
+	"testing"
+)
 
 func BenchmarkFormatter_Format_withColor(b *testing.B) {
 	formatter := NewStreamFormatter(true)

@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"io"
 
+	"golang.org/x/time/rate"
+
 	"github.com/tr1v3r/pkg/fetch"
 	"github.com/tr1v3r/pkg/log"
-	"golang.org/x/time/rate"
 )
 
 // NewDatabaseManager return a new database manager

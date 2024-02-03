@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"golang.org/x/time/rate"
+
 	"github.com/tr1v3r/pkg/fetch"
 	"github.com/tr1v3r/pkg/log"
-	"golang.org/x/time/rate"
 )
 
 // NewPageManager return a new page manager

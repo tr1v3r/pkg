@@ -1,6 +1,8 @@
 package hash
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestCalcHash(t *testing.T) {
 	data := []byte("hello world")

@@ -1,6 +1,8 @@
 package notion
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // PropertyType property type
 type PropertyType string

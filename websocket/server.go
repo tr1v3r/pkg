@@ -3,6 +3,7 @@ package websocket
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+
 	"github.com/tr1v3r/pkg/log"
 )
 

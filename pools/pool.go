@@ -1,6 +1,8 @@
 package pools
 
-import "sync"
+import (
+	"sync"
+)
 
 // Pool goroutine pool
 type Pool interface {

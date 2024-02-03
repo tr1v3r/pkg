@@ -1,6 +1,8 @@
 package notion
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // Condition query filter
 type Condition struct {
