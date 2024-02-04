@@ -63,7 +63,9 @@ func (s *StreamHandler) Flush() {
 				s.close() // in case serve goroutine not running
 				return
 			}
-			_, _ = s.Write(msg)
+			if _, err := s.Write(msg); err != nil {
+				fmt.Printf("stream hanlder output fail: %s", err)
+			}
 		default:
 			return
 		}
@@ -83,7 +85,9 @@ func (s *StreamHandler) close() {
 // func init() { go defaultLogger.(*logger).serve() }
 func (s *StreamHandler) serve() {
 	for msg := range s.ch {
-		_, _ = s.Write(msg)
+		if _, err := s.Write(msg); err != nil {
+			fmt.Printf("stream hanlder output fail: %s", err)
+		}
 	}
 	s.close()
 }
