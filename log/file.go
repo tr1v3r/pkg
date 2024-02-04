@@ -236,7 +236,7 @@ func (f *FileHandler) flush() {
 }
 
 func (f *FileHandler) Close() {
-	f.close()
+	close(f.ch)
 	f.Flush()
 	<-f.closed
 }

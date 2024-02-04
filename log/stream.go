@@ -71,7 +71,7 @@ func (s *StreamHandler) Flush() {
 }
 
 func (s *StreamHandler) Close() {
-	s.close()
+	close(s.ch)
 	s.Flush()
 	<-s.closed
 }
