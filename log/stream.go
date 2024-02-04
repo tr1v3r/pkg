@@ -13,7 +13,7 @@ var _ Handler = (*StreamHandler)(nil)
 
 // NewStreamHandler create new stream handler
 func NewStreamHandler(level Level) *StreamHandler {
-	handler := &StreamHandler{
+	return &StreamHandler{
 		Formatter: NewStreamFormatter(true),
 
 		level: level,
@@ -22,7 +22,6 @@ func NewStreamHandler(level Level) *StreamHandler {
 
 		closed: make(chan struct{}),
 	}
-	return handler
 }
 
 // StreamHandler stream log handler
@@ -63,7 +62,9 @@ func (s *StreamHandler) Flush() {
 				s.close() // in case serve goroutine not running
 				return
 			}
-			_, _ = s.Write(msg)
+			if _, err := s.Write(msg); err != nil {
+				fmt.Printf("stream hanlder output fail: %s", err)
+			}
 		default:
 			return
 		}
@@ -76,14 +77,14 @@ func (s *StreamHandler) Close() {
 	<-s.closed
 }
 
-func (s *StreamHandler) close() {
-	s.closeOnce.Do(func() { close(s.closed) })
-}
+func (s *StreamHandler) close() { s.closeOnce.Do(func() { close(s.closed) }) }
 
 // func init() { go defaultLogger.(*logger).serve() }
 func (s *StreamHandler) serve() {
 	for msg := range s.ch {
-		_, _ = s.Write(msg)
+		if _, err := s.Write(msg); err != nil {
+			fmt.Printf("stream hanlder output fail: %s", err)
+		}
 	}
 	s.close()
 }
