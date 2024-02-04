@@ -17,9 +17,8 @@ import (
 var _ Handler = (*FileHandler)(nil)
 
 // NewFileHandler 滚动文件日志
-func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (*FileHandler, error) {
-	dir, err := filepath.Abs(dir)
-	if err != nil {
+func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (f *FileHandler, err error) {
+	if dir, err = filepath.Abs(dir); err != nil {
 		return nil, fmt.Errorf("find file abs path fail: %w", err)
 	}
 	if f, err := os.Stat(dir); err != nil {
@@ -32,7 +31,13 @@ func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (*FileHa
 		}
 	}
 
-	handler := &FileHandler{
+	defer func() {
+		for _, opt := range opts {
+			f = opt(f)
+		}
+	}()
+
+	return &FileHandler{
 		Formatter: NewStreamFormatter(true),
 
 		Dir: dir,
@@ -44,11 +49,7 @@ func NewFileHandler(level Level, dir string, opts ...FileHandlerOption) (*FileHa
 		closed: make(chan struct{}),
 
 		limiter: rate.NewLimiter(100, 1000),
-	}
-	for _, opt := range opts {
-		handler = opt(handler)
-	}
-	return handler, nil
+	}, nil
 }
 
 // FileHandlerOption ...

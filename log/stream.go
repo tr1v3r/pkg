@@ -13,7 +13,7 @@ var _ Handler = (*StreamHandler)(nil)
 
 // NewStreamHandler create new stream handler
 func NewStreamHandler(level Level) *StreamHandler {
-	handler := &StreamHandler{
+	return &StreamHandler{
 		Formatter: NewStreamFormatter(true),
 
 		level: level,
@@ -22,7 +22,6 @@ func NewStreamHandler(level Level) *StreamHandler {
 
 		closed: make(chan struct{}),
 	}
-	return handler
 }
 
 // StreamHandler stream log handler
