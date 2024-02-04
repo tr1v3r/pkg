@@ -77,9 +77,7 @@ func (s *StreamHandler) Close() {
 	<-s.closed
 }
 
-func (s *StreamHandler) close() {
-	s.closeOnce.Do(func() { close(s.closed) })
-}
+func (s *StreamHandler) close() { s.closeOnce.Do(func() { close(s.closed) }) }
 
 // func init() { go defaultLogger.(*logger).serve() }
 func (s *StreamHandler) serve() {

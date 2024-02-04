@@ -242,9 +242,7 @@ func (f *FileHandler) Close() {
 	<-f.closed
 }
 
-func (f *FileHandler) close() {
-	f.closeOnce.Do(func() { close(f.closed) })
-}
+func (f *FileHandler) close() { f.closeOnce.Do(func() { close(f.closed) }) }
 
 func (f *FileHandler) serve() {
 	for msg := range f.ch {
