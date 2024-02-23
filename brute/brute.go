@@ -14,8 +14,8 @@ const (
 
 type State interface {
 	Key() string
-	Done() bool
 	Preprocess() error
+	Done() bool
 }
 
 func NewStep[S State](s S, lastStep *Step[S]) *Step[S] {
