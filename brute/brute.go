@@ -38,10 +38,6 @@ type Step[S State] struct {
 	children []*Step[S]
 }
 
-func (s *Step[S]) visited(key string) bool {
-	return key == s.State.Key() || (s.parent != nil && s.parent.visited(key))
-}
-
 func (s *Step[S]) Backtrack() (steps []*Step[S]) {
 	if s == nil {
 		return nil
@@ -52,6 +48,11 @@ func (s *Step[S]) Backtrack() (steps []*Step[S]) {
 	}
 	slices.Reverse(steps)
 	return steps
+}
+func (s *Step[S]) Cost() int { return s.cost }
+
+func (s *Step[S]) visited(key string) bool {
+	return key == s.State.Key() || (s.parent != nil && s.parent.visited(key))
 }
 
 func NewBruter[S State](processor func(S) []S) *Bruter[S] {
