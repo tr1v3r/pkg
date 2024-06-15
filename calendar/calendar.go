@@ -2,37 +2,40 @@ package calendar
 
 import (
 	"bytes"
-	"fmt"
 	"time"
 )
 
 const (
-	generalProdID = "-//True R1v3r//R1v3r Calendar 1.0//CN"
-	version       = "2.0"
+	generalProdID  = "-//True R1v3r//R1v3r Calendar 1.0//CN"
+	generalVersion = "2.0"
 )
 
 type Calendar struct {
-	prodID   string
-	version  string
+	header   Header
+	prodID   ProdID
+	version  Version
 	scale    Scale
 	method   Method
-	name     string
+	name     CalName
 	timeZone TimeZone
-	desc     string
-
-	events []Event
+	desc     CalDesc
+	events   []Event
+	tailer   Tailer
 }
 
 // NewCalendar build new Calendar
 func NewCalendar(name, desc string, opts ...CalendarOption) *Calendar {
 	c := &Calendar{
+		header: "VCALENDAR",
+		tailer: "VCALENDAR",
+
 		prodID:  generalProdID,
-		version: version,
+		version: generalVersion,
 		scale:   ScaleGregorian,
 		method:  MethodPublish,
 
-		name: name,
-		desc: desc,
+		name: CalName(name),
+		desc: CalDesc(desc),
 	}
 
 	for _, opt := range opts {
@@ -47,35 +50,35 @@ func (c *Calendar) AddEvents(events ...Event) { c.events = append(c.events, even
 func (c *Calendar) Output() []byte {
 	var buf bytes.Buffer
 
-	buf.Write(header.With(tagCalendar))
+	buf.Write(c.header.Output())
 	buf.WriteByte('\n')
 
 	if c.prodID != "" {
-		buf.Write(calProdID.With(c.prodID))
+		buf.Write(c.prodID.Output())
 		buf.WriteByte('\n')
 	}
 
-	buf.Write(calVer.With(version))
+	buf.Write(c.version.Output())
 	buf.WriteByte('\n')
 
 	if c.scale != "" {
-		buf.Write(calScale.With(string(c.scale)))
+		buf.Write(c.scale.Output())
 		buf.WriteByte('\n')
 	}
 	if c.method != "" {
-		buf.Write(calMethod.With(string(c.method)))
+		buf.Write(c.method.Output())
 		buf.WriteByte('\n')
 	}
 	if c.name != "" {
-		buf.Write(calName.With(c.name))
+		buf.Write(c.name.Output())
 		buf.WriteByte('\n')
 	}
 	if c.timeZone != "" {
-		buf.Write(calTimeZone.With(string(c.timeZone)))
+		buf.Write(c.timeZone.Output())
 		buf.WriteByte('\n')
 	}
 	if c.desc != "" {
-		buf.Write(calDesc.With(c.desc))
+		buf.Write(c.desc.Output())
 		buf.WriteByte('\n')
 	}
 
@@ -83,20 +86,23 @@ func (c *Calendar) Output() []byte {
 		buf.Write(event.Output())
 	}
 
-	buf.Write(tailer.With(tagCalendar))
+	buf.Write(c.tailer.Output())
 
 	return buf.Bytes()
 }
 
 // NewEvent build new calendar event
-func NewEvent(summary, desc string, start, end time.Time, opts ...EventOption) *Event {
+func NewEvent(sum, description string, start time.Time, opts ...EventOption) *Event {
 	e := &Event{
-		Start:   start,
-		End:     end,
-		Summary: summary,
-		Desc:    desc,
+		header: "VEVENT",
+		tailer: "VEVENT",
 
-		CreatedAt: time.Now(),
+		start:   NewDate("DTSTART", start),
+		summary: Summary(sum),
+		desc:    Desc(description),
+
+		createdAt:   NewDate("CREATED", time.Now()),
+		transparent: TranspTransparent,
 	}
 
 	for _, opt := range opts {
@@ -107,86 +113,84 @@ func NewEvent(summary, desc string, start, end time.Time, opts ...EventOption) *
 }
 
 type Event struct {
-	Start       time.Time
-	End         time.Time
-	Stamp       time.Time
-	UID         string
-	Class       Class
-	CreatedAt   time.Time
-	ModifiedAt  time.Time
-	Location    string
-	Sequence    int
-	Status      Status
-	Summary     string
-	Desc        string
-	Transparent Transparent
+	header      Header
+	start       Date
+	end         Date
+	stamp       Date
+	uid         UID
+	class       Class
+	createdAt   Date
+	modifiedAt  Date
+	location    Location
+	sequence    Sequence
+	status      Status
+	summary     Summary
+	desc        Desc
+	transparent Transparent
+	tailer      Tailer
 }
 
 func (e *Event) Output() []byte {
 	var buf bytes.Buffer
 
-	buf.Write(header.With(tagEvent))
+	buf.Write(e.header.Output())
 	buf.WriteByte('\n')
 
-	if !e.Start.IsZero() {
-		buf.Write(eventDateStart.With(fmt.Sprintf("VALUE=DATE:%s", e.Start.Format(dateLayout))))
+	if !e.start.IsZero() {
+		buf.Write(e.start.Output())
 		buf.WriteByte('\n')
 	}
-	if !e.End.IsZero() {
-		buf.Write(eventDateEnd.With(fmt.Sprintf("VALUE=DATE:%s", e.End.Format(dateLayout))))
+	if !e.end.IsZero() {
+		buf.Write(e.end.Output())
 		buf.WriteByte('\n')
 	}
-	if !e.Stamp.IsZero() {
-		buf.Write(eventDateStamp.With(e.Stamp.Format(timeLayout)))
+	if !e.stamp.IsZero() {
+		buf.Write(e.stamp.Output())
 		buf.WriteByte('\n')
 	}
-	if e.UID != "" {
-		buf.Write(eventUID.With(e.UID))
+	if e.uid != "" {
+		buf.Write(e.uid.Output())
 		buf.WriteByte('\n')
 	}
-	if e.Class != "" {
-		buf.Write(eventClass.With(string(e.Class)))
+	if e.class != "" {
+		buf.Write(e.class.Output())
 		buf.WriteByte('\n')
 	}
-	if !e.CreatedAt.IsZero() {
-		buf.Write(eventCreatedAt.With(e.CreatedAt.Format(timeLayout)))
+	if !e.createdAt.IsZero() {
+		buf.Write(e.createdAt.Output())
 		buf.WriteByte('\n')
 	}
-	if e.Desc != "" {
-		buf.Write(eventDesc.With(e.Desc))
+	if e.desc != "" {
+		buf.Write(e.desc.Output())
 		buf.WriteByte('\n')
 	}
-	if !e.ModifiedAt.IsZero() {
-		buf.Write(eventModifiedAt.With(e.ModifiedAt.Format(timeLayout)))
+	if !e.modifiedAt.IsZero() {
+		buf.Write(e.modifiedAt.Output())
 		buf.WriteByte('\n')
 	}
-	if e.Location != "" {
-		buf.Write(eventLocation.With(e.Location))
+	if e.location != "" {
+		buf.Write(e.location.Output())
 		buf.WriteByte('\n')
 	}
 
-	buf.Write(eventSequence.With(fmt.Sprint(e.Sequence)))
+	buf.Write(e.sequence.Output())
 	buf.WriteByte('\n')
 
-	if e.Status != "" {
-		buf.Write(eventStatus.With(string(e.Status)))
+	if e.status != "" {
+		buf.Write(e.status.Output())
 		buf.WriteByte('\n')
 	}
-	if e.Summary != "" {
-		buf.Write(eventSummary.With(e.Summary))
+	if e.summary != "" {
+		buf.Write(e.summary.Output())
 		buf.WriteByte('\n')
 	}
-	if e.Transparent != "" {
-		buf.Write(eventTransparent.With(string(e.Transparent)))
+	if e.transparent != "" {
+		buf.Write(e.transparent.Output())
 		buf.WriteByte('\n')
 	}
 
-	buf.Write(tailer.With(tagEvent))
+	buf.Write(e.tailer.Output())
 	buf.WriteByte('\n')
 
 	return buf.Bytes()
 }
-
-type Item string
-
-func (i Item) With(value string) []byte { return append([]byte(i), []byte(value)...) }
