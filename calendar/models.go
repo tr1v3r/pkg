@@ -110,7 +110,7 @@ func (d Date) Output() []byte {
 	}
 
 	buf.WriteByte(':')
-	buf.WriteString(d.Format(d.layout))
+	buf.WriteString(d.UTC().Format(d.layout))
 
 	return buf.Bytes()
 }
