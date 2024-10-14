@@ -45,7 +45,7 @@ func TestQuery_Database_all(t *testing.T) {
 	}
 	t.Logf("got %d results", len(results))
 	for _, result := range results {
-		t.Logf("got %s\n", result.Properties["Name"])
+		t.Logf("got %v\n", result.Properties["Name"])
 	}
 
 	// data, _ := json.Marshal(obj)
@@ -57,11 +57,12 @@ func TestCreate_Page(t *testing.T) {
 
 	mgr := NewManager(version, token)
 
+	data, _ := json.Marshal([]TextObject{{
+		Text:        TextItem{Content: "000001"},
+		Annotations: &Annotation{Bold: true, Color: "default"},
+	}})
 	err := mgr.PageManager.Create(PageItem{DatabaseID: databaseID},
-		&Property{Name: "Code", Type: RichTextProp, RichText: []TextObject{{
-			Text:        TextItem{Content: "000001"},
-			Annotations: &Annotation{Bold: true, Color: "default"},
-		}}},
+		&Property{Name: "Code", Type: RichTextProp, RichText: data},
 	)
 	if err != nil {
 		t.Errorf("create page fail: %s", err)

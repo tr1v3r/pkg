@@ -11,7 +11,7 @@ func NewBlockManager(version, token string) *BlockManager {
 	return &BlockManager{baseInfo: &baseInfo{
 		NotionVersion: version,
 		BearerToken:   token,
-	}, ctx: context.Background(), limiter: rate.NewLimiter(3, 12)}
+	}, ctx: context.Background(), limiter: rate.NewLimiter(rateLimit, 4*rateLimit)}
 }
 
 // BlockManager ...

@@ -17,7 +17,7 @@ func NewPageManager(version, token string) *PageManager {
 	return &PageManager{baseInfo: &baseInfo{
 		NotionVersion: version,
 		BearerToken:   token,
-	}, ctx: context.Background(), limiter: rate.NewLimiter(3, 12)}
+	}, ctx: context.Background(), limiter: rate.NewLimiter(rateLimit, 4*rateLimit)}
 }
 
 // PageManager ...
@@ -59,8 +59,8 @@ func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
 	log.CtxDebug(pm.ctx, "create page from parent: %+v", parent)
 
 	payload, _ := json.Marshal(&struct {
-		Parent     PageItem    `json:"parent"`
-		Properties interface{} `json:"properties"`
+		Parent     PageItem `json:"parent"`
+		Properties any      `json:"properties"`
 	}{
 		Parent:     parent,
 		Properties: PropertyArray(properties).ForUpdate(),
@@ -83,7 +83,7 @@ func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
 func (pm *PageManager) Update(properties ...*Property) error {
 	log.CtxDebug(pm.ctx, "update page %s", pm.id)
 
-	payload, _ := json.Marshal(map[string]interface{}{"properties": PropertyArray(properties).ForUpdate()})
+	payload, _ := json.Marshal(map[string]any{"properties": PropertyArray(properties).ForUpdate()})
 	log.CtxDebug(pm.ctx, "update page with payload: %s", string(payload))
 
 	_ = pm.limiter.Wait(pm.ctx)
