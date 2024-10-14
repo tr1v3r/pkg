@@ -26,21 +26,21 @@ type Body struct {
 type OutlineArray []*Outline
 
 // Append adds a new outline to the OutlineArray, grouped by the specified groupText and groupTitle.
-func (a OutlineArray) Append(groupTitle string, o *Outline) OutlineArray {
+func (a OutlineArray) Append(groupText string, o *Outline) OutlineArray {
 	if o.Text == "" || o.XMLUrl == "" { // invalid outline
 		return a
 	}
-	if groupTitle == "" { // group info cannot be empty
+	if groupText == "" { // group info cannot be empty
 		return a
 	}
 
 	for _, group := range a {
-		if group.Title == groupTitle { // group found
+		if group.Text == groupText { // group found
 			group.Outlines = append(group.Outlines, o)
 			return a
 		}
 	}
-	return append(a, &Outline{Title: groupTitle, Outlines: []*Outline{o}})
+	return append(a, &Outline{Text: groupText, Outlines: []*Outline{o}})
 }
 
 // Outline defines the structure of an outline element in the OPML document.
