@@ -1,5 +1,10 @@
 package notion
 
+import "encoding/json"
+
+// https://developers.notion.com/reference/request-limits
+const rateLimit = 3
+
 // Object notion object
 type Object struct {
 	PureObject
@@ -38,6 +43,13 @@ type PageItem struct {
 	DatabaseID string `json:"database_id,omitempty"`
 }
 
+type TextObjectArray []TextObject
+
+func (a TextObjectArray) JSON() json.RawMessage {
+	data, _ := json.Marshal(a)
+	return data
+}
+
 type TextObject struct {
 	Type        string      `json:"type,omitempty"`
 	Text        TextItem    `json:"text"`
@@ -58,6 +70,13 @@ type Annotation struct {
 	Underline     bool   `json:"underline"`
 	Code          bool   `json:"code"`
 	Color         string `json:"color"`
+}
+
+type FileItemArray []FileItem
+
+func (a FileItemArray) JSON() json.RawMessage {
+	data, _ := json.Marshal(a)
+	return data
 }
 
 type FileItem struct {

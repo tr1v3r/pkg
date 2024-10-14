@@ -18,7 +18,7 @@ func NewDatabaseManager(version, token string) *DatabaseManager {
 	return &DatabaseManager{baseInfo: &baseInfo{
 		NotionVersion: version,
 		BearerToken:   token,
-	}, ctx: context.Background(), limiter: rate.NewLimiter(3, 12)}
+	}, ctx: context.Background(), limiter: rate.NewLimiter(rateLimit, 4*rateLimit)}
 }
 
 // DatabaseManager ...

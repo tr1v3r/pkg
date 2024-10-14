@@ -43,7 +43,7 @@ type Manager struct {
 
 // NewManager return a new notion manager
 func NewManager(version, token string) *Manager {
-	limiter := rate.NewLimiter(3, 12)
+	limiter := rate.NewLimiter(rateLimit, 4*rateLimit)
 	return &Manager{
 		DatabaseManager: NewDatabaseManager(version, token).WithLimiter(limiter),
 		PageManager:     NewPageManager(version, token).WithLimiter(limiter),

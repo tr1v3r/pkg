@@ -14,6 +14,7 @@ const (
 	SelectProp      PropertyType = "select"
 	MultiSelectProp PropertyType = "multi_select"
 	FilesProp       PropertyType = "files"
+	URLProp         PropertyType = "url"
 )
 
 // Property
@@ -22,58 +23,93 @@ type Property struct {
 	Name string       `json:"name"`
 	Type PropertyType `json:"type"`
 
-	Title       interface{} `json:"title,omitempty"`
-	Number      interface{} `json:"number,omitempty"`
-	RichText    interface{} `json:"rich_text,omitempty"`
-	Select      interface{} `json:"select,omitempty"`
-	MultiSelect interface{} `json:"multi_select,omitempty"`
-	Files       interface{} `json:"files,omitempty"`
+	Title       json.RawMessage `json:"title,omitempty"`
+	Number      any             `json:"number,omitempty"`
+	RichText    json.RawMessage `json:"rich_text,omitempty"`
+	Select      json.RawMessage `json:"select,omitempty"`
+	MultiSelect json.RawMessage `json:"multi_select,omitempty"`
+	Files       json.RawMessage `json:"files,omitempty"`
+	URL         json.RawMessage `json:"url,omitempty"`
+	Checkbox    *bool           `json:"checkbox,omitempty"`
 }
 
 // ForUpdate return update format data
-func (p *Property) ForUpdate() map[PropertyType]interface{} {
+func (p Property) ForUpdate() (data json.RawMessage) {
 	switch {
 	case p.Title != nil:
-		return map[PropertyType]interface{}{TitleProp: p.Title}
+		data, _ = json.Marshal(map[PropertyType]any{TitleProp: p.Title})
 	case p.RichText != nil:
-		return map[PropertyType]interface{}{RichTextProp: p.RichText}
+		data, _ = json.Marshal(map[PropertyType]any{RichTextProp: p.RichText})
 	case p.Number != nil:
-		return map[PropertyType]interface{}{NumberProp: p.Number}
+		data, _ = json.Marshal(map[PropertyType]any{NumberProp: p.Number})
 	case p.Select != nil:
-		return map[PropertyType]interface{}{SelectProp: p.MultiSelect}
+		data, _ = json.Marshal(map[PropertyType]any{SelectProp: p.MultiSelect})
 	case p.MultiSelect != nil:
-		return map[PropertyType]interface{}{MultiSelectProp: p.Select}
+		data, _ = json.Marshal(map[PropertyType]any{MultiSelectProp: p.Select})
 	case p.Files != nil:
-		return map[PropertyType]interface{}{FilesProp: p.Files}
-	default:
-		return nil
+		data, _ = json.Marshal(map[PropertyType]any{FilesProp: p.Files})
 	}
+	return data
 }
 
-// PlainText parse rich text to plain text
-func (p *Property) PlainText() (text string) {
-	if p.Type != RichTextProp || p.RichText == nil {
+// PlainText
+func (p Property) PlainText() (text string) {
+	switch p.Type {
+	case RichTextProp:
+		if p.RichText == nil {
+			return ""
+		}
+		texts := make([]TextObject, 0, 4)
+		if err := json.Unmarshal(p.RichText, &texts); err != nil {
+			return ""
+		}
+		for _, t := range texts {
+			text += t.PlainText
+		}
+		return text
+	case TitleProp:
+		if p.Title == nil {
+			return ""
+		}
+		texts := make([]TextObject, 0, 4)
+		if err := json.Unmarshal(p.Title, &texts); err != nil {
+			return ""
+		}
+
+		for _, t := range texts {
+			text += t.PlainText
+		}
+		return text
+	case SelectProp:
+		if p.Select == nil {
+			return ""
+		}
+		var sel SelectOption
+		if err := json.Unmarshal(p.Select, &sel); err != nil {
+			return ""
+		}
+		return sel.Name
+	case URLProp:
+		if p.URL == nil {
+			return ""
+		}
+		var url string
+		if err := json.Unmarshal(p.URL, &url); err != nil {
+			return ""
+		}
+		return url
+	default:
 		return ""
 	}
-
-	data, _ := json.Marshal(p.RichText)
-	texts := make([]TextObject, 0, 4)
-	if err := json.Unmarshal(data, &texts); err != nil {
-		return ""
-	}
-
-	for _, t := range texts {
-		text += t.PlainText
-	}
-	return text
 }
 
 type PropertyArray []*Property
 
-func (pa PropertyArray) ForUpdate() map[string]interface{} {
-	var m = make(map[string]interface{}, len(pa))
+func (pa PropertyArray) ForUpdate() json.RawMessage {
+	var m = make(map[string]json.RawMessage, len(pa))
 	for _, p := range pa {
 		m[p.Name] = p.ForUpdate()
 	}
-	return m
+	data, _ := json.Marshal(m)
+	return data
 }
