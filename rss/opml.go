@@ -13,8 +13,8 @@ type OPML struct {
 // Head defines the header information of an OPML document.
 type Head struct {
 	Title        string `xml:"title"`
-	DateCreated  string `xml:"dateCreated"`
-	DateModified string `xml:"dateModified"`
+	DateCreated  string `xml:"dateCreated,omitempty"`
+	DateModified string `xml:"dateModified,omitempty"`
 }
 
 // Body defines the body of an OPML document, containing multiple outlines.
