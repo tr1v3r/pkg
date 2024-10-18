@@ -133,8 +133,8 @@ type DateFilter struct {
 
 // CheckBoxFilter ...
 type CheckBoxFilter struct {
-	Equals       bool `json:"equals"`
-	DoesNotEqual bool `json:"does_not_equal"`
+	Equals       bool `json:"equals,omitempty"`
+	DoesNotEqual bool `json:"does_not_equal,omitempty"`
 }
 
 // RichTextFilter ...
