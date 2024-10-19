@@ -15,6 +15,8 @@ const (
 	MultiSelectProp PropertyType = "multi_select"
 	FilesProp       PropertyType = "files"
 	URLProp         PropertyType = "url"
+	DateProp        PropertyType = "date"
+	CheckboxProp    PropertyType = "checkbox"
 )
 
 // Property
@@ -23,6 +25,8 @@ type Property struct {
 	Name string       `json:"name"`
 	Type PropertyType `json:"type"`
 
+	// https://developers.notion.com/reference/page-property-values#type-objects
+	Date        json.RawMessage `json:"date,omitempty"`
 	Title       json.RawMessage `json:"title,omitempty"`
 	Number      any             `json:"number,omitempty"`
 	RichText    json.RawMessage `json:"rich_text,omitempty"`
@@ -36,6 +40,8 @@ type Property struct {
 // ForUpdate return update format data
 func (p Property) ForUpdate() (data json.RawMessage) {
 	switch {
+	case p.Date != nil:
+		data, _ = json.Marshal(map[PropertyType]any{DateProp: p.Date})
 	case p.Title != nil:
 		data, _ = json.Marshal(map[PropertyType]any{TitleProp: p.Title})
 	case p.RichText != nil:
@@ -48,6 +54,10 @@ func (p Property) ForUpdate() (data json.RawMessage) {
 		data, _ = json.Marshal(map[PropertyType]any{MultiSelectProp: p.Select})
 	case p.Files != nil:
 		data, _ = json.Marshal(map[PropertyType]any{FilesProp: p.Files})
+	case p.URL != nil:
+		data, _ = json.Marshal(map[PropertyType]any{URLProp: p.URL})
+	case p.Checkbox != nil:
+		data, _ = json.Marshal(map[PropertyType]any{CheckboxProp: p.Checkbox})
 	}
 	return data
 }

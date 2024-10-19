@@ -72,6 +72,19 @@ type Annotation struct {
 	Color         string `json:"color"`
 }
 
+// DateObject ...
+// https://developers.notion.com/reference/page-property-values#date
+type DateObject struct {
+	Start    string `json:"start"`         // ISO 8601 date and time
+	End      string `json:"end,omitempty"` // ISO 8601 date and time
+	TimeZone string `json:"time_zone,omitempty"`
+}
+
+func (o DateObject) JSON() json.RawMessage {
+	data, _ := json.Marshal(o)
+	return data
+}
+
 type FileItemArray []FileItem
 
 func (a FileItemArray) JSON() json.RawMessage {
