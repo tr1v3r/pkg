@@ -104,6 +104,32 @@ func (pm *PageManager) Update(properties ...*Property) error {
 	return nil
 }
 
+// Trash trash a page
+// https://developers.notion.com/reference/archive-a-page
+func (pm *PageManager) Trash() error {
+	log.CtxDebug(pm.ctx, "trash page %s", pm.id)
+
+	// archived or in_trash
+	payload, _ := json.Marshal(map[string]any{"in_trash": true})
+
+	_ = pm.limiter.Wait(pm.ctx)
+	resp, err := fetch.CtxPatch(pm.ctx, pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
+	if err != nil {
+		return fmt.Errorf("request api fail: %w", err)
+	}
+	log.CtxDebug(pm.ctx, "trash page got response %s", string(resp))
+
+	var obj Object
+	if err := json.Unmarshal(resp, &obj); err != nil {
+		return fmt.Errorf("unmarshal response fail: %w", err)
+	}
+	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
+	if obj.Object == "error" {
+		return fmt.Errorf("response error: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
+	}
+	return nil
+}
+
 // api return page api
 func (pm *PageManager) api(typ operateType) string {
 	baseAPI := notionAPI() + "/pages"
