@@ -112,14 +112,17 @@ func (dm *DatabaseManager) Retrieve() (*Object, error) {
 // docs: https://developers.notion.com/reference/post-database-query
 // POST https://api.notion.com/v1/databases/{database_id}/query
 func (dm *DatabaseManager) Query(cond *Condition) (objects []Object, err error) {
-	ch, errCh := dm.asyncQuery(cond)
-	for obj := range ch {
-		objects = append(objects, obj)
+	for ch, errCh := dm.asyncQuery(cond); ; {
+		select {
+		case obj, ok := <-ch:
+			if !ok {
+				return objects, nil
+			}
+			objects = append(objects, obj)
+		case err := <-errCh:
+			return nil, err
+		}
 	}
-	if err = <-errCh; err != nil {
-		return nil, err
-	}
-	return objects, nil
 }
 
 // AsynQuery ...
@@ -148,34 +151,13 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 	}
 
 	go func() {
+		// defer close(errCh)
 		defer close(ch)
-		defer close(errCh)
 		var count int
 		var api = dm.api(queryOp)
 
-		_ = dm.limiter.Wait(dm.ctx)
-		resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)
-		if err != nil {
-			errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.id, err)
-			return
-		}
-
 		var obj = new(Object)
-		if err := json.Unmarshal(resp, obj); err != nil {
-			errCh <- fmt.Errorf("unmarshal database info %s fail: %w", dm.id, err)
-			return
-		}
-		// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-		if obj.Object == "error" {
-			errCh <- fmt.Errorf("query database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
-			return
-		}
-		// build a new array for results, or array will be owerwritten because of the same memory address with obj.Results
-		output(obj.Results)
-		count += len(obj.Results)
-		log.CtxDebug(dm.ctx, "fetch %d items, next cursor: %s", count, obj.NextCursor)
-
-		for obj.HasMore {
+		for obj.HasMore = true; obj.HasMore; {
 			cond.StartCursor = obj.NextCursor
 			_ = dm.limiter.Wait(dm.ctx)
 			resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)

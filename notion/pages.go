@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strconv"
 
 	"golang.org/x/time/rate"
 
@@ -50,6 +52,57 @@ func (pm PageManager) WithLimiter(limiter *rate.Limiter) *PageManager {
 // ID get page id
 func (pm *PageManager) ID() string {
 	return pm.id
+}
+
+// Retrieve retrieve a page
+// docs: https://developers.notion.com/reference/retrieve-a-page
+func (pm *PageManager) Retrieve() (*Object, error) {
+	log.CtxDebug(pm.ctx, "retrieve page %s", pm.id)
+
+	_ = pm.limiter.Wait(pm.ctx)
+	resp, err := fetch.CtxGet(pm.ctx, pm.api(retrieveOp), pm.Headers()...)
+	if err != nil {
+		return nil, fmt.Errorf("request api fail: %w", err)
+	}
+	log.CtxDebug(pm.ctx, "retrieve page got response %s", string(resp))
+
+	var obj Object
+	if err := json.Unmarshal(resp, &obj); err != nil {
+		return nil, fmt.Errorf("unmarshal response fail: %w", err)
+	}
+	return &obj, nil
+}
+
+// RetrieveProp retrieve page property item
+// docs: https://developers.notion.com/reference/retrieve-a-page-property
+func (pm *PageManager) RetrieveProp(propID string) (*Object, error) {
+	log.CtxDebug(pm.ctx, "retrieve page %s property %s", pm.id, propID)
+
+	const pageSize = 200
+	param := url.Values{}
+	param.Set("page_size", strconv.Itoa(pageSize))
+
+	var obj, results = new(Object), make([]Object, 0, 2*pageSize)
+	for obj.HasMore = true; obj.HasMore; {
+		if obj.NextCursor != "" {
+			param.Set("start_cursor", obj.NextCursor)
+		}
+
+		_ = pm.limiter.Wait(pm.ctx)
+		resp, err := fetch.CtxGet(pm.ctx, pm.api(retrievePropOp)+propID+"?"+param.Encode(), pm.Headers()...)
+		if err != nil {
+			return nil, fmt.Errorf("request api fail: %w", err)
+		}
+		log.CtxDebug(pm.ctx, "retrieve page property got response %s", string(resp))
+
+		if err := json.Unmarshal(resp, obj); err != nil {
+			return nil, fmt.Errorf("unmarshal response fail: %w", err)
+		}
+
+		results = append(results, obj.Results...)
+	}
+	obj.Results = results
+	return obj, nil
 }
 
 // Create create page

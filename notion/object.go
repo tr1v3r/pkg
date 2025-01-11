@@ -1,6 +1,8 @@
 package notion
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // https://developers.notion.com/reference/request-limits
 const rateLimit = 3
@@ -25,6 +27,11 @@ type Object struct {
 	NextCursor     string              `json:"next_cursor"`
 	HasMore        bool                `json:"has_more"`
 	Type           string              `json:"type"`
+	RequestID      string              `json:"request_id,omitempty"`
+	PropertyItem   Property            `json:"property,omitempty"`
+
+	Relation RelationItem `json:"relation,omitempty"`
+	RichText TextObject   `json:"rich_text,omitempty"`
 
 	Status  int    `json:"status,omitempty"`
 	Code    string `json:"code,omitempty"`
@@ -83,6 +90,51 @@ type DateObject struct {
 func (o DateObject) JSON() json.RawMessage {
 	data, _ := json.Marshal(o)
 	return data
+}
+
+type RelationItem struct {
+	ID string `json:"id"`
+}
+
+type RelationObject []RelationItem
+
+func (o RelationObject) IDs() (ids []string) {
+	for _, item := range o {
+		ids = append(ids, item.ID)
+	}
+	return ids
+}
+
+func (o RelationObject) JSON() json.RawMessage {
+	data, _ := json.Marshal(o)
+	return data
+}
+
+// RollupObject cannot be used when update
+type RollupObject struct {
+	Type     string `json:"type"`
+	Function string `json:"function"`
+	// array || date || incomplete || number || unsupported
+	Number int `json:"number,omitempty"`
+	Array  []struct {
+		Type     string       `json:"type"`
+		RichText []TextObject `json:"rich_text,omitempty"`
+	} `json:"array,omitempty"`
+}
+
+func (o RollupObject) PlainStrings() (strs []string) {
+	if o.Type != "array" || len(o.Array) == 0 {
+		return nil
+	}
+	for _, item := range o.Array {
+		if item.Type != "rich_text" {
+			continue
+		}
+		for _, text := range item.RichText {
+			strs = append(strs, text.PlainText)
+		}
+	}
+	return strs
 }
 
 type FileItemArray []FileItem

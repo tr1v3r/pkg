@@ -17,6 +17,8 @@ const (
 	URLProp         PropertyType = "url"
 	DateProp        PropertyType = "date"
 	CheckboxProp    PropertyType = "checkbox"
+	RelationProp    PropertyType = "relation"
+	RollupProp      PropertyType = "rollup" // do not used when update
 )
 
 // Property
@@ -35,6 +37,8 @@ type Property struct {
 	Files       json.RawMessage `json:"files,omitempty"`
 	URL         json.RawMessage `json:"url,omitempty"`
 	Checkbox    *bool           `json:"checkbox,omitempty"`
+	Relation    json.RawMessage `json:"relation,omitempty"`
+	Rollup      json.RawMessage `json:"rollup,omitempty"`
 }
 
 // ForUpdate return update format data
@@ -58,8 +62,24 @@ func (p Property) ForUpdate() (data json.RawMessage) {
 		data, _ = json.Marshal(map[PropertyType]any{URLProp: p.URL})
 	case p.Checkbox != nil:
 		data, _ = json.Marshal(map[PropertyType]any{CheckboxProp: p.Checkbox})
+	case p.Relation != nil:
+		data, _ = json.Marshal(map[PropertyType]any{RelationProp: p.Relation})
 	}
 	return data
+}
+
+func (p Property) GetRelationIDs() (ids []string) {
+	if p.Relation == nil {
+		return nil
+	}
+	var relations []RelationItem
+	if err := json.Unmarshal(p.Relation, &relations); err != nil {
+		return nil
+	}
+	for _, r := range relations {
+		ids = append(ids, r.ID)
+	}
+	return ids
 }
 
 // PlainText
