@@ -45,25 +45,25 @@ type Property struct {
 func (p Property) ForUpdate() (data json.RawMessage) {
 	switch {
 	case p.Date != nil:
-		data, _ = json.Marshal(map[PropertyType]any{DateProp: p.Date})
+		data, _ = json.Marshal(map[PropertyType]json.RawMessage{DateProp: p.Date})
 	case p.Title != nil:
-		data, _ = json.Marshal(map[PropertyType]any{TitleProp: p.Title})
+		data, _ = json.Marshal(map[PropertyType]json.RawMessage{TitleProp: p.Title})
 	case p.RichText != nil:
-		data, _ = json.Marshal(map[PropertyType]any{RichTextProp: p.RichText})
+		data, _ = json.Marshal(map[PropertyType]json.RawMessage{RichTextProp: p.RichText})
 	case p.Number != nil:
 		data, _ = json.Marshal(map[PropertyType]any{NumberProp: p.Number})
 	case p.Select != nil:
-		data, _ = json.Marshal(map[PropertyType]any{SelectProp: p.MultiSelect})
+		data, _ = json.Marshal(map[PropertyType]json.RawMessage{SelectProp: p.Select})
 	case p.MultiSelect != nil:
-		data, _ = json.Marshal(map[PropertyType]any{MultiSelectProp: p.Select})
+		data, _ = json.Marshal(map[PropertyType]json.RawMessage{MultiSelectProp: p.MultiSelect})
 	case p.Files != nil:
-		data, _ = json.Marshal(map[PropertyType]any{FilesProp: p.Files})
+		data, _ = json.Marshal(map[PropertyType]json.RawMessage{FilesProp: p.Files})
 	case p.URL != nil:
-		data, _ = json.Marshal(map[PropertyType]any{URLProp: p.URL})
+		data, _ = json.Marshal(map[PropertyType]string{URLProp: string(p.URL)})
 	case p.Checkbox != nil:
-		data, _ = json.Marshal(map[PropertyType]any{CheckboxProp: p.Checkbox})
+		data, _ = json.Marshal(map[PropertyType]bool{CheckboxProp: *p.Checkbox})
 	case p.Relation != nil:
-		data, _ = json.Marshal(map[PropertyType]any{RelationProp: p.Relation})
+		data, _ = json.Marshal(map[PropertyType]json.RawMessage{RelationProp: p.Relation})
 	}
 	return data
 }
@@ -114,7 +114,7 @@ func (p Property) PlainText() (text string) {
 		if p.Select == nil {
 			return ""
 		}
-		var sel SelectOption
+		var sel SelectOptionObject
 		if err := json.Unmarshal(p.Select, &sel); err != nil {
 			return ""
 		}

@@ -162,11 +162,16 @@ type NumberProperty struct {
 }
 
 type SelectProperty struct {
-	Options []SelectOption `json:"options"`
+	Options []SelectOptionObject `json:"options"`
 }
 
-type SelectOption struct {
-	ID    string `json:"id"`
+type SelectOptionObject struct {
+	ID    string `json:"id,omitempty"`
 	Name  string `json:"name"`
-	Color string `json:"color"`
+	Color string `json:"color,omitempty"`
+}
+
+func (o SelectOptionObject) JSON() json.RawMessage {
+	data, _ := json.Marshal(o)
+	return data
 }
