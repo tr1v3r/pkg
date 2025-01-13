@@ -135,9 +135,18 @@ func (dm *DatabaseManager) AsynQuery(cond *Condition) <-chan Object {
 // docs: https://developers.notion.com/reference/post-database-query
 // POST https://api.notion.com/v1/databases/{database_id}/query
 func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan error) {
+	const defaultPageSize = 100
+
 	log.CtxDebug(dm.ctx, "query database %s", dm.id)
 
-	ch := make(chan Object, 4096)
+	if cond == nil {
+		cond = new(Condition)
+	}
+	if cond.PageSize <= 0 {
+		cond.PageSize = defaultPageSize
+	}
+
+	ch := make(chan Object, cond.PageSize)
 	errCh := make(chan error, 1)
 
 	output := func(objs []Object) {
@@ -146,15 +155,11 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 		}
 	}
 
-	if cond == nil {
-		cond = new(Condition)
-	}
-
 	go func() {
 		// defer close(errCh)
 		defer close(ch)
 		var count int
-		var api = dm.api(queryOp)
+		var api = dm.api(queryOp) + "?" + cond.QueryParams()
 
 		var obj = new(Object)
 		for obj.HasMore = true; obj.HasMore; {
@@ -162,25 +167,28 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 			_ = dm.limiter.Wait(dm.ctx)
 			resp, err := fetch.CtxPost(dm.ctx, api, bytes.NewReader(cond.Payload()), dm.Headers()...)
 			if err != nil {
+				// log.CtxError(dm.ctx, "retrieve database %s fail: %s", dm.id, err)
 				errCh <- fmt.Errorf("retrieve database %s fail: %w", dm.id, err)
 				return
 			}
 
 			obj = new(Object)
 			if err := json.Unmarshal(resp, obj); err != nil {
+				// log.CtxError(dm.ctx, "unmarshal database %s fail: %s\n%s", dm.id, err, resp)
 				errCh <- fmt.Errorf("unmarshal database %s fail: %w", dm.id, err)
 				return
 			}
 
-			// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
+			// demo: {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 			if obj.Object == "error" {
+				// log.CtxError(dm.ctx, "retrieve database %s fail: %s", dm.id, err)
 				errCh <- fmt.Errorf("query database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
 				return
 			}
 
 			output(obj.Results)
 			count += len(obj.Results)
-			log.CtxDebug(dm.ctx, "fetch %d items, next cursor: %s", count, obj.NextCursor)
+			log.CtxDebug(dm.ctx, "total fetched %d items, next cursor: %s", count, obj.NextCursor)
 		}
 
 		log.CtxDebug(dm.ctx, "query database got %d items", count)

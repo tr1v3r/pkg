@@ -78,7 +78,7 @@ func (pm *PageManager) Retrieve() (*Object, error) {
 func (pm *PageManager) RetrieveProp(propID string) (*Object, error) {
 	log.CtxDebug(pm.ctx, "retrieve page %s property %s", pm.id, propID)
 
-	const pageSize = 200
+	const pageSize = 30
 	param := url.Values{}
 	param.Set("page_size", strconv.Itoa(pageSize))
 

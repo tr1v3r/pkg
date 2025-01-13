@@ -2,14 +2,21 @@ package notion
 
 import (
 	"encoding/json"
+	"net/url"
 )
 
 // Condition query filter
 type Condition struct {
+	FilterProperties []string `json:"-"`
+
 	PageSize    int                 `json:"page_size,omitempty"`
 	StartCursor string              `json:"start_cursor,omitempty"`
 	Filter      *FilterCondition    `json:"filter,omitempty"`
 	Sorts       []PropSortCondition `json:"sorts,omitempty"`
+}
+
+func (f *Condition) QueryParams() string {
+	return url.Values{"filter_properties": f.FilterProperties}.Encode()
 }
 
 // Payload return payload
