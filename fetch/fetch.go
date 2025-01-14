@@ -40,37 +40,37 @@ func SetDefaultClient(client *http.Client) {
 
 // Get ...
 func Get(url string, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("GET", url, opts, nil)
+	_, content, _, err := DoRequestWithOptions(http.MethodGet, url, opts, nil)
 	return content, err
 }
 
 // CtxGet ...
 func CtxGet(ctx context.Context, url string, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("GET", url, append([]RequestOption{WithContext(ctx)}, opts...), nil)
+	_, content, _, err := DoRequestWithOptions(http.MethodGet, url, append([]RequestOption{WithContext(ctx)}, opts...), nil)
 	return content, err
 }
 
 // Post ...
 func Post(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("POST", url, opts, body)
+	_, content, _, err := DoRequestWithOptions(http.MethodPost, url, opts, body)
 	return content, err
 }
 
 // CtxPost ...
 func CtxPost(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("POST", url, append([]RequestOption{WithContext(ctx)}, opts...), body)
+	_, content, _, err := DoRequestWithOptions(http.MethodPost, url, append([]RequestOption{WithContext(ctx)}, opts...), body)
 	return content, err
 }
 
 // Patch ...
 func Patch(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("PATCH", url, opts, body)
+	_, content, _, err := DoRequestWithOptions(http.MethodPatch, url, opts, body)
 	return content, err
 }
 
 // CtxPatch ...
 func CtxPatch(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions("PATCH", url, append([]RequestOption{WithContext(ctx)}, opts...), body)
+	_, content, _, err := DoRequestWithOptions(http.MethodPatch, url, append([]RequestOption{WithContext(ctx)}, opts...), body)
 	return content, err
 }
 

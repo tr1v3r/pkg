@@ -124,6 +124,10 @@ func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
 	if err != nil {
 		return fmt.Errorf("request api fail: %w", err)
 	}
+
+	if statusCode == 429 {
+		return ErrRateLimited
+	}
 	if statusCode != 200 {
 		return fmt.Errorf("response error: [%d] %s", statusCode, string(resp))
 	}
@@ -152,6 +156,9 @@ func (pm *PageManager) Update(properties ...*Property) error {
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 	if obj.Object == "error" {
+		if obj.Status == 429 {
+			return ErrRateLimited
+		}
 		return fmt.Errorf("response error: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
 	}
 	return nil
@@ -178,6 +185,9 @@ func (pm *PageManager) Trash() error {
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 	if obj.Object == "error" {
+		if obj.Status == 429 {
+			return ErrRateLimited
+		}
 		return fmt.Errorf("response error: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
 	}
 	return nil

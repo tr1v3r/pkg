@@ -77,6 +77,9 @@ func (dm *DatabaseManager) Create(parent PageItem, title []TextObject, propertie
 	if err != nil {
 		return fmt.Errorf("create database fail: %w", err)
 	}
+	if statusCode == 429 {
+		return ErrRateLimited
+	}
 	if statusCode != 200 {
 		return fmt.Errorf("create database fail: [%d] %s", statusCode, string(resp))
 	}
@@ -103,6 +106,9 @@ func (dm *DatabaseManager) Retrieve() (*Object, error) {
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 	if obj.Object == "error" {
+		if obj.Status == 429 {
+			return nil, ErrRateLimited
+		}
 		return nil, fmt.Errorf("retrieve database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
 	}
 	return &obj, nil
@@ -174,15 +180,17 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 
 			obj = new(Object)
 			if err := json.Unmarshal(resp, obj); err != nil {
-				// log.CtxError(dm.ctx, "unmarshal database %s fail: %s\n%s", dm.id, err, resp)
 				errCh <- fmt.Errorf("unmarshal database %s fail: %w", dm.id, err)
 				return
 			}
 
 			// demo: {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 			if obj.Object == "error" {
-				// log.CtxError(dm.ctx, "retrieve database %s fail: %s", dm.id, err)
-				errCh <- fmt.Errorf("query database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
+				if obj.Status == 429 {
+					errCh <- ErrRateLimited
+				} else {
+					errCh <- fmt.Errorf("query database fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
+				}
 				return
 			}
 
@@ -215,6 +223,9 @@ func (dm *DatabaseManager) Update(payload io.Reader) error {
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
 	if obj.Object == "error" {
+		if obj.Status == 429 {
+			return ErrRateLimited
+		}
 		return fmt.Errorf("update fail: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
 	}
 	return nil
