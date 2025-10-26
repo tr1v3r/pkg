@@ -175,8 +175,8 @@ func TestBaseLogger_LoggingMethods(t *testing.T) {
 	// Test all logging levels
 	testCases := []struct {
 		name   string
-		logFn  func(string, ...interface{})
-		ctxLogFn func(context.Context, string, ...interface{})
+		logFn  func(string, ...any)
+		ctxLogFn func(context.Context, string, ...any)
 		expected string
 	}{
 		{"Trace", logger.Trace, logger.CtxTrace, "trace message"},

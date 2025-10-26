@@ -16,7 +16,7 @@ func TestGlobalContextFunctions(t *testing.T) {
 	// Test all global context-aware logging functions
 	testCases := []struct {
 		name     string
-		logFn    func(context.Context, string, ...interface{})
+		logFn    func(context.Context, string, ...any)
 		expected string
 	}{
 		{"CtxTrace", CtxTrace, "global trace"},

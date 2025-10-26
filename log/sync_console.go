@@ -47,7 +47,7 @@ func (h *SyncConsoleHandler) AddOutput(w io.Writer) {
 }
 
 // Output writes a log message to the console synchronously
-func (h *SyncConsoleHandler) Output(level Level, ctx context.Context, format string, args ...interface{}) {
+func (h *SyncConsoleHandler) Output(level Level, ctx context.Context, format string, args ...any) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 

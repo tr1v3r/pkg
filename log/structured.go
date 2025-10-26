@@ -86,7 +86,7 @@ func (l *StructuredLogger) Close() error {
 }
 
 // With creates a new logger with additional structured fields
-func (l *StructuredLogger) With(args ...interface{}) Logger {
+func (l *StructuredLogger) With(args ...any) Logger {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
@@ -119,73 +119,73 @@ func (l *StructuredLogger) WithGroup(name string) Logger {
 
 // Traditional logging methods (format string based)
 
-func (l *StructuredLogger) Trace(format string, args ...interface{}) {
+func (l *StructuredLogger) Trace(format string, args ...any) {
 	l.CtxTrace(nil, format, args...)
 }
 
-func (l *StructuredLogger) Debug(format string, args ...interface{}) {
+func (l *StructuredLogger) Debug(format string, args ...any) {
 	l.CtxDebug(nil, format, args...)
 }
 
-func (l *StructuredLogger) Info(format string, args ...interface{}) {
+func (l *StructuredLogger) Info(format string, args ...any) {
 	l.CtxInfo(nil, format, args...)
 }
 
-func (l *StructuredLogger) Warn(format string, args ...interface{}) {
+func (l *StructuredLogger) Warn(format string, args ...any) {
 	l.CtxWarn(nil, format, args...)
 }
 
-func (l *StructuredLogger) Error(format string, args ...interface{}) {
+func (l *StructuredLogger) Error(format string, args ...any) {
 	l.CtxError(nil, format, args...)
 }
 
-func (l *StructuredLogger) Fatal(format string, args ...interface{}) {
+func (l *StructuredLogger) Fatal(format string, args ...any) {
 	l.CtxFatal(nil, format, args...)
 }
 
-func (l *StructuredLogger) Panic(format string, args ...interface{}) {
+func (l *StructuredLogger) Panic(format string, args ...any) {
 	l.CtxPanic(nil, format, args...)
 }
 
 // Context-aware traditional logging methods
 
-func (l *StructuredLogger) CtxTrace(ctx context.Context, format string, args ...interface{}) {
+func (l *StructuredLogger) CtxTrace(ctx context.Context, format string, args ...any) {
 	l.output(TraceLevel, ctx, format, args...)
 	l.slog(ctx, slog.LevelDebug-4, format, args...) // Trace is below Debug
 }
 
-func (l *StructuredLogger) CtxDebug(ctx context.Context, format string, args ...interface{}) {
+func (l *StructuredLogger) CtxDebug(ctx context.Context, format string, args ...any) {
 	l.output(DebugLevel, ctx, format, args...)
 	l.slog(ctx, slog.LevelDebug, format, args...)
 }
 
-func (l *StructuredLogger) CtxInfo(ctx context.Context, format string, args ...interface{}) {
+func (l *StructuredLogger) CtxInfo(ctx context.Context, format string, args ...any) {
 	l.output(InfoLevel, ctx, format, args...)
 	l.slog(ctx, slog.LevelInfo, format, args...)
 }
 
-func (l *StructuredLogger) CtxWarn(ctx context.Context, format string, args ...interface{}) {
+func (l *StructuredLogger) CtxWarn(ctx context.Context, format string, args ...any) {
 	l.output(WarnLevel, ctx, format, args...)
 	l.slog(ctx, slog.LevelWarn, format, args...)
 }
 
-func (l *StructuredLogger) CtxError(ctx context.Context, format string, args ...interface{}) {
+func (l *StructuredLogger) CtxError(ctx context.Context, format string, args ...any) {
 	l.output(ErrorLevel, ctx, format, args...)
 	l.slog(ctx, slog.LevelError, format, args...)
 }
 
-func (l *StructuredLogger) CtxFatal(ctx context.Context, format string, args ...interface{}) {
+func (l *StructuredLogger) CtxFatal(ctx context.Context, format string, args ...any) {
 	l.output(FatalLevel, ctx, format, args...)
 	l.slog(ctx, slog.LevelError+4, format, args...) // Fatal is above Error
 }
 
-func (l *StructuredLogger) CtxPanic(ctx context.Context, format string, args ...interface{}) {
+func (l *StructuredLogger) CtxPanic(ctx context.Context, format string, args ...any) {
 	l.output(PanicLevel, ctx, format, args...)
 	l.slog(ctx, slog.LevelError+8, format, args...) // Panic is above Fatal
 }
 
 // output sends log messages to traditional handlers
-func (l *StructuredLogger) output(level Level, ctx context.Context, format string, args ...interface{}) {
+func (l *StructuredLogger) output(level Level, ctx context.Context, format string, args ...any) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	for _, handler := range l.handlers {
@@ -194,7 +194,7 @@ func (l *StructuredLogger) output(level Level, ctx context.Context, format strin
 }
 
 // slog sends structured log using slog
-func (l *StructuredLogger) slog(ctx context.Context, level slog.Level, format string, args ...interface{}) {
+func (l *StructuredLogger) slog(ctx context.Context, level slog.Level, format string, args ...any) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 

@@ -42,81 +42,81 @@ func Close() error {
 // Traditional logging functions
 
 // Trace logs a message at TraceLevel
-func Trace(format string, args ...interface{}) {
+func Trace(format string, args ...any) {
 	defaultLogger.Trace(format, args...)
 }
 
 // Debug logs a message at DebugLevel
-func Debug(format string, args ...interface{}) {
+func Debug(format string, args ...any) {
 	defaultLogger.Debug(format, args...)
 }
 
 // Info logs a message at InfoLevel
-func Info(format string, args ...interface{}) {
+func Info(format string, args ...any) {
 	defaultLogger.Info(format, args...)
 }
 
 // Warn logs a message at WarnLevel
-func Warn(format string, args ...interface{}) {
+func Warn(format string, args ...any) {
 	defaultLogger.Warn(format, args...)
 }
 
 // Error logs a message at ErrorLevel
-func Error(format string, args ...interface{}) {
+func Error(format string, args ...any) {
 	defaultLogger.Error(format, args...)
 }
 
 // Fatal logs a message at FatalLevel and exits the program
-func Fatal(format string, args ...interface{}) {
+func Fatal(format string, args ...any) {
 	defaultLogger.Fatal(format, args...)
 }
 
 // Panic logs a message at PanicLevel and panics
-func Panic(format string, args ...interface{}) {
+func Panic(format string, args ...any) {
 	defaultLogger.Panic(format, args...)
 }
 
 // Context-aware logging functions
 
 // CtxTrace logs a message at TraceLevel with context
-func CtxTrace(ctx context.Context, format string, args ...interface{}) {
+func CtxTrace(ctx context.Context, format string, args ...any) {
 	defaultLogger.CtxTrace(ctx, format, args...)
 }
 
 // CtxDebug logs a message at DebugLevel with context
-func CtxDebug(ctx context.Context, format string, args ...interface{}) {
+func CtxDebug(ctx context.Context, format string, args ...any) {
 	defaultLogger.CtxDebug(ctx, format, args...)
 }
 
 // CtxInfo logs a message at InfoLevel with context
-func CtxInfo(ctx context.Context, format string, args ...interface{}) {
+func CtxInfo(ctx context.Context, format string, args ...any) {
 	defaultLogger.CtxInfo(ctx, format, args...)
 }
 
 // CtxWarn logs a message at WarnLevel with context
-func CtxWarn(ctx context.Context, format string, args ...interface{}) {
+func CtxWarn(ctx context.Context, format string, args ...any) {
 	defaultLogger.CtxWarn(ctx, format, args...)
 }
 
 // CtxError logs a message at ErrorLevel with context
-func CtxError(ctx context.Context, format string, args ...interface{}) {
+func CtxError(ctx context.Context, format string, args ...any) {
 	defaultLogger.CtxError(ctx, format, args...)
 }
 
 // CtxFatal logs a message at FatalLevel with context and exits the program
-func CtxFatal(ctx context.Context, format string, args ...interface{}) {
+func CtxFatal(ctx context.Context, format string, args ...any) {
 	defaultLogger.CtxFatal(ctx, format, args...)
 }
 
 // CtxPanic logs a message at PanicLevel with context and panics
-func CtxPanic(ctx context.Context, format string, args ...interface{}) {
+func CtxPanic(ctx context.Context, format string, args ...any) {
 	defaultLogger.CtxPanic(ctx, format, args...)
 }
 
 // Structured logging convenience functions
 
 // With creates a new logger with the given structured fields
-func With(args ...interface{}) Logger {
+func With(args ...any) Logger {
 	return defaultLogger.With(args...)
 }
 

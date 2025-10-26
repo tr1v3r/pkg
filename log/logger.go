@@ -8,23 +8,23 @@ import (
 
 // Logger provides methods for all log levels with support for both traditional and structured logging
 type Logger interface {
-	Trace(format string, args ...interface{})
-	Debug(format string, args ...interface{})
-	Info(format string, args ...interface{})
-	Warn(format string, args ...interface{})
-	Error(format string, args ...interface{})
-	Fatal(format string, args ...interface{})
-	Panic(format string, args ...interface{})
+	Trace(format string, args ...any)
+	Debug(format string, args ...any)
+	Info(format string, args ...any)
+	Warn(format string, args ...any)
+	Error(format string, args ...any)
+	Fatal(format string, args ...any)
+	Panic(format string, args ...any)
 
-	CtxTrace(ctx context.Context, format string, args ...interface{})
-	CtxDebug(ctx context.Context, format string, args ...interface{})
-	CtxInfo(ctx context.Context, format string, args ...interface{})
-	CtxWarn(ctx context.Context, format string, args ...interface{})
-	CtxError(ctx context.Context, format string, args ...interface{})
-	CtxFatal(ctx context.Context, format string, args ...interface{})
-	CtxPanic(ctx context.Context, format string, args ...interface{})
+	CtxTrace(ctx context.Context, format string, args ...any)
+	CtxDebug(ctx context.Context, format string, args ...any)
+	CtxInfo(ctx context.Context, format string, args ...any)
+	CtxWarn(ctx context.Context, format string, args ...any)
+	CtxError(ctx context.Context, format string, args ...any)
+	CtxFatal(ctx context.Context, format string, args ...any)
+	CtxPanic(ctx context.Context, format string, args ...any)
 
-	With(args ...interface{}) Logger
+	With(args ...any) Logger
 	WithGroup(name string) Logger
 
 	SetLevel(level Level)
@@ -37,7 +37,7 @@ type Logger interface {
 // Handler formats and writes log messages
 type Handler interface {
 	io.Writer
-	Output(level Level, ctx context.Context, format string, args ...interface{})
+	Output(level Level, ctx context.Context, format string, args ...any)
 	SetLevel(level Level)
 	SetOutput(w io.Writer)
 	AddOutput(w io.Writer)
@@ -47,7 +47,7 @@ type Handler interface {
 
 // Formatter converts log data into string representations
 type Formatter interface {
-	Format(level Level, ctx context.Context, format string, args ...interface{}) string
+	Format(level Level, ctx context.Context, format string, args ...any) string
 }
 
 // baseLogger is the concrete implementation of the Logger interface
@@ -130,7 +130,7 @@ func (l *baseLogger) Close() error {
 }
 
 // With creates a new logger with additional structured fields
-func (l *baseLogger) With(args ...interface{}) Logger {
+func (l *baseLogger) With(args ...any) Logger {
 	// For base logger, return self (no structured logging support)
 	// Structured logging is handled by StructuredLogger wrapper
 	return l
@@ -143,65 +143,65 @@ func (l *baseLogger) WithGroup(name string) Logger {
 }
 
 // Level-based logging methods
-func (l *baseLogger) Trace(format string, args ...interface{}) {
+func (l *baseLogger) Trace(format string, args ...any) {
 	l.CtxTrace(nil, format, args...)
 }
 
-func (l *baseLogger) Debug(format string, args ...interface{}) {
+func (l *baseLogger) Debug(format string, args ...any) {
 	l.CtxDebug(nil, format, args...)
 }
 
-func (l *baseLogger) Info(format string, args ...interface{}) {
+func (l *baseLogger) Info(format string, args ...any) {
 	l.CtxInfo(nil, format, args...)
 }
 
-func (l *baseLogger) Warn(format string, args ...interface{}) {
+func (l *baseLogger) Warn(format string, args ...any) {
 	l.CtxWarn(nil, format, args...)
 }
 
-func (l *baseLogger) Error(format string, args ...interface{}) {
+func (l *baseLogger) Error(format string, args ...any) {
 	l.CtxError(nil, format, args...)
 }
 
-func (l *baseLogger) Fatal(format string, args ...interface{}) {
+func (l *baseLogger) Fatal(format string, args ...any) {
 	l.CtxFatal(nil, format, args...)
 }
 
-func (l *baseLogger) Panic(format string, args ...interface{}) {
+func (l *baseLogger) Panic(format string, args ...any) {
 	l.CtxPanic(nil, format, args...)
 }
 
 // Context-aware logging methods
-func (l *baseLogger) CtxTrace(ctx context.Context, format string, args ...interface{}) {
+func (l *baseLogger) CtxTrace(ctx context.Context, format string, args ...any) {
 	l.output(TraceLevel, ctx, format, args...)
 }
 
-func (l *baseLogger) CtxDebug(ctx context.Context, format string, args ...interface{}) {
+func (l *baseLogger) CtxDebug(ctx context.Context, format string, args ...any) {
 	l.output(DebugLevel, ctx, format, args...)
 }
 
-func (l *baseLogger) CtxInfo(ctx context.Context, format string, args ...interface{}) {
+func (l *baseLogger) CtxInfo(ctx context.Context, format string, args ...any) {
 	l.output(InfoLevel, ctx, format, args...)
 }
 
-func (l *baseLogger) CtxWarn(ctx context.Context, format string, args ...interface{}) {
+func (l *baseLogger) CtxWarn(ctx context.Context, format string, args ...any) {
 	l.output(WarnLevel, ctx, format, args...)
 }
 
-func (l *baseLogger) CtxError(ctx context.Context, format string, args ...interface{}) {
+func (l *baseLogger) CtxError(ctx context.Context, format string, args ...any) {
 	l.output(ErrorLevel, ctx, format, args...)
 }
 
-func (l *baseLogger) CtxFatal(ctx context.Context, format string, args ...interface{}) {
+func (l *baseLogger) CtxFatal(ctx context.Context, format string, args ...any) {
 	l.output(FatalLevel, ctx, format, args...)
 }
 
-func (l *baseLogger) CtxPanic(ctx context.Context, format string, args ...interface{}) {
+func (l *baseLogger) CtxPanic(ctx context.Context, format string, args ...any) {
 	l.output(PanicLevel, ctx, format, args...)
 }
 
 // output sends log messages to all handlers
-func (l *baseLogger) output(level Level, ctx context.Context, format string, args ...interface{}) {
+func (l *baseLogger) output(level Level, ctx context.Context, format string, args ...any) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 

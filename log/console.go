@@ -57,7 +57,7 @@ func (h *ConsoleHandler) AddOutput(w io.Writer) {
 }
 
 // Output writes a log message to the console
-func (h *ConsoleHandler) Output(level Level, ctx context.Context, format string, args ...interface{}) {
+func (h *ConsoleHandler) Output(level Level, ctx context.Context, format string, args ...any) {
 	h.once.Do(func() { go h.serve() })
 
 	if level < h.level {
@@ -145,7 +145,7 @@ func NewTextFormatter(color bool) *TextFormatter {
 }
 
 // Format converts log data into a formatted string
-func (f *TextFormatter) Format(level Level, ctx context.Context, format string, args ...interface{}) string {
+func (f *TextFormatter) Format(level Level, ctx context.Context, format string, args ...any) string {
 	var buf strings.Builder
 
 	// Add color if enabled
