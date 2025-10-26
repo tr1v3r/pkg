@@ -19,7 +19,9 @@ var (
 			MaxIdleConnsPerHost: 5,
 			MaxConnsPerHost:     10,
 			Proxy:               http.ProxyFromEnvironment,
-			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig:     &tls.Config{
+				MinVersion: tls.VersionTLS12, // Enforce minimum TLS 1.2
+			},
 		},
 	}
 )
@@ -36,6 +38,21 @@ func SetDefaultClient(client *http.Client) {
 	mu.Lock()
 	defer mu.Unlock()
 	httpClient = client
+}
+
+// NewInsecureClient creates a new HTTP client with disabled certificate verification
+// WARNING: Only use for testing or development environments
+func NewInsecureClient() *http.Client {
+	return &http.Client{
+		Timeout: 60 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        5,
+			MaxIdleConnsPerHost: 5,
+			MaxConnsPerHost:     10,
+			Proxy:               http.ProxyFromEnvironment,
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 }
 
 // Get ...
