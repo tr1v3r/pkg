@@ -39,6 +39,15 @@ func Close() error {
 	return defaultLogger.Close()
 }
 
+// WithLogID creates a new context with the specified log ID
+// This is a convenience function for users to easily add log IDs to their contexts
+func WithLogID(ctx context.Context, logID string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, LogIDKey, logID)
+}
+
 // Traditional logging functions
 
 // Trace logs a message at TraceLevel

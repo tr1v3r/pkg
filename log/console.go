@@ -195,7 +195,7 @@ func (f *TextFormatter) getLogID(ctx context.Context) string {
 	if ctx == nil {
 		return ""
 	}
-	if v := ctx.Value("log_id"); v != nil {
+	if v := ctx.Value(LogIDKey); v != nil {
 		if s, ok := v.(string); ok {
 			return s
 		}

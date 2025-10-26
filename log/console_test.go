@@ -156,7 +156,7 @@ func TestConsoleHandler_ContextLogging(t *testing.T) {
 	handler.SetOutput(buf)
 
 	// Test logging with context
-	ctx := context.WithValue(context.Background(), "log_id", "test-789")
+	ctx := context.WithValue(context.Background(), LogIDKey, "test-789")
 	handler.Output(InfoLevel, ctx, "context message")
 	handler.Flush()
 

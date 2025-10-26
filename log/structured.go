@@ -120,31 +120,31 @@ func (l *StructuredLogger) WithGroup(name string) Logger {
 // Traditional logging methods (format string based)
 
 func (l *StructuredLogger) Trace(format string, args ...any) {
-	l.CtxTrace(nil, format, args...)
+	l.CtxTrace(context.TODO(), format, args...)
 }
 
 func (l *StructuredLogger) Debug(format string, args ...any) {
-	l.CtxDebug(nil, format, args...)
+	l.CtxDebug(context.TODO(), format, args...)
 }
 
 func (l *StructuredLogger) Info(format string, args ...any) {
-	l.CtxInfo(nil, format, args...)
+	l.CtxInfo(context.TODO(), format, args...)
 }
 
 func (l *StructuredLogger) Warn(format string, args ...any) {
-	l.CtxWarn(nil, format, args...)
+	l.CtxWarn(context.TODO(), format, args...)
 }
 
 func (l *StructuredLogger) Error(format string, args ...any) {
-	l.CtxError(nil, format, args...)
+	l.CtxError(context.TODO(), format, args...)
 }
 
 func (l *StructuredLogger) Fatal(format string, args ...any) {
-	l.CtxFatal(nil, format, args...)
+	l.CtxFatal(context.TODO(), format, args...)
 }
 
 func (l *StructuredLogger) Panic(format string, args ...any) {
-	l.CtxPanic(nil, format, args...)
+	l.CtxPanic(context.TODO(), format, args...)
 }
 
 // Context-aware traditional logging methods

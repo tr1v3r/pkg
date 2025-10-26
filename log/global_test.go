@@ -32,7 +32,7 @@ func TestGlobalContextFunctions(t *testing.T) {
 		buf.Reset()
 
 		// Test with context
-		ctx := context.WithValue(context.Background(), "log_id", "global-test-123")
+		ctx := context.WithValue(context.Background(), LogIDKey, "global-test-123")
 		tc.logFn(ctx, tc.expected)
 		Flush()
 

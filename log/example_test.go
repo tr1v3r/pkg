@@ -12,7 +12,7 @@ func TestStructuredLoggingExamples(t *testing.T) {
 	Info("User %s logged in from %s", "alice", "192.168.1.100")
 
 	// Example 2: Structured logging with key-value pairs
-	ctx := context.WithValue(context.Background(), "log_id", "req-12345")
+	ctx := context.WithValue(context.Background(), LogIDKey, "req-12345")
 	CtxInfo(ctx, "User login", "user", "alice", "ip", "192.168.1.100", "success", true)
 
 	// Example 3: Using With() for contextual logging
@@ -32,7 +32,7 @@ func TestStructuredLogging(t *testing.T) {
 	Info("Traditional format: %s", "works")
 
 	// Test structured logging
-	ctx := context.WithValue(context.Background(), "log_id", "test-123")
+	ctx := context.WithValue(context.Background(), LogIDKey, "test-123")
 	CtxInfo(ctx, "Structured log", "key1", "value1", "key2", 42, "key3", true)
 
 	// Test With() method
@@ -41,4 +41,24 @@ func TestStructuredLogging(t *testing.T) {
 
 	// Test mixed usage
 	Warn("Mixed %s logging", "format", "extra_key", "extra_value")
+}
+
+func TestWithLogIDFunction(t *testing.T) {
+	// Example 1: Using WithLogID convenience function
+	ctx := WithLogID(context.Background(), "request-abc123")
+	CtxInfo(ctx, "Request processed", "status", "success", "duration_ms", 250)
+
+	// Example 2: Using WithLogID with existing context
+	// Note: In real applications, define your own context key types
+	type userKey string
+	const userIDKey userKey = "user_id"
+	parentCtx := context.WithValue(context.Background(), userIDKey, "user-789")
+	ctx = WithLogID(parentCtx, "request-def456")
+	CtxInfo(ctx, "User request", "user_id", "user-789", "action", "login")
+
+	// Example 3: Using LogIDKey directly
+	ctx = context.WithValue(context.Background(), LogIDKey, "manual-log-id")
+	CtxWarn(ctx, "Manual log ID usage")
+
+	Flush()
 }

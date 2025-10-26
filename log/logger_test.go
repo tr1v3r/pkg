@@ -201,7 +201,7 @@ func TestBaseLogger_LoggingMethods(t *testing.T) {
 
 		// Test with context
 		buf.Reset()
-		ctx := context.WithValue(context.Background(), "log_id", "test-123")
+		ctx := context.WithValue(context.Background(), LogIDKey, "test-123")
 		tc.ctxLogFn(ctx, "ctx "+tc.expected)
 		logger.Flush()
 
@@ -228,7 +228,7 @@ func TestBaseLogger_Output(t *testing.T) {
 
 	// Test output with context
 	buf.Reset()
-	ctx := context.WithValue(context.Background(), "log_id", "test-456")
+	ctx := context.WithValue(context.Background(), LogIDKey, "test-456")
 	logger.output(InfoLevel, ctx, "context output test")
 	logger.Flush()
 

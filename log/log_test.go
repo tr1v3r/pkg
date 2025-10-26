@@ -98,7 +98,7 @@ func TestConsoleHandler(t *testing.T) {
 	// Test context
 	buf.Reset()
 	handler.SetLevel(DebugLevel)
-	ctx := context.WithValue(context.Background(), "log_id", "test123")
+	ctx := context.WithValue(context.Background(), LogIDKey, "test123")
 	handler.Output(InfoLevel, ctx, "context message")
 	handler.Flush()
 
@@ -122,7 +122,7 @@ func TestTextFormatter(t *testing.T) {
 	}
 
 	// Test with context
-	ctx := context.WithValue(context.Background(), "log_id", "ctx123")
+	ctx := context.WithValue(context.Background(), LogIDKey, "ctx123")
 	result = formatter.Format(InfoLevel, ctx, "context test")
 	if !strings.Contains(result, "ctx123") {
 		t.Errorf("Expected formatted message to contain log_id 'ctx123', got: %s", result)
@@ -156,7 +156,7 @@ func TestGlobalFunctions(t *testing.T) {
 
 	// Test context function
 	buf.Reset()
-	ctx := context.WithValue(context.Background(), "log_id", "global123")
+	ctx := context.WithValue(context.Background(), LogIDKey, "global123")
 	CtxInfo(ctx, "context global message")
 	Flush()
 
@@ -236,7 +236,7 @@ func BenchmarkConsoleHandler(b *testing.B) {
 
 func BenchmarkTextFormatter(b *testing.B) {
 	formatter := NewTextFormatter(false)
-	ctx := context.WithValue(context.Background(), "log_id", "bench123")
+	ctx := context.WithValue(context.Background(), LogIDKey, "bench123")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

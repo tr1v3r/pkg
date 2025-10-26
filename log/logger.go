@@ -6,6 +6,12 @@ import (
 	"sync"
 )
 
+// contextKey is a type for context keys to avoid collisions
+type contextKey string
+
+// LogIDKey is the context key for log ID
+const LogIDKey contextKey = "log_id"
+
 // Logger provides methods for all log levels with support for both traditional and structured logging
 type Logger interface {
 	Trace(format string, args ...any)
@@ -144,31 +150,31 @@ func (l *baseLogger) WithGroup(name string) Logger {
 
 // Level-based logging methods
 func (l *baseLogger) Trace(format string, args ...any) {
-	l.CtxTrace(nil, format, args...)
+	l.CtxTrace(context.TODO(), format, args...)
 }
 
 func (l *baseLogger) Debug(format string, args ...any) {
-	l.CtxDebug(nil, format, args...)
+	l.CtxDebug(context.TODO(), format, args...)
 }
 
 func (l *baseLogger) Info(format string, args ...any) {
-	l.CtxInfo(nil, format, args...)
+	l.CtxInfo(context.TODO(), format, args...)
 }
 
 func (l *baseLogger) Warn(format string, args ...any) {
-	l.CtxWarn(nil, format, args...)
+	l.CtxWarn(context.TODO(), format, args...)
 }
 
 func (l *baseLogger) Error(format string, args ...any) {
-	l.CtxError(nil, format, args...)
+	l.CtxError(context.TODO(), format, args...)
 }
 
 func (l *baseLogger) Fatal(format string, args ...any) {
-	l.CtxFatal(nil, format, args...)
+	l.CtxFatal(context.TODO(), format, args...)
 }
 
 func (l *baseLogger) Panic(format string, args ...any) {
-	l.CtxPanic(nil, format, args...)
+	l.CtxPanic(context.TODO(), format, args...)
 }
 
 // Context-aware logging methods
