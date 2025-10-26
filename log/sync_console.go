@@ -39,11 +39,20 @@ func (h *SyncConsoleHandler) SetOutput(w io.Writer) {
 	h.out = w
 }
 
-// AddOutput adds an additional output writer to this handler
-func (h *SyncConsoleHandler) AddOutput(w io.Writer) {
+// AddOutputs adds multiple output writers to this handler
+func (h *SyncConsoleHandler) AddOutputs(writers ...io.Writer) {
+	// Fast path: no writers provided
+	if len(writers) == 0 {
+		return
+	}
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.out = io.MultiWriter(h.out, w)
+
+	// Combine existing output with new writers
+	allWriters := []io.Writer{h.out}
+	allWriters = append(allWriters, writers...)
+	h.out = io.MultiWriter(allWriters...)
 }
 
 // Output writes a log message to the console synchronously

@@ -24,9 +24,9 @@ func SetOutput(w io.Writer) {
 	defaultLogger.SetOutput(w)
 }
 
-// AddOutput adds an additional output writer to the default logger
-func AddOutput(w io.Writer) {
-	defaultLogger.AddOutput(w)
+// AddOutputs adds multiple output writers to the default logger
+func AddOutputs(writers ...io.Writer) {
+	defaultLogger.AddOutputs(writers...)
 }
 
 // Flush flushes all pending log messages

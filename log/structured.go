@@ -49,12 +49,12 @@ func (l *StructuredLogger) SetOutput(w io.Writer) {
 	}
 }
 
-// AddOutput adds an additional output writer to all handlers
-func (l *StructuredLogger) AddOutput(w io.Writer) {
+// AddOutputs adds multiple output writers to all handlers
+func (l *StructuredLogger) AddOutputs(writers ...io.Writer) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	for _, handler := range l.handlers {
-		handler.AddOutput(w)
+		handler.AddOutputs(writers...)
 	}
 }
 

@@ -35,7 +35,7 @@ type Logger interface {
 
 	SetLevel(level Level)
 	SetOutput(w io.Writer)
-	AddOutput(w io.Writer)
+	AddOutputs(writers ...io.Writer)
 	Flush()
 	Close() error
 }
@@ -46,7 +46,7 @@ type Handler interface {
 	Output(level Level, ctx context.Context, format string, args ...any)
 	SetLevel(level Level)
 	SetOutput(w io.Writer)
-	AddOutput(w io.Writer)
+	AddOutputs(writers ...io.Writer)
 	Flush()
 	Close() error
 }
@@ -97,13 +97,13 @@ func (l *baseLogger) SetOutput(w io.Writer) {
 	}
 }
 
-// AddOutput adds an additional output writer to all handlers
-func (l *baseLogger) AddOutput(w io.Writer) {
+// AddOutputs adds multiple output writers to all handlers
+func (l *baseLogger) AddOutputs(writers ...io.Writer) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
 	for _, handler := range l.handlers {
-		handler.AddOutput(w)
+		handler.AddOutputs(writers...)
 	}
 }
 
