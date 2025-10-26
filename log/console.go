@@ -82,9 +82,6 @@ func (h *ConsoleHandler) Output(level Level, ctx context.Context, format string,
 		// Message queued successfully
 	case <-h.closed:
 		// Handler is closed, drop message
-	default:
-		// Channel is full, drop message to prevent blocking
-		// In production, you might want to handle this differently
 	}
 }
 

@@ -144,9 +144,6 @@ func (h *FileHandler) Output(level Level, ctx context.Context, format string, ar
 		// Message queued successfully
 	case <-h.closed:
 		// Handler is closed, drop message
-	default:
-		// Channel is full, drop message to prevent blocking
-		fmt.Fprintf(os.Stderr, "file handler channel full, dropping message\n")
 	}
 }
 
