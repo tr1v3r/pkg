@@ -8,8 +8,9 @@ import (
 
 // Global logger instance
 var (
+	// defaultHandler Handler = NewStructuredLogHandler(InfoLevel)
 	defaultHandler Handler = NewConsoleHandler(InfoLevel)
-	defaultLogger  Logger  = NewStructuredLogger(defaultHandler)
+	defaultLogger  Logger  = NewLogger(defaultHandler)
 )
 
 // Global convenience functions
@@ -137,14 +138,22 @@ func WithGroup(name string) Logger {
 // SetStructuredOutput configures structured logging output
 // This sets up the underlying slog logger for JSON or text output
 func SetStructuredOutput(out io.Writer, json bool) {
-	if sl, ok := defaultLogger.(*StructuredLogger); ok {
-		var handler slog.Handler
-		if json {
-			handler = slog.NewJSONHandler(out, nil)
-		} else {
-			handler = slog.NewTextHandler(out, nil)
+	if bl, ok := defaultLogger.(*baseLogger); ok {
+		bl.mu.RLock()
+		defer bl.mu.RUnlock()
+
+		// Check if the first handler is a structuredLogHandler
+		if len(bl.handlers) > 0 {
+			if sh, ok := bl.handlers[0].(*structuredLogHandler); ok {
+				var handler slog.Handler
+				if json {
+					handler = slog.NewJSONHandler(out, nil)
+				} else {
+					handler = slog.NewTextHandler(out, nil)
+				}
+				sh.SetStructuredLogger(slog.New(handler))
+			}
 		}
-		sl.SetStructuredLogger(slog.New(handler))
 	}
 }
 
@@ -153,19 +162,19 @@ func SetStructuredOutput(out io.Writer, json bool) {
 // RegisterHandler adds handlers to the default logger
 // This maintains backward compatibility with the original API
 func RegisterHandler(handlers ...Handler) {
-	if sl, ok := defaultLogger.(*StructuredLogger); ok {
-		sl.mu.Lock()
-		defer sl.mu.Unlock()
-		sl.handlers = append(sl.handlers, handlers...)
+	if bl, ok := defaultLogger.(*baseLogger); ok {
+		bl.mu.Lock()
+		defer bl.mu.Unlock()
+		bl.handlers = append(bl.handlers, handlers...)
 	}
 }
 
 // ClearHandler removes all handlers from the default logger
 // This maintains backward compatibility with the original API
 func ClearHandler() {
-	if sl, ok := defaultLogger.(*StructuredLogger); ok {
-		sl.mu.Lock()
-		defer sl.mu.Unlock()
-		sl.handlers = make([]Handler, 0, 4)
+	if bl, ok := defaultLogger.(*baseLogger); ok {
+		bl.mu.Lock()
+		defer bl.mu.Unlock()
+		bl.handlers = make([]Handler, 0, 4)
 	}
 }

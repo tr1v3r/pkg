@@ -127,6 +127,20 @@ func (h *FileHandler) AddOutputs(writers ...io.Writer) {
 	h.out = io.MultiWriter(append(append(make([]io.Writer, 0, len(writers)+1), h.out), writers...)...)
 }
 
+// With returns a new handler with the given structured fields
+func (h *FileHandler) With(args ...any) Handler {
+	// For file handler, we return the same handler
+	// Structured fields are handled at the logger level
+	return h
+}
+
+// WithGroup returns a new handler that starts a group
+func (h *FileHandler) WithGroup(name string) Handler {
+	// For file handler, we return the same handler
+	// Groups are handled at the logger level
+	return h
+}
+
 // Output writes a log message to the file
 func (h *FileHandler) Output(level Level, ctx context.Context, format string, args ...any) {
 	h.once.Do(func() { go h.serve() })

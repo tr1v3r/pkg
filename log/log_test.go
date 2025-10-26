@@ -101,7 +101,7 @@ func TestGlobalFunctions(t *testing.T) {
 	testHandler := NewSyncConsoleHandler(DebugLevel)
 	testHandler.SetOutput(&buf)
 	defaultHandler = testHandler
-	defaultLogger = NewStructuredLogger(testHandler)
+	defaultLogger = NewLogger(testHandler)
 
 	// Test global functions
 	Info("global info message")
@@ -124,12 +124,12 @@ func TestGlobalFunctions(t *testing.T) {
 	}
 }
 
-func TestStructuredLogger(t *testing.T) {
+func TestStructuredLogHandler(t *testing.T) {
 	var buf bytes.Buffer
-	handler := NewSyncConsoleHandler(DebugLevel)
+	handler := NewStructuredLogHandler(DebugLevel)
 	handler.SetOutput(&buf)
 
-	logger := NewStructuredLogger(handler)
+	logger := NewLogger(handler)
 
 	// Test traditional logging
 	logger.Info("traditional %s", "message")
@@ -140,10 +140,10 @@ func TestStructuredLogger(t *testing.T) {
 		t.Errorf("Expected structured logger to handle traditional format, got: %s", output)
 	}
 
-	// Test With method - StructuredLogger should return a new instance
+	// Test With method - structuredLogHandler should return a new instance
 	newLogger := logger.With("key", "value")
 	if newLogger == logger {
-		t.Errorf("Expected With to return new logger for StructuredLogger")
+		t.Errorf("Expected With to return new logger for structuredLogHandler")
 	}
 }
 
@@ -593,8 +593,8 @@ func TestGlobalContextFunctions(t *testing.T) {
 	// This is expected behavior
 
 	// Reset to default state
-	defaultHandler = NewConsoleHandler(InfoLevel)
-	defaultLogger = NewStructuredLogger(defaultHandler)
+	defaultHandler = NewStructuredLogHandler(InfoLevel)
+	defaultLogger = NewLogger(defaultHandler)
 }
 
 func TestGlobalConfiguration(t *testing.T) {
@@ -668,8 +668,8 @@ func TestGlobalStructuredOutput(t *testing.T) {
 	}
 
 	// Reset to default
-	defaultHandler = NewConsoleHandler(InfoLevel)
-	defaultLogger = NewStructuredLogger(defaultHandler)
+	defaultHandler = NewStructuredLogHandler(InfoLevel)
+	defaultLogger = NewLogger(defaultHandler)
 }
 
 // MultiError test

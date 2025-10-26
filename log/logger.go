@@ -44,6 +44,10 @@ type Logger interface {
 type Handler interface {
 	io.Writer
 	Output(level Level, ctx context.Context, format string, args ...any)
+
+	With(args ...any) Handler
+	WithGroup(name string) Handler
+
 	SetLevel(level Level)
 	SetOutput(w io.Writer)
 	AddOutputs(writers ...io.Writer)
@@ -137,15 +141,38 @@ func (l *baseLogger) Close() error {
 
 // With creates a new logger with additional structured fields
 func (l *baseLogger) With(args ...any) Logger {
-	// For base logger, return self (no structured logging support)
-	// Structured logging is handled by StructuredLogger wrapper
-	return l
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	// Create new handlers with structured fields applied
+	newHandlers := make([]Handler, len(l.handlers))
+	for i, handler := range l.handlers {
+		newHandlers[i] = handler.With(args...)
+	}
+
+	// Return new logger with updated handlers
+	return &baseLogger{
+		handlers: newHandlers,
+		level:    l.level,
+	}
 }
 
 // WithGroup creates a new logger that starts a group
 func (l *baseLogger) WithGroup(name string) Logger {
-	// For base logger, return self (no structured logging support)
-	return l
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	// Create new handlers with group applied
+	newHandlers := make([]Handler, len(l.handlers))
+	for i, handler := range l.handlers {
+		newHandlers[i] = handler.WithGroup(name)
+	}
+
+	// Return new logger with updated handlers
+	return &baseLogger{
+		handlers: newHandlers,
+		level:    l.level,
+	}
 }
 
 // Level-based logging methods

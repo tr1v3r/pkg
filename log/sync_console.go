@@ -87,3 +87,17 @@ func (h *SyncConsoleHandler) Flush() {
 func (h *SyncConsoleHandler) Close() error {
 	return nil
 }
+
+// With returns a new handler with the given structured fields
+func (h *SyncConsoleHandler) With(args ...any) Handler {
+	// For sync console handler, we return the same handler
+	// Structured fields are handled at the logger level
+	return h
+}
+
+// WithGroup returns a new handler that starts a group
+func (h *SyncConsoleHandler) WithGroup(name string) Handler {
+	// For sync console handler, we return the same handler
+	// Groups are handled at the logger level
+	return h
+}

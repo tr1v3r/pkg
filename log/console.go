@@ -49,6 +49,20 @@ func (h *ConsoleHandler) SetOutput(w io.Writer) {
 	h.out = w
 }
 
+// With returns a new handler with the given structured fields
+func (h *ConsoleHandler) With(args ...any) Handler {
+	// For console handler, we return the same handler
+	// Structured fields are handled at the logger level
+	return h
+}
+
+// WithGroup returns a new handler that starts a group
+func (h *ConsoleHandler) WithGroup(name string) Handler {
+	// For console handler, we return the same handler
+	// Groups are handled at the logger level
+	return h
+}
+
 // AddOutputs adds multiple output writers to this handler
 func (h *ConsoleHandler) AddOutputs(writers ...io.Writer) {
 	// Fast path: no writers provided
