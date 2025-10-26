@@ -6,122 +6,218 @@ import (
 	"sync"
 )
 
-var (
-	defaultHandler Handler = NewStreamHandler(InfoLevel)
-	defaultLogger  Logger  = NewLogger(defaultHandler)
-)
-
-// NewLogger new logger
-func NewLogger(handlers ...Handler) Logger { return &logger{handlers: handlers} }
-
-// Logger logger interface
+// Logger provides methods for all log levels with support for both traditional and structured logging
 type Logger interface {
-	RegisterHandler(...Handler)
-	ClearHandler()
+	Trace(format string, args ...interface{})
+	Debug(format string, args ...interface{})
+	Info(format string, args ...interface{})
+	Warn(format string, args ...interface{})
+	Error(format string, args ...interface{})
+	Fatal(format string, args ...interface{})
+	Panic(format string, args ...interface{})
 
-	SetLevel(Level)
+	CtxTrace(ctx context.Context, format string, args ...interface{})
+	CtxDebug(ctx context.Context, format string, args ...interface{})
+	CtxInfo(ctx context.Context, format string, args ...interface{})
+	CtxWarn(ctx context.Context, format string, args ...interface{})
+	CtxError(ctx context.Context, format string, args ...interface{})
+	CtxFatal(ctx context.Context, format string, args ...interface{})
+	CtxPanic(ctx context.Context, format string, args ...interface{})
 
+	With(args ...interface{}) Logger
+	WithGroup(name string) Logger
+
+	SetLevel(level Level)
+	SetOutput(w io.Writer)
+	AddOutput(w io.Writer)
 	Flush()
-	Close()
-
-	Trace(format string, v ...any)
-	Debug(format string, v ...any)
-	Info(format string, v ...any)
-	Warn(format string, v ...any)
-	Error(format string, v ...any)
-	Fatal(format string, v ...any)
-	Panic(format string, v ...any)
-
-	CtxTrace(ctx context.Context, format string, v ...any)
-	CtxDebug(ctx context.Context, format string, v ...any)
-	CtxInfo(ctx context.Context, format string, v ...any)
-	CtxWarn(ctx context.Context, format string, v ...any)
-	CtxError(ctx context.Context, format string, v ...any)
-	CtxFatal(ctx context.Context, format string, v ...any)
-	CtxPanic(ctx context.Context, format string, v ...any)
+	Close() error
 }
 
+// Handler formats and writes log messages
 type Handler interface {
 	io.Writer
-
-	SetLevel(Level)
-	Output(level Level, ctx context.Context, format string, v ...any)
-
+	Output(level Level, ctx context.Context, format string, args ...interface{})
+	SetLevel(level Level)
+	SetOutput(w io.Writer)
+	AddOutput(w io.Writer)
 	Flush()
-	Close()
-
-	RegisterOutput(io.Writer)
-	SetOutput(io.Writer)
+	Close() error
 }
 
-type logger struct {
+// Formatter converts log data into string representations
+type Formatter interface {
+	Format(level Level, ctx context.Context, format string, args ...interface{}) string
+}
+
+// baseLogger is the concrete implementation of the Logger interface
+type baseLogger struct {
 	mu       sync.RWMutex
 	handlers []Handler
+	level    Level
 }
 
-func (l *logger) SetLevel(level Level) {
-	l.mu.RLock()
-	defer l.mu.RLock()
+// NewLogger creates a new logger with the specified handlers
+// If no handlers are provided, a default console handler is used
+func NewLogger(handlers ...Handler) Logger {
+	if len(handlers) == 0 {
+		handlers = []Handler{NewConsoleHandler(InfoLevel)}
+	}
+
+	return &baseLogger{
+		handlers: handlers,
+		level:    InfoLevel,
+	}
+}
+
+// SetLevel sets the minimum log level for all handlers
+func (l *baseLogger) SetLevel(level Level) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.level = level
 	for _, handler := range l.handlers {
 		handler.SetLevel(level)
 	}
 }
 
-func (l *logger) RegisterHandler(handlers ...Handler) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.handlers = append(l.handlers, handlers...)
+// SetOutput sets the output writer for all handlers
+func (l *baseLogger) SetOutput(w io.Writer) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	for _, handler := range l.handlers {
+		handler.SetOutput(w)
+	}
 }
 
-func (l *logger) ClearHandler() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.handlers = make([]Handler, 0, 4)
+// AddOutput adds an additional output writer to all handlers
+func (l *baseLogger) AddOutput(w io.Writer) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	for _, handler := range l.handlers {
+		handler.AddOutput(w)
+	}
 }
 
-func (l *logger) Flush() {
+// Flush flushes all pending log messages
+func (l *baseLogger) Flush() {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
 	for _, handler := range l.handlers {
 		handler.Flush()
 	}
 }
-func (l *logger) Close() {
+
+// Close closes all handlers and releases resources
+func (l *baseLogger) Close() error {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	var errors []error
 	for _, handler := range l.handlers {
-		handler.Close()
+		if err := handler.Close(); err != nil {
+			errors = append(errors, err)
+		}
+	}
+
+	if len(errors) > 0 {
+		return &MultiError{Errors: errors}
+	}
+	return nil
+}
+
+// With creates a new logger with additional structured fields
+func (l *baseLogger) With(args ...interface{}) Logger {
+	// For base logger, return self (no structured logging support)
+	// Structured logging is handled by StructuredLogger wrapper
+	return l
+}
+
+// WithGroup creates a new logger that starts a group
+func (l *baseLogger) WithGroup(name string) Logger {
+	// For base logger, return self (no structured logging support)
+	return l
+}
+
+// Level-based logging methods
+func (l *baseLogger) Trace(format string, args ...interface{}) {
+	l.CtxTrace(nil, format, args...)
+}
+
+func (l *baseLogger) Debug(format string, args ...interface{}) {
+	l.CtxDebug(nil, format, args...)
+}
+
+func (l *baseLogger) Info(format string, args ...interface{}) {
+	l.CtxInfo(nil, format, args...)
+}
+
+func (l *baseLogger) Warn(format string, args ...interface{}) {
+	l.CtxWarn(nil, format, args...)
+}
+
+func (l *baseLogger) Error(format string, args ...interface{}) {
+	l.CtxError(nil, format, args...)
+}
+
+func (l *baseLogger) Fatal(format string, args ...interface{}) {
+	l.CtxFatal(nil, format, args...)
+}
+
+func (l *baseLogger) Panic(format string, args ...interface{}) {
+	l.CtxPanic(nil, format, args...)
+}
+
+// Context-aware logging methods
+func (l *baseLogger) CtxTrace(ctx context.Context, format string, args ...interface{}) {
+	l.output(TraceLevel, ctx, format, args...)
+}
+
+func (l *baseLogger) CtxDebug(ctx context.Context, format string, args ...interface{}) {
+	l.output(DebugLevel, ctx, format, args...)
+}
+
+func (l *baseLogger) CtxInfo(ctx context.Context, format string, args ...interface{}) {
+	l.output(InfoLevel, ctx, format, args...)
+}
+
+func (l *baseLogger) CtxWarn(ctx context.Context, format string, args ...interface{}) {
+	l.output(WarnLevel, ctx, format, args...)
+}
+
+func (l *baseLogger) CtxError(ctx context.Context, format string, args ...interface{}) {
+	l.output(ErrorLevel, ctx, format, args...)
+}
+
+func (l *baseLogger) CtxFatal(ctx context.Context, format string, args ...interface{}) {
+	l.output(FatalLevel, ctx, format, args...)
+}
+
+func (l *baseLogger) CtxPanic(ctx context.Context, format string, args ...interface{}) {
+	l.output(PanicLevel, ctx, format, args...)
+}
+
+// output sends log messages to all handlers
+func (l *baseLogger) output(level Level, ctx context.Context, format string, args ...interface{}) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	for _, handler := range l.handlers {
+		handler.Output(level, ctx, format, args...)
 	}
 }
 
-func (l *logger) Trace(format string, v ...any) { l.CtxTrace(nil, format, v...) } // nolint
-func (l *logger) Debug(format string, v ...any) { l.CtxDebug(nil, format, v...) } // nolint
-func (l *logger) Info(format string, v ...any)  { l.CtxInfo(nil, format, v...) }  // nolint
-func (l *logger) Warn(format string, v ...any)  { l.CtxWarn(nil, format, v...) }  // nolint
-func (l *logger) Error(format string, v ...any) { l.CtxError(nil, format, v...) } // nolint
-func (l *logger) Fatal(format string, v ...any) { l.CtxFatal(nil, format, v...) } // nolint
-func (l *logger) Panic(format string, v ...any) { l.CtxPanic(nil, format, v...) } // nolint
-
-func (l *logger) CtxTrace(ctx context.Context, format string, v ...any) {
-	l.output(TraceLevel, ctx, format, v...)
-}
-func (l *logger) CtxDebug(ctx context.Context, format string, v ...any) {
-	l.output(DebugLevel, ctx, format, v...)
-}
-func (l *logger) CtxInfo(ctx context.Context, format string, v ...any) {
-	l.output(InfoLevel, ctx, format, v...)
-}
-func (l *logger) CtxWarn(ctx context.Context, format string, v ...any) {
-	l.output(WarnLevel, ctx, format, v...)
-}
-func (l *logger) CtxError(ctx context.Context, format string, v ...any) {
-	l.output(ErrorLevel, ctx, format, v...)
-}
-func (l *logger) CtxFatal(ctx context.Context, format string, v ...any) {
-	l.output(FatalLevel, ctx, format, v...)
-}
-func (l *logger) CtxPanic(ctx context.Context, format string, v ...any) {
-	l.output(PanicLevel, ctx, format, v...)
+// MultiError represents multiple errors from closing handlers
+type MultiError struct {
+	Errors []error
 }
 
-func (l *logger) output(level Level, ctx context.Context, format string, v ...any) {
-	for _, handler := range l.handlers {
-		handler.Output(level, ctx, format, v...)
+func (m *MultiError) Error() string {
+	if len(m.Errors) == 0 {
+		return "no errors"
 	}
+	return "multiple errors occurred while closing handlers"
 }
