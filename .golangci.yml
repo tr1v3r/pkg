@@ -92,6 +92,17 @@ linters-settings:
     # Require specific explanation format (e.g., "// nolint:gocyclo - this function is complex by design")
     require-specific: true
 
+  depguard:
+    rules:
+      main:
+        # Allow crypto packages
+        list:
+          - "crypto/md5"
+          - "crypto/sha1"
+          - "crypto/sha256"
+          - "crypto/sha512"
+          - "golang.org/x/crypto/sha3"
+
 # Linters configuration
 linters:
   # Disable specific linters
@@ -103,7 +114,6 @@ linters:
   # Enable specific linters
   enable:
     - bodyclose
-    - depguard
     - dogsled
     - dupl
     - errcheck

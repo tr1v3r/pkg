@@ -1,8 +1,8 @@
 package hash
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
+	"crypto/md5" //nolint:gosec // MD5 provided for legacy compatibility
+	"crypto/sha1" //nolint:gosec // SHA1 provided for legacy compatibility
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
@@ -11,15 +11,17 @@ import (
 )
 
 // CalcMD5 calculate md5
+// Note: MD5 is considered cryptographically broken and should not be used for security purposes
 func CalcMD5(content []byte) string {
-	h := md5.New()
+	h := md5.New() //nolint:gosec // MD5 provided for legacy compatibility
 	h.Write(content)
 	return hex.EncodeToString(h.Sum(nil))
 }
 
 // CalcSHA1 calculate sha1
+// Note: SHA1 is considered cryptographically broken and should not be used for security purposes
 func CalcSHA1(content []byte) string {
-	h := sha1.New()
+	h := sha1.New() //nolint:gosec // SHA1 provided for legacy compatibility
 	h.Write(content)
 	return hex.EncodeToString(h.Sum(nil))
 }
