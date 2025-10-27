@@ -1,0 +1,179 @@
+# golangci-lint configuration file
+# Reference: https://golangci-lint.run/usage/configuration/
+
+version: "2"
+
+run:
+  # Timeout for analysis, e.g., 30s, 5m
+  timeout: 5m
+
+  # Which modules to include (default: all)
+  modules-download-mode: readonly
+
+  # Build tags to consider
+  build-tags:
+    - integration
+
+# Output configuration
+output:
+  # Format: colored-line-number|line-number|json|tab|checkstyle|code-climate|junit-xml|github-actions
+  format: colored-line-number
+
+  # Print lines of code with issue
+  print-issued-lines: true
+
+  # Print linter name in the end of issue text
+  print-linter-name: true
+
+  # Make issues output unique by line
+  uniq-by-line: false
+
+# All available settings of specific linters
+linters-settings:
+  # Enable all available linters
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - diagnostic
+      - experimental
+    disabled-tags:
+      - opinionated
+
+  gocyclo:
+    # Minimal code complexity to report
+    min-complexity: 15
+
+  dupl:
+    # Tokens count to trigger issue, 150 by default
+    threshold: 100
+
+  goconst:
+    # minimal length of string constant
+    min-len: 3
+    # minimum occurrences of constant string count to trigger issue
+    min-occurrences: 3
+
+  gofmt:
+    # Simplify code: gofmt with -s
+    simplify: true
+
+  goimports:
+    # Put imports beginning with prefix after 3rd-party packages
+    local-prefixes: github.com/tr1v3r/pkg
+
+  govet:
+    # Report about shadowed variables
+    check-shadowing: true
+    # Settings per analyzer
+    settings:
+      printf:
+        funcs:
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+
+  lll:
+    # Max line length, lines longer will be reported
+    line-length: 120
+
+  maligned:
+    # Print struct with more effective memory layout or not, false by default
+    suggest-new: true
+
+  misspell:
+    # Correct spellings using locale preferences for US or UK
+    locale: US
+
+  nolintlint:
+    # Require explanation for nolint directives
+    require-explanation: true
+    # Require specific explanation format (e.g., "// nolint:gocyclo - this function is complex by design")
+    require-specific: true
+
+# Linters configuration
+linters:
+  # Disable specific linters
+  disable:
+    - wsl           # Too opinionated for this project
+    - funlen        # Function length is acceptable for this project
+    - nestif        # Nested if statements are acceptable
+
+  # Enable specific linters
+  enable:
+    - bodyclose
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - goconst
+    - gocritic
+    - gocyclo
+    - goprintffuncname
+    - gosec
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - rowserrcheck
+    - staticcheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+
+  # Disable typecheck as it has issues with local packages
+  disable-all: false
+
+issues:
+  # List of regexps of issue texts to exclude, empty by default
+  # But independent from tools configuration
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - dupl
+        - goconst
+        - lll
+
+    # Exclude common false positives
+    - linters:
+        - gosec
+      text: "G104"
+
+    # Exclude errcheck for test files
+    - path: _test\.go
+      linters:
+        - errcheck
+
+  # Maximum issues count per one linter. Set to 0 to disable
+  max-issues-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable
+  max-same-issues: 0
+
+  # Fix found issues (if it's supported by the linter)
+  fix: true
+
+# Paths to exclude from linting
+exclude:
+  - "**/*_test.go"
+  - "**/testdata/*"
+  - "**/vendor/*"
+  - "**/demo/*"
+  - "**/examples/*"
+
+# Severity configuration
+# severity:
+#   # Default severity for issues
+#   default-severity: error
+#
+#   # Rules to set specific severity for specific linters
+#   rules:
+#     - linters:
+#         - gosec
+#       severity: warning
