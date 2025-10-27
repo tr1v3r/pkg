@@ -12,6 +12,7 @@ func TestDefaultClient(t *testing.T) {
 	client := DefaultClient()
 	if client == nil {
 		t.Error("DefaultClient() returned nil")
+		return
 	}
 	if client.Timeout != 60*time.Second {
 		t.Errorf("expected timeout 60s, got %v", client.Timeout)
@@ -41,6 +42,7 @@ func TestNewInsecureClient(t *testing.T) {
 	client := NewInsecureClient()
 	if client == nil {
 		t.Error("NewInsecureClient() returned nil")
+		return
 	}
 
 	transport, ok := client.Transport.(*http.Transport)
@@ -64,10 +66,8 @@ func TestCtxGet(t *testing.T) {
 	data, err := CtxGet(ctx, "https://httpbin.org/json")
 	if err != nil {
 		t.Logf("CtxGet failed (might be expected if offline): %v", err)
-	} else {
-		if len(data) == 0 {
-			t.Error("CtxGet returned empty data")
-		}
+	} else if len(data) == 0 {
+		t.Error("CtxGet returned empty data")
 	}
 }
 
@@ -96,10 +96,8 @@ func TestCtxPost(t *testing.T) {
 	data, err := CtxPost(ctx, "https://httpbin.org/post", body, WithContentTypeJSON())
 	if err != nil {
 		t.Logf("CtxPost failed (might be expected if offline): %v", err)
-	} else {
-		if len(data) == 0 {
-			t.Error("CtxPost returned empty data")
-		}
+	} else if len(data) == 0 {
+		t.Error("CtxPost returned empty data")
 	}
 }
 
@@ -109,10 +107,8 @@ func TestPatch(t *testing.T) {
 	data, err := Patch("https://httpbin.org/patch", body, WithContentTypeJSON())
 	if err != nil {
 		t.Logf("Patch failed (might be expected if offline): %v", err)
-	} else {
-		if len(data) == 0 {
-			t.Error("Patch returned empty data")
-		}
+	} else if len(data) == 0 {
+		t.Error("Patch returned empty data")
 	}
 }
 
@@ -123,10 +119,8 @@ func TestCtxPatch(t *testing.T) {
 	data, err := CtxPatch(ctx, "https://httpbin.org/patch", body, WithContentTypeJSON())
 	if err != nil {
 		t.Logf("CtxPatch failed (might be expected if offline): %v", err)
-	} else {
-		if len(data) == 0 {
-			t.Error("CtxPatch returned empty data")
-		}
+	} else if len(data) == 0 {
+		t.Error("CtxPatch returned empty data")
 	}
 }
 
@@ -184,7 +178,10 @@ func TestDoRequestWithOptions(t *testing.T) {
 
 func TestDoRequestWithOptionsError(t *testing.T) {
 	// Test with invalid URL
-	_, _, _, err := DoRequestWithOptions("GET", "invalid-url", nil, nil)
+	statusCode, content, headers, err := DoRequestWithOptions("GET", "invalid-url", nil, nil)
+	_ = statusCode
+	_ = content
+	_ = headers
 	if err == nil {
 		t.Error("expected error for invalid URL, got nil")
 	}
@@ -193,7 +190,8 @@ func TestDoRequestWithOptionsError(t *testing.T) {
 func TestDoRequestWithOptionsWithBody(t *testing.T) {
 	body := strings.NewReader(`{"test": "data"}`)
 
-	statusCode, content, _, err := DoRequestWithOptions("POST", "https://httpbin.org/post", []RequestOption{WithContentTypeJSON()}, body)
+	statusCode, content, respHeaders, err := DoRequestWithOptions("POST", "https://httpbin.org/post", []RequestOption{WithContentTypeJSON()}, body)
+	_ = respHeaders // unused in test
 	if err != nil {
 		t.Logf("DoRequestWithOptions with body failed (might be expected if offline): %v", err)
 	} else {

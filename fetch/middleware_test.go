@@ -96,7 +96,10 @@ func TestWithRequestTimeout(t *testing.T) {
 	}
 
 	middleware := WithRequestTimeout(100 * time.Millisecond)
-	_, _, _, err := middleware(fn)
+	statusCode, content, headers, err := middleware(fn)
+	_ = statusCode
+	_ = content
+	_ = headers
 
 	if err == nil {
 		t.Error("expected timeout error, got nil")
@@ -111,7 +114,8 @@ func TestWithRequestTimeout(t *testing.T) {
 	}
 
 	middleware2 := WithRequestTimeout(1 * time.Second)
-	statusCode, content, _, err := middleware2(fn2)
+	statusCode, content, headers, err = middleware2(fn2)
+	_ = headers
 
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -205,7 +209,10 @@ func TestMiddlewareOrder(t *testing.T) {
 	}
 
 	chain := ChainMiddleware(middleware1, middleware2)
-	_, _, _, err := chain(fn)
+	statusCode, content, headers, err := chain(fn)
+	_ = statusCode
+	_ = content
+	_ = headers
 
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)

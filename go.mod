@@ -1,11 +1,12 @@
 module github.com/tr1v3r/pkg
 
-go 1.18
+go 1.21
 
 require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/miekg/dns v1.1.50
+	github.com/tr1v3r/pkg/log v0.0.0-20251026194108-dcfbf2096938
 	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
 	golang.org/x/time v0.3.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b

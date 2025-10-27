@@ -10,7 +10,8 @@ import (
 // RequestLogger defines the interface for logging HTTP requests
 type RequestLogger interface {
 	LogRequest(ctx context.Context, method, url string, headers http.Header, body []byte)
-	LogResponse(ctx context.Context, method, url string, statusCode int, headers http.Header, body []byte, duration time.Duration, err error)
+	LogResponse(ctx context.Context, method, url string, statusCode int,
+		headers http.Header, body []byte, duration time.Duration, err error)
 }
 
 // RequestMetrics defines the interface for collecting request metrics
@@ -25,10 +26,7 @@ type Middleware func(next func() (int, []byte, http.Header, error)) (int, []byte
 func WithLogging(logger RequestLogger) Middleware {
 	return func(next func() (int, []byte, http.Header, error)) (int, []byte, http.Header, error) {
 		// Extract context from the request if available
-		var ctx context.Context
-		// In a real implementation, you would extract context from the request
-		// For now, we'll use background context
-		ctx = context.Background()
+		var ctx = context.Background()
 
 		// Log request (in a real implementation, you'd capture request details)
 		// logger.LogRequest(ctx, method, url, headers, body)
@@ -110,7 +108,8 @@ func (l *SimpleLogger) LogRequest(ctx context.Context, method, url string, heade
 }
 
 // LogResponse logs HTTP response details
-func (l *SimpleLogger) LogResponse(ctx context.Context, method, url string, statusCode int, headers http.Header, body []byte, duration time.Duration, err error) {
+func (l *SimpleLogger) LogResponse(ctx context.Context, method, url string, statusCode int,
+	headers http.Header, body []byte, duration time.Duration, err error) {
 	if err != nil {
 		fmt.Printf("[RESPONSE] %s %s - %d - %v - %s\n", method, url, statusCode, err, duration)
 	} else {

@@ -8,12 +8,16 @@ import (
 )
 
 func TestWithHeader(t *testing.T) {
+	const (
+		headerValue1 = "value1"
+		headerValue2 = "value2"
+	)
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
 
-	opt := WithHeader("X-Test", "value1", "value2")
+	opt := WithHeader("X-Test", headerValue1, headerValue2)
 	result := opt(req)
 
-	if result.Header.Get("X-Test") != "value1" {
+	if result.Header.Get("X-Test") != headerValue1 {
 		t.Error("WithHeader did not set first value correctly")
 	}
 
@@ -21,7 +25,7 @@ func TestWithHeader(t *testing.T) {
 	if len(values) != 2 {
 		t.Errorf("expected 2 header values, got %d", len(values))
 	}
-	if values[0] != "value1" || values[1] != "value2" {
+	if values[0] != headerValue1 || values[1] != headerValue2 {
 		t.Errorf("header values incorrect: %v", values)
 	}
 }
@@ -91,12 +95,13 @@ func TestWithContentType(t *testing.T) {
 }
 
 func TestWithContentTypeJSON(t *testing.T) {
+	const contentTypeJSON = "application/json"
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
 
 	opt := WithContentTypeJSON()
 	result := opt(req)
 
-	if result.Header.Get("Content-Type") != "application/json" {
+	if result.Header.Get("Content-Type") != contentTypeJSON {
 		t.Error("WithContentTypeJSON did not set Content-Type to application/json")
 	}
 }
@@ -114,7 +119,8 @@ func TestWithAuthToken(t *testing.T) {
 
 func TestWithContext(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	ctx := context.WithValue(context.Background(), "test-key", "test-value")
+	type contextKey string
+	ctx := context.WithValue(context.Background(), contextKey("test-key"), "test-value")
 
 	opt := WithContext(ctx)
 	result := opt(req)

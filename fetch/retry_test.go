@@ -135,7 +135,10 @@ func TestRetryNetworkError(t *testing.T) {
 		RetryOnStatus: []int{},
 	}
 
-	_, _, _, err := WithRetry(config, fn)
+	statusCode, content, headers, err := WithRetry(config, fn)
+	_ = statusCode
+	_ = content
+	_ = headers
 
 	if err == nil {
 		t.Error("expected error, got nil")

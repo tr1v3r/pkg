@@ -36,36 +36,36 @@ func (ts *testServer) handler(w http.ResponseWriter, r *http.Request) {
 	case "/ok":
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status": "ok"}`)
+		_, _ = fmt.Fprintf(w,`{"status": "ok"}`)
 
 	case "/echo":
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		body, _ := io.ReadAll(r.Body)
-		fmt.Fprintf(w, `{"echo": "%s"}`, string(body))
+		_, _ = fmt.Fprintf(w,`{"echo": "%s"}`, string(body))
 
 	case "/slow":
 		time.Sleep(100 * time.Millisecond)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status": "slow"}`)
+		_, _ = fmt.Fprintf(w,`{"status": "slow"}`)
 
 	case "/error/500":
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Internal Server Error")
+		_, _ = fmt.Fprintf(w,"Internal Server Error")
 
 	case "/error/429":
 		w.WriteHeader(http.StatusTooManyRequests)
-		fmt.Fprintf(w, "Rate Limited")
+		_, _ = fmt.Fprintf(w,"Rate Limited")
 
 	case "/error/502":
 		w.WriteHeader(http.StatusBadGateway)
-		fmt.Fprintf(w, "Bad Gateway")
+		_, _ = fmt.Fprintf(w,"Bad Gateway")
 
 	case "/headers":
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"user-agent": "%s", "authorization": "%s"}`,
+		_, _ = fmt.Fprintf(w,`{"user-agent": "%s", "authorization": "%s"}`,
 			r.Header.Get("User-Agent"),
 			r.Header.Get("Authorization"))
 
@@ -75,11 +75,11 @@ func (ts *testServer) handler(w http.ResponseWriter, r *http.Request) {
 		ts.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"count": %d}`, count)
+		_, _ = fmt.Fprintf(w,`{"count": %d}`, count)
 
 	default:
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Not Found")
+		_, _ = fmt.Fprintf(w,"Not Found")
 	}
 }
 
@@ -192,11 +192,11 @@ func TestIntegrationRetrySuccess(t *testing.T) {
 		callCount++
 		if callCount == 1 {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Error")
+			_, _ = fmt.Fprintf(w,"Error")
 		} else {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, `{"status": "success"}`)
+			_, _ = fmt.Fprintf(w,`{"status": "success"}`)
 		}
 	})
 

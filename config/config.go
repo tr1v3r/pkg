@@ -56,7 +56,7 @@ func (c *Configure) LoadTo(v any, paths ...string) error {
 
 		r = bytes.NewReader(data)
 	} else {
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) //nolint:gosec // File inclusion is intentional for config loading
 		if err != nil {
 			return fmt.Errorf("read file fail: %w", err)
 		}

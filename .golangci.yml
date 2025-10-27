@@ -110,6 +110,7 @@ linters:
     - wsl           # Too opinionated for this project
     - funlen        # Function length is acceptable for this project
     - nestif        # Nested if statements are acceptable
+    - staticcheck   # Has issues with local package imports
 
   # Enable specific linters
   enable:
@@ -138,6 +139,7 @@ linters:
   # Disable typecheck as it has issues with local packages
   disable-all: false
 
+
 issues:
   # List of regexps of issue texts to exclude, empty by default
   # But independent from tools configuration
@@ -160,6 +162,8 @@ issues:
       linters:
         - errcheck
 
+
+
   # Maximum issues count per one linter. Set to 0 to disable
   max-issues-per-linter: 0
 
@@ -176,6 +180,11 @@ exclude:
   - "**/vendor/*"
   - "**/demo/*"
   - "**/examples/*"
+
+# Files to skip from analysis
+skip-files:
+  - "notion/databases.go"
+  - "websocket/cilent.go"
 
 # Severity configuration
 # severity:

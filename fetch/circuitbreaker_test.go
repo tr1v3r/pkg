@@ -65,7 +65,7 @@ func TestCircuitBreakerHalfOpen(t *testing.T) {
 
 	// Open the circuit
 	for i := 0; i < int(config.FailureThreshold); i++ {
-		cb.Execute(func() error {
+		_ = cb.Execute(func() error {
 			return errors.New("failure")
 		})
 	}
@@ -113,7 +113,7 @@ func TestCircuitBreakerExecuteError(t *testing.T) {
 	cb := NewCircuitBreaker(config)
 
 	// Execute should return circuit breaker error when circuit is open
-	cb.Execute(func() error {
+	_ = cb.Execute(func() error {
 		return errors.New("failure")
 	})
 
@@ -145,7 +145,7 @@ func TestCircuitBreakerCounters(t *testing.T) {
 
 	// Execute some failures
 	for i := 0; i < 2; i++ {
-		cb.Execute(func() error {
+		_ = cb.Execute(func() error {
 			return errors.New("failure")
 		})
 	}
@@ -156,7 +156,7 @@ func TestCircuitBreakerCounters(t *testing.T) {
 
 	// Execute some successes
 	for i := 0; i < 2; i++ {
-		cb.Execute(func() error {
+		_ = cb.Execute(func() error {
 			return nil
 		})
 	}

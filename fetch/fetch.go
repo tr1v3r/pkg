@@ -19,7 +19,7 @@ var (
 			MaxIdleConnsPerHost: 5,
 			MaxConnsPerHost:     10,
 			Proxy:               http.ProxyFromEnvironment,
-			TLSClientConfig:     &tls.Config{
+			TLSClientConfig: &tls.Config{
 				MinVersion: tls.VersionTLS12, // Enforce minimum TLS 1.2
 			},
 		},
@@ -50,7 +50,7 @@ func NewInsecureClient() *http.Client {
 			MaxIdleConnsPerHost: 5,
 			MaxConnsPerHost:     10,
 			Proxy:               http.ProxyFromEnvironment,
-			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // InsecureSkipVerify is intentional for testing/development
 		},
 	}
 }
@@ -98,13 +98,15 @@ func DoRequest(method string, url string, body io.Reader) (statusCode int, conte
 }
 
 // DoRequestWithContext 进行HTTP请求
-func DoRequestWithContext(ctx context.Context, method string, url string, opts []RequestOption, body io.Reader) (statusCode int, content []byte, err error) {
+func DoRequestWithContext(ctx context.Context, method string, url string, opts []RequestOption, body io.Reader) (
+	statusCode int, content []byte, err error) {
 	statusCode, content, _, err = DoRequestWithOptions(method, url, append(opts, WithContext(ctx)), body)
 	return
 }
 
 // DoRequestWithOptions 进行HTTP请求并返回响应头
-func DoRequestWithOptions(method string, url string, opts []RequestOption, body io.Reader) (statusCode int, content []byte, respHeaders http.Header, err error) {
+func DoRequestWithOptions(method string, url string, opts []RequestOption, body io.Reader) (
+	statusCode int, content []byte, respHeaders http.Header, err error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return 0, nil, nil, fmt.Errorf("build new request fail: %w", err)

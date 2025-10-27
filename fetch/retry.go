@@ -1,10 +1,12 @@
 package fetch
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"io"
 	"math"
-	"math/rand"
 	"net/http"
+	"slices"
 	"time"
 )
 
@@ -48,13 +50,7 @@ func WithRetry(config RetryConfig, fn func() (int, []byte, http.Header, error)) 
 
 		if err == nil {
 			// Check if we should retry based on status code
-			shouldRetry := false
-			for _, retryCode := range config.RetryOnStatus {
-				if statusCode == retryCode {
-					shouldRetry = true
-					break
-				}
-			}
+			shouldRetry := slices.Contains(config.RetryOnStatus, statusCode)
 
 			if !shouldRetry {
 				return statusCode, content, headers, nil
@@ -90,8 +86,8 @@ func calculateBackoff(config RetryConfig, attempt int) time.Duration {
 	backoff := float64(config.BaseDelay) * math.Pow(2, float64(attempt))
 
 	// Apply jitter
-	jitter := 1.0 + config.Jitter*(rand.Float64()*2-1)
-	backoff = backoff * jitter
+	jitter := 1.0 + config.Jitter*(randomFloat64()*2-1)
+	backoff *= jitter
 
 	// Cap at max delay
 	if backoff > float64(config.MaxDelay) {
@@ -142,7 +138,8 @@ func NewRetryConfig(opts ...RetryOption) RetryConfig {
 }
 
 // DoRequestWithRetry performs an HTTP request with retry logic
-func DoRequestWithRetry(method string, url string, opts []RequestOption, body io.Reader, retryOpts ...RetryOption) (int, []byte, http.Header, error) {
+func DoRequestWithRetry(method string, url string, opts []RequestOption, body io.Reader,
+	retryOpts ...RetryOption) (int, []byte, http.Header, error) {
 	config := NewRetryConfig(retryOpts...)
 
 	fn := func() (int, []byte, http.Header, error) {
@@ -150,4 +147,17 @@ func DoRequestWithRetry(method string, url string, opts []RequestOption, body io
 	}
 
 	return WithRetry(config, fn)
+}
+
+// randomFloat64 generates a cryptographically secure random float64 between 0 and 1
+func randomFloat64() float64 {
+	var buf [8]byte
+	_, err := rand.Read(buf[:])
+	if err != nil {
+		// Fallback to a simple pseudo-random if crypto/rand fails
+		return 0.5
+	}
+	// Convert bytes to uint64 and normalize to [0,1)
+	val := binary.BigEndian.Uint64(buf[:])
+	return float64(val) / float64(^uint64(0))
 }
