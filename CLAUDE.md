@@ -20,6 +20,8 @@ This is a collection of utility Go packages (`github.com/tr1v3r/pkg`) providing 
 ### Package-specific Testing
 - Test specific package: `go test -v ./fetch`
 - Test with coverage for specific package: `go test ./fetch -coverprofile=coverage.out`
+- Integration tests: `go test -tags=integration ./...`
+- Run specific test: `go test -v -run TestSpecificFunction ./packagename`
 
 ## Architecture and Package Structure
 
@@ -62,6 +64,10 @@ This is a collection of utility Go packages (`github.com/tr1v3r/pkg`) providing 
 - **Config (`config/`)**: Configuration management from files and URLs
 - **Calendar (`calendar/`)**: iCalendar generation with RFC 5545 compliance
 - **Brute (`brute/`)**: Generic BFS/DFS search algorithm framework
+- **Alfred (`alfred/`)**: Alfred workflow JSON output generator for macOS automation
+- **Guard (`guard/`)**: Graceful shutdown signal handler with cleanup hooks
+- **RSS (`rss/`)**: RSS/Atom feed data structures and parsing utilities
+- **Sort (`sort/`)**: Extended sorting utilities beyond standard library
 
 ## Code Quality and Standards
 
@@ -83,6 +89,12 @@ This is a collection of utility Go packages (`github.com/tr1v3r/pkg`) providing 
 - Internal package dependencies are managed via Go modules
 - External dependencies are minimized and carefully selected
 
+### Security Guidelines
+- **TLS enforcement**: HTTP clients require TLS 1.2+ minimum
+- **Hash deprecation**: MD5/SHA1 include deprecation notices for security contexts
+- **Gosec compliance**: Specific exclusions documented for legitimate use cases
+- **Input validation**: All external data sources validated before processing
+
 ## Development Guidelines
 
 ### Adding New Packages
@@ -98,6 +110,13 @@ This is a collection of utility Go packages (`github.com/tr1v3r/pkg`) providing 
 - Use internal packages for implementation details when needed
 - Follow Go naming conventions and idioms
 
+### Development Patterns
+- **Option pattern**: Use functional options for configuration (seen in log, calendar, fetch)
+- **Context awareness**: Propagate context through package boundaries
+- **Manager pattern**: Resource-specific managers for complex APIs (notion package)
+- **Graceful degradation**: Handle failures gracefully with circuit breakers and retries
+- **Interface-driven design**: Define clear interfaces for extensibility
+
 ### Error Handling
 - Use Go's standard error handling patterns
 - Provide meaningful error messages
@@ -112,7 +131,28 @@ Packages are designed to work together seamlessly:
 - All packages can use `log` for structured logging
 - `config` can be used for configuration across packages
 
+### Module Structure
+- **Root module**: `github.com/tr1v3r/pkg` contains all packages
+- **Demo modules**: `log/demo/` contains practical usage examples
+- **Local imports**: Packages reference each other via local module paths
+- **Independent usage**: Each package can be imported individually
+
 ### Testing Integration
 - Use `go test -tags=integration` for integration tests
 - Mock external dependencies when testing
 - Test packages in isolation and in combination
+- **Testdata**: External test data in `testdata/` directories where needed
+
+## Advanced Architecture Patterns
+
+### Resilience and Reliability
+- **Circuit breaker**: Automatic failure detection and recovery in fetch package
+- **Rate limiting**: Built-in rate limiting using `golang.org/x/time/rate` in notion package
+- **Retry mechanisms**: Configurable retry logic with exponential backoff
+- **Graceful shutdown**: Signal handling with cleanup hooks in guard package
+
+### Performance Optimizations
+- **Async processing**: Non-blocking operations in log package handlers
+- **Pool management**: Goroutine and thread pools for concurrent operations
+- **Buffered operations**: Configurable buffer sizes for I/O operations
+- **Resource tracking**: Monitor active resources and pool utilization
