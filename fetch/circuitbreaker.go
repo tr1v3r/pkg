@@ -19,10 +19,10 @@ const (
 type CircuitBreaker struct {
 	mu sync.RWMutex
 
-	state          CircuitBreakerState
-	failureCount   int32
-	successCount   int32
-	lastFailure    time.Time
+	state        CircuitBreakerState
+	failureCount int32
+	successCount int32
+	lastFailure  time.Time
 
 	// Configuration
 	failureThreshold int32

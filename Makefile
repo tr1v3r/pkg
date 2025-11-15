@@ -1,15 +1,20 @@
 # Makefile for Go project
 
-.PHONY: help lint lint-fix test test-cover clean
+.PHONY: help format lint lint-fix test test-cover clean
 
 # Default target
 help:
 	@echo "Available targets:"
+	@echo "  format     - Format Go code using goimports-reviser"
 	@echo "  lint       - Run golangci-lint"
 	@echo "  lint-fix   - Run golangci-lint with auto-fix"
 	@echo "  test       - Run all tests"
 	@echo "  test-cover - Run tests with coverage"
 	@echo "  clean      - Clean up generated files"
+
+# Formatting
+format:
+	goimports-reviser -output write .
 
 # Linting
 lint:

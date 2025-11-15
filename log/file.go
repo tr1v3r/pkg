@@ -384,4 +384,3 @@ func (h *FileHandler) GetCurrentFilePath() string {
 	defer h.mu.RUnlock()
 	return h.filePath
 }
-

@@ -21,7 +21,7 @@ type operateType string
 const (
 	createOp       operateType = "create"
 	queryOp        operateType = "query"
-	retrieveOp     operateType = "retreive"
+	retrieveOp     operateType = "retrieve"
 	retrievePropOp operateType = "retrieveProp"
 	updateOp       operateType = "update"
 )

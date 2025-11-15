@@ -61,7 +61,6 @@ func Test_SortKeys(t *testing.T) {
 		t.Errorf("mismatch sort result by distance desc, expected: %+v, got: %+v", order, toIDSlice(planets))
 	}
 	t.Log("By decreasing distance:", planets)
-
 }
 
 // A Change is a record of source code changes, recording user, language, and delta size.
@@ -127,7 +126,6 @@ func Test_SortMultiKeys(t *testing.T) {
 		t.Errorf("mismatch sort result by language,<lines,user , expected: %+v, got: %+v", order, toIDSlice(changes))
 	}
 	t.Log("By language,<lines,user:", changes)
-
 }
 
 type Item interface{ ID() int }

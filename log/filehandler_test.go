@@ -395,99 +395,99 @@ func TestNoRotationPerformance(t *testing.T) {
 // TestRotationBoundaries verifies that rotation happens at correct boundaries
 func TestRotationBoundaries(t *testing.T) {
 	tests := []struct {
-		name        string
-		rotation    RotationInterval
-		startTime   time.Time
-		testTime    time.Time
+		name         string
+		rotation     RotationInterval
+		startTime    time.Time
+		testTime     time.Time
 		shouldRotate bool
-		description string
+		description  string
 	}{
 		// Hourly rotation tests
 		{
-			name:        "hourly_same_hour",
-			rotation:    RotationHourly,
-			startTime:   time.Date(2025, 10, 26, 9, 30, 0, 0, time.UTC),
-			testTime:    time.Date(2025, 10, 26, 9, 45, 0, 0, time.UTC),
+			name:         "hourly_same_hour",
+			rotation:     RotationHourly,
+			startTime:    time.Date(2025, 10, 26, 9, 30, 0, 0, time.UTC),
+			testTime:     time.Date(2025, 10, 26, 9, 45, 0, 0, time.UTC),
 			shouldRotate: false,
-			description: "Same hour, should not rotate",
+			description:  "Same hour, should not rotate",
 		},
 		{
-			name:        "hourly_next_hour_same_day",
-			rotation:    RotationHourly,
-			startTime:   time.Date(2025, 10, 26, 9, 30, 0, 0, time.UTC),
-			testTime:    time.Date(2025, 10, 26, 10, 0, 1, 0, time.UTC),
+			name:         "hourly_next_hour_same_day",
+			rotation:     RotationHourly,
+			startTime:    time.Date(2025, 10, 26, 9, 30, 0, 0, time.UTC),
+			testTime:     time.Date(2025, 10, 26, 10, 0, 1, 0, time.UTC),
 			shouldRotate: true,
-			description: "Next hour boundary, should rotate",
+			description:  "Next hour boundary, should rotate",
 		},
 		{
-			name:        "hourly_next_day_same_hour",
-			rotation:    RotationHourly,
-			startTime:   time.Date(2025, 10, 26, 9, 30, 0, 0, time.UTC),
-			testTime:    time.Date(2025, 10, 27, 9, 30, 0, 0, time.UTC),
+			name:         "hourly_next_day_same_hour",
+			rotation:     RotationHourly,
+			startTime:    time.Date(2025, 10, 26, 9, 30, 0, 0, time.UTC),
+			testTime:     time.Date(2025, 10, 27, 9, 30, 0, 0, time.UTC),
 			shouldRotate: true,
-			description: "Same hour next day, should rotate",
+			description:  "Same hour next day, should rotate",
 		},
 
 		// Daily rotation tests
 		{
-			name:        "daily_same_day",
-			rotation:    RotationDaily,
-			startTime:   time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
-			testTime:    time.Date(2025, 10, 26, 23, 59, 59, 0, time.UTC),
+			name:         "daily_same_day",
+			rotation:     RotationDaily,
+			startTime:    time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
+			testTime:     time.Date(2025, 10, 26, 23, 59, 59, 0, time.UTC),
 			shouldRotate: false,
-			description: "Same day, should not rotate",
+			description:  "Same day, should not rotate",
 		},
 		{
-			name:        "daily_midnight",
-			rotation:    RotationDaily,
-			startTime:   time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
-			testTime:    time.Date(2025, 10, 27, 0, 0, 1, 0, time.UTC),
+			name:         "daily_midnight",
+			rotation:     RotationDaily,
+			startTime:    time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
+			testTime:     time.Date(2025, 10, 27, 0, 0, 1, 0, time.UTC),
 			shouldRotate: true,
-			description: "Midnight boundary, should rotate",
+			description:  "Midnight boundary, should rotate",
 		},
 		{
-			name:        "daily_next_day_9am",
-			rotation:    RotationDaily,
-			startTime:   time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
-			testTime:    time.Date(2025, 10, 27, 9, 0, 0, 0, time.UTC),
+			name:         "daily_next_day_9am",
+			rotation:     RotationDaily,
+			startTime:    time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
+			testTime:     time.Date(2025, 10, 27, 9, 0, 0, 0, time.UTC),
 			shouldRotate: true,
-			description: "Same time next day, should rotate",
+			description:  "Same time next day, should rotate",
 		},
 
 		// Weekly rotation tests
 		{
-			name:        "weekly_same_week",
-			rotation:    RotationWeekly,
-			startTime:   time.Date(2025, 10, 27, 9, 0, 0, 0, time.UTC), // Monday
-			testTime:    time.Date(2025, 10, 31, 23, 59, 59, 0, time.UTC), // Friday
+			name:         "weekly_same_week",
+			rotation:     RotationWeekly,
+			startTime:    time.Date(2025, 10, 27, 9, 0, 0, 0, time.UTC),    // Monday
+			testTime:     time.Date(2025, 10, 31, 23, 59, 59, 0, time.UTC), // Friday
 			shouldRotate: false,
-			description: "Same week, should not rotate",
+			description:  "Same week, should not rotate",
 		},
 		{
-			name:        "weekly_next_monday",
-			rotation:    RotationWeekly,
-			startTime:   time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC), // Sunday
-			testTime:    time.Date(2025, 11, 3, 0, 0, 0, 0, time.UTC),   // Next Monday
+			name:         "weekly_next_monday",
+			rotation:     RotationWeekly,
+			startTime:    time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC), // Sunday
+			testTime:     time.Date(2025, 11, 3, 0, 0, 0, 0, time.UTC),  // Next Monday
 			shouldRotate: true,
-			description: "Next Monday boundary, should rotate",
+			description:  "Next Monday boundary, should rotate",
 		},
 
 		// Monthly rotation tests
 		{
-			name:        "monthly_same_month",
-			rotation:    RotationMonthly,
-			startTime:   time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
-			testTime:    time.Date(2025, 10, 31, 23, 59, 59, 0, time.UTC),
+			name:         "monthly_same_month",
+			rotation:     RotationMonthly,
+			startTime:    time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
+			testTime:     time.Date(2025, 10, 31, 23, 59, 59, 0, time.UTC),
 			shouldRotate: false,
-			description: "Same month, should not rotate",
+			description:  "Same month, should not rotate",
 		},
 		{
-			name:        "monthly_next_month",
-			rotation:    RotationMonthly,
-			startTime:   time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
-			testTime:    time.Date(2025, 11, 1, 0, 0, 1, 0, time.UTC),
+			name:         "monthly_next_month",
+			rotation:     RotationMonthly,
+			startTime:    time.Date(2025, 10, 26, 9, 0, 0, 0, time.UTC),
+			testTime:     time.Date(2025, 11, 1, 0, 0, 1, 0, time.UTC),
 			shouldRotate: true,
-			description: "First day of next month, should rotate",
+			description:  "First day of next month, should rotate",
 		},
 	}
 

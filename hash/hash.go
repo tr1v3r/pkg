@@ -1,7 +1,7 @@
 package hash
 
 import (
-	"crypto/md5" //nolint:gosec // MD5 provided for legacy compatibility
+	"crypto/md5"  //nolint:gosec // MD5 provided for legacy compatibility
 	"crypto/sha1" //nolint:gosec // SHA1 provided for legacy compatibility
 	"crypto/sha256"
 	"crypto/sha512"

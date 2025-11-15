@@ -72,7 +72,6 @@ func TestConsoleHandler_Close(t *testing.T) {
 	handler.Close()
 }
 
-
 // TestConsoleHandler_FlushWithPendingMessages tests Flush with pending messages
 func TestConsoleHandler_FlushWithPendingMessages(t *testing.T) {
 	handler := NewConsoleHandler(InfoLevel)
@@ -115,10 +114,10 @@ func TestConsoleHandler_LevelFiltering(t *testing.T) {
 	handler.SetOutput(&buf)
 
 	// Log messages at different levels
-	handler.Output(DebugLevel, nil, "debug message")   // Should be filtered
-	handler.Output(InfoLevel, nil, "info message")     // Should pass
-	handler.Output(WarnLevel, nil, "warn message")     // Should pass
-	handler.Output(ErrorLevel, nil, "error message")   // Should pass
+	handler.Output(DebugLevel, nil, "debug message") // Should be filtered
+	handler.Output(InfoLevel, nil, "info message")   // Should pass
+	handler.Output(WarnLevel, nil, "warn message")   // Should pass
+	handler.Output(ErrorLevel, nil, "error message") // Should pass
 
 	handler.Flush()
 

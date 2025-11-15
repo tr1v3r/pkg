@@ -66,7 +66,6 @@ func TestParseLevel(t *testing.T) {
 	}
 }
 
-
 func TestTextFormatter(t *testing.T) {
 	formatter := NewTextFormatter(false) // No color
 

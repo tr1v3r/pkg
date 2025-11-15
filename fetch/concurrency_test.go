@@ -276,10 +276,10 @@ func TestEdgeCaseContextNil(t *testing.T) {
 
 func TestEdgeCaseZeroRetries(t *testing.T) {
 	config := RetryConfig{
-		MaxAttempts: 0, // Zero retries
-		BaseDelay:   10 * time.Millisecond,
-		MaxDelay:    100 * time.Millisecond,
-		Jitter:      0.0,
+		MaxAttempts:   0, // Zero retries
+		BaseDelay:     10 * time.Millisecond,
+		MaxDelay:      100 * time.Millisecond,
+		Jitter:        0.0,
 		RetryOnStatus: []int{http.StatusInternalServerError},
 	}
 
