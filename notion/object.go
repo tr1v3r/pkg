@@ -7,6 +7,11 @@ import (
 // https://developers.notion.com/reference/request-limits
 const rateLimit = 3
 
+// Object types
+const (
+	ErrorObjectType = "error"
+)
+
 // Object notion object
 type Object struct {
 	PureObject

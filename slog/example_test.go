@@ -9,6 +9,13 @@ import (
 	stdslog "log/slog"
 )
 
+// contextKey is used to avoid context key collisions
+type contextKey string
+
+const (
+	userIDKey contextKey = "user_id"
+)
+
 // ExampleLogger demonstrates how to use the slog package with existing log package
 func ExampleLogger() {
 	// Create a logger using existing log package
@@ -63,7 +70,7 @@ func ExampleContext() {
 	ctx := log.WithLogID(context.Background(), "request-123")
 
 	// Add additional context values
-	ctx = context.WithValue(ctx, "user_id", "user-456")
+	ctx = context.WithValue(ctx, userIDKey, "user-456")
 
 	// Log with context - log ID will be included
 	extLogger.InfoCtx(ctx, "Processing request")

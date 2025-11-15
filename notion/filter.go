@@ -225,7 +225,7 @@ type TimestampFilter struct {
 
 // IDFilter ...
 // https://developers.notion.com/reference/post-database-query-filter#id
-type IDFilter map[any][]NumberFilter
+type IDFilter map[string][]NumberFilter
 
 type PropSortCondition struct {
 	Property  string `json:"property"`

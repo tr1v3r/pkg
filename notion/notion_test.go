@@ -36,6 +36,7 @@ func TestQuery_Database_all(t *testing.T) {
 	mgr.DatabaseManager.WithID(os.Getenv("NOTION_DATABASE_ID"))
 
 	// query all
+	//nolint:staticcheck // Using embedded field is intentional for manager pattern
 	results, err := mgr.DatabaseManager.Query(&Condition{
 		Sorts: []PropSortCondition{{Property: "总市值", Direction: "descending"}},
 	})

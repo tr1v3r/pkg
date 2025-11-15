@@ -40,8 +40,7 @@ func LookupWithServer(domain string, servers []string, maxRetry int) (a []string
 			}
 
 			for _, ans := range r.Ns {
-				switch ans := ans.(type) {
-				case *dns.SOA:
+				if ans, ok := ans.(*dns.SOA); ok {
 					ns = append(ns, ans.Ns)
 				}
 			}

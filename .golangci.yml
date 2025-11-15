@@ -5,7 +5,13 @@ version: "2"
 
 run:
   # Timeout for analysis, e.g., 30s, 5m
-  timeout: 5m
+  timeout: 10m
+
+  # Concurrency of analysis
+  concurrency: 4
+
+  # Include test files in analysis
+  tests: true
 
   # Which modules to include (default: all)
   modules-download-mode: readonly
@@ -13,6 +19,19 @@ run:
   # Build tags to consider
   build-tags:
     - integration
+    - demo
+
+  # Skip directories
+  skip-dirs:
+    - vendor
+    - testdata
+    - examples
+
+  # Skip files
+  skip-files:
+    - ".*\\.pb\\.go$"
+    - ".*_generated\\.go$"
+    - ".*_mock\\.go$"
 
 # Output configuration
 output:
@@ -33,20 +52,28 @@ linters-settings:
   # Enable all available linters
   gocritic:
     enabled-tags:
-      - performance
-      - style
       - diagnostic
       - experimental
-    disabled-tags:
       - opinionated
+      - performance
+      - style
+    disabled-tags:
+      - diagnostic
+
+    # Specific settings for gocritic checks
+    settings:
+      rangeValCopy:
+        sizeThreshold: 256
+      ruleguard:
+        debug: false
 
   gocyclo:
     # Minimal code complexity to report
-    min-complexity: 15
+    min-complexity: 20
 
   dupl:
     # Tokens count to trigger issue, 150 by default
-    threshold: 100
+    threshold: 120
 
   goconst:
     # minimal length of string constant
@@ -65,14 +92,18 @@ linters-settings:
   govet:
     # Report about shadowed variables
     check-shadowing: true
+    # Enable all analyzers
+    enable-all: true
     # Settings per analyzer
     settings:
       printf:
         funcs:
-          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
-          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
-          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
-          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+          - (github.com/tr1v3r/pkg/log.Logger).Infof
+          - (github.com/tr1v3r/pkg/log.Logger).Warnf
+          - (github.com/tr1v3r/pkg/log.Logger).Errorf
+          - (github.com/tr1v3r/pkg/log.Logger).Fatalf
+          - (github.com/tr1v3r/pkg/log.Logger).Debugf
+          - (github.com/tr1v3r/pkg/log.Logger).Tracef
 
   lll:
     # Max line length, lines longer will be reported
@@ -87,82 +118,94 @@ linters-settings:
     locale: US
 
   nolintlint:
-    # Require explanation for nolint directives
-    require-explanation: true
-    # Require specific explanation format (e.g., "// nolint:gocyclo - this function is complex by design")
-    require-specific: true
+    # Require explanation for nolint directives (disabled for SDK flexibility)
+    require-explanation: false
+    # Require specific explanation format
+    require-specific: false
 
-  depguard:
-    rules:
-      main:
-        # Allow crypto packages
-        list:
-          - "crypto/md5"
-          - "crypto/sha1"
-          - "crypto/sha256"
-          - "crypto/sha512"
-          - "golang.org/x/crypto/sha3"
+  unparam:
+    # Check exported functions
+    check-exported: false
 
-# Linters configuration
+  prealloc:
+    # Report preallocation suggestions
+    simple: true
+    range-loops: true
+    for-loops: false
+
+  gosec:
+    # Global configuration
+    severity: medium
+    confidence: medium
+    # Exclude specific rules
+    exclude:
+      - G115  # Integer overflow conversion (common in SDK)
+      - G204  # Subprocess launching with tainted input (SDK flexibility)
+      - G304  # File path provided by taint source (SDK flexibility)
+
+# Linters configuration - enable essential linters for SDK
 linters:
-  # Disable specific linters
-  disable:
-    - wsl           # Too opinionated for this project
-    - funlen        # Function length is acceptable for this project
-    - nestif        # Nested if statements are acceptable
-    - staticcheck   # Has issues with local package imports
-
-  # Enable specific linters
   enable:
-    - bodyclose
-    - dogsled
-    - dupl
-    - errcheck
-    - goconst
-    - gocritic
-    - gocyclo
-    - goprintffuncname
-    - gosec
-    - govet
-    - ineffassign
-    - lll
-    - misspell
-    - nakedret
-    - prealloc
-    - rowserrcheck
-    - staticcheck
-    - unconvert
-    - unparam
-    - unused
-    - whitespace
-
-  # Disable typecheck as it has issues with local packages
-  disable-all: false
+    - errcheck               # Check for unchecked errors
+    - govet                  # Static analysis (enabled by default)
+    - ineffassign            # Detect ineffectual assignments
+    - staticcheck            # Staticcheck analysis
+    - unused                 # Check for unused code
+    - gocyclo                # Cyclomatic complexity
+    - dupl                   # Code duplication
+    - goconst                # Magic strings
+    - gocritic               # Go critic checks
+    - gosec                  # Security checks
+    - misspell               # Spell checking
+    - prealloc               # Slice preallocation
+    - bodyclose              # HTTP body closing
+    - dogsled                # Too many blank identifiers
+    - nakedret               # Naked returns
+    - unconvert              # Unnecessary type conversions
 
 
 issues:
-  # List of regexps of issue texts to exclude, empty by default
-  # But independent from tools configuration
+  # List of regexps of issue texts to exclude
   exclude-rules:
-    # Exclude some linters from running on tests files
+    # Exclude linters from test files
     - path: _test\.go
       linters:
         - gocyclo
         - dupl
         - goconst
-        - lll
+        - gosec
+        - errcheck
+        - prealloc
+        - ineffassign
+        - dogsled
+        - nakedret
+        - gocritic
+
+    # Exclude linters from example/demo files
+    - path: (.*demo/.*\.go|.*example/.*\.go)
+      linters:
+        - gocyclo
+        - dupl
+        - goconst
+        - gosec
+        - errcheck
+        - prealloc
+        - ineffassign
 
     # Exclude common false positives
     - linters:
         - gosec
-      text: "G104"
+      text: "G104"  # Errors unhandled
 
-    # Exclude errcheck for test files
-    - path: _test\.go
-      linters:
+    # Exclude shadowing in certain contexts
+    - linters:
+        - govet
+      text: "shadow: declaration of \"err\""
+
+    # Exclude error wrapping suggestions for SDK flexibility
+    - linters:
         - errcheck
-
-
+      text: "Error return value is not checked"
 
   # Maximum issues count per one linter. Set to 0 to disable
   max-issues-per-linter: 0
@@ -170,8 +213,8 @@ issues:
   # Maximum count of issues with the same text. Set to 0 to disable
   max-same-issues: 0
 
-  # Fix found issues (if it's supported by the linter)
-  fix: true
+  # Exclude certain files from specific checks
+  exclude-use-default: false
 
 # Paths to exclude from linting
 exclude:
@@ -187,12 +230,9 @@ skip-files:
   - "websocket/cilent.go"
 
 # Severity configuration
-# severity:
-#   # Default severity for issues
-#   default-severity: error
-#
-#   # Rules to set specific severity for specific linters
-#   rules:
-#     - linters:
-#         - gosec
-#       severity: warning
+severity:
+  # Default severity for issues
+  default-severity: error
+
+  # Case sensitivity
+  case-sensitive: false

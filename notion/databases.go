@@ -105,7 +105,7 @@ func (dm *DatabaseManager) Retrieve() (*Object, error) {
 		return nil, fmt.Errorf("unmarshal database %s fail: %w", dm.id, err)
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-	if obj.Object == "error" {
+	if obj.Object == ErrorObjectType {
 		if obj.Status == 429 {
 			return nil, ErrRateLimited
 		}
@@ -185,7 +185,7 @@ func (dm *DatabaseManager) asyncQuery(cond *Condition) (<-chan Object, <-chan er
 			}
 
 			// demo: {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-			if obj.Object == "error" {
+			if obj.Object == ErrorObjectType {
 				if obj.Status == 429 {
 					errCh <- ErrRateLimited
 				} else {
@@ -222,7 +222,7 @@ func (dm *DatabaseManager) Update(payload io.Reader) error {
 		return fmt.Errorf("unmarshal api response %s fail: %w", dm.id, err)
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-	if obj.Object == "error" {
+	if obj.Object == ErrorObjectType {
 		if obj.Status == 429 {
 			return ErrRateLimited
 		}

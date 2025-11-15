@@ -155,7 +155,7 @@ func (pm *PageManager) Update(properties ...*Property) error {
 		return fmt.Errorf("unmarshal response fail: %w", err)
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-	if obj.Object == "error" {
+	if obj.Object == ErrorObjectType {
 		if obj.Status == 429 {
 			return ErrRateLimited
 		}
@@ -184,7 +184,7 @@ func (pm *PageManager) Trash() error {
 		return fmt.Errorf("unmarshal response fail: %w", err)
 	}
 	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-	if obj.Object == "error" {
+	if obj.Object == ErrorObjectType {
 		if obj.Status == 429 {
 			return ErrRateLimited
 		}
