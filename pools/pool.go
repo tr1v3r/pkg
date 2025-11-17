@@ -44,7 +44,7 @@ func (p *pool) Wait() {
 
 func (p *pool) AsyncWait() <-chan struct{} {
 	sig := make(chan struct{})
-	if p.pool == nil {
+	if p == nil || p.pool == nil {
 		close(sig)
 		return sig
 	}
@@ -57,28 +57,30 @@ func (p *pool) AsyncWait() <-chan struct{} {
 }
 
 func (p *pool) Done() {
-	if p.pool != nil {
+	if p != nil && p.pool != nil {
 		<-p.pool
 		p.wg.Done()
 	}
 }
 
 func (p *pool) Num() int {
-	if p.pool != nil {
+	if p != nil && p.pool != nil {
 		return len(p.pool)
 	}
 	return 0
 }
 
 func (p *pool) Size() int {
-	if p.pool != nil {
+	if p != nil && p.pool != nil {
 		return cap(p.pool)
 	}
 	return 0
 }
 
 func (p *pool) WaitAll() {
-	p.wg.Wait()
+	if p != nil {
+		p.wg.Wait()
+	}
 }
 
 func (p *pool) AsyncWaitAll() <-chan struct{} {
