@@ -35,6 +35,7 @@ type (
 	Location    string // location
 	Sequence    int    // 排列序号 0 最高
 	Desc        string // 描述
+	RRULE       string // 重复规则 e.g. FREQ=YEARLY
 )
 
 const (
@@ -82,6 +83,7 @@ func (t Transparent) Output() []byte { return append([]byte("TRANSP:"), []byte(t
 func (l Location) Output() []byte    { return append([]byte("LOCATION:"), []byte(l)...) }
 func (s Sequence) Output() []byte    { return append([]byte("SEQUENCE:"), []byte(fmt.Sprint(s))...) }
 func (d Desc) Output() []byte        { return append([]byte("DESCRIPTION:"), []byte(d)...) }
+func (r RRULE) Output() []byte       { return append([]byte("RRULE:"), []byte(r)...) }
 
 // ============== Date ==============
 

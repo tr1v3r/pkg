@@ -127,6 +127,7 @@ type Event struct {
 	summary     Summary
 	desc        Desc
 	transparent Transparent
+	rrule       RRULE
 	tailer      Tailer
 }
 
@@ -138,6 +139,10 @@ func (e *Event) Output() []byte {
 
 	if !e.start.IsZero() {
 		buf.Write(e.start.Output())
+		buf.WriteByte('\n')
+	}
+	if e.rrule != "" {
+		buf.Write(e.rrule.Output())
 		buf.WriteByte('\n')
 	}
 	if !e.end.IsZero() {

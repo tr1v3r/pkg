@@ -166,6 +166,13 @@ var (
 			return e
 		}
 	}
+	// WithRRULE set recurrence rule
+	WithRRULE = func(rrule string) EventOption {
+		return func(e *Event) *Event {
+			e.rrule = RRULE(rrule)
+			return e
+		}
+	}
 )
 
 func setTimeFormat(d *Date, layout string, configs ...string) {
