@@ -47,6 +47,9 @@ func NewCalendar(name, desc string, opts ...CalendarOption) *Calendar {
 
 func (c *Calendar) AddEvents(events ...Event) { c.events = append(c.events, events...) }
 
+// Events returns the events in the calendar.
+func (c *Calendar) Events() []Event { return c.events }
+
 func (c *Calendar) Output() []byte {
 	var buf bytes.Buffer
 
