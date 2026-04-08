@@ -2,9 +2,9 @@ package slog
 
 import (
 	"context"
+	stdslog "log/slog"
 
 	"github.com/tr1v3r/pkg/log"
-	stdslog "log/slog"
 )
 
 // AsSlogLogger converts an existing log.Logger to a stdslog.Logger

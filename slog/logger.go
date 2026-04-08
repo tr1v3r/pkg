@@ -4,9 +4,9 @@ package slog
 import (
 	"context"
 	"io"
+	stdslog "log/slog"
 
 	"github.com/tr1v3r/pkg/log"
-	stdslog "log/slog"
 )
 
 // ExtendedLogger extends the existing log.Logger interface to support slog compatibility

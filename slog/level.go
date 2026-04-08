@@ -1,8 +1,9 @@
 package slog
 
 import (
-	"github.com/tr1v3r/pkg/log"
 	stdslog "log/slog"
+
+	"github.com/tr1v3r/pkg/log"
 )
 
 // ToSlogLevel converts log package Level to standard slog.Level
