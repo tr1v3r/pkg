@@ -2,11 +2,11 @@ package slog
 
 import (
 	"context"
+	stdslog "log/slog"
 	"testing"
 	"time"
 
 	"github.com/tr1v3r/pkg/log"
-	stdslog "log/slog"
 )
 
 // contextKey is used to avoid context key collisions

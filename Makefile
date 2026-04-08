@@ -1,11 +1,12 @@
 # Makefile for Go project
 
-.PHONY: help format lint lint-fix test test-cover clean lint-config lint-verbose lint-fast lint-ci security deps check-vet
+.PHONY: help format format-all lint lint-fix test test-cover clean lint-config lint-verbose lint-fast lint-ci security deps check-vet
 
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  format        - Format Go code using goimports-reviser"
+	@echo "  format        - Format changed Go files using goimports-reviser"
+	@echo "  format-all    - Format all Go files"
 	@echo "  lint          - Run golangci-lint with standard configuration"
 	@echo "  lint-fix      - Run golangci-lint with auto-fix"
 	@echo "  lint-fast     - Run golangci-lint fast mode (skips slow linters)"
@@ -21,9 +22,17 @@ help:
 
 # Formatting
 format:
-	@echo "Formatting Go code..."
-	goimports-reviser -output write .
-	@echo "✅ Code formatted successfully"
+	@echo "Formatting changed Go files..."
+	@changed_files=$$(git diff --name-only --diff-filter=ACMR -- '*.go'); \
+	if [ -z "$$changed_files" ]; then \
+		echo "No changed Go files to format."; \
+	else \
+		goimports-reviser -rm-unused $$changed_files; \
+	fi
+
+format-all:
+	@echo "Formatting all Go files..."
+	goimports-reviser -rm-unused ./...
 
 # Linting
 lint:

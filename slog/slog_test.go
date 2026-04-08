@@ -3,12 +3,13 @@ package slog
 import (
 	"bytes"
 	"context"
+	stdslog "log/slog"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/tr1v3r/pkg/log"
-	stdslog "log/slog"
 )
 
 func TestLevelConversion(t *testing.T) {

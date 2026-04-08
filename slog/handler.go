@@ -3,9 +3,9 @@ package slog
 import (
 	"context"
 	"io"
+	stdslog "log/slog"
 
 	"github.com/tr1v3r/pkg/log"
-	stdslog "log/slog"
 )
 
 // ExtendedHandler extends the existing log.Handler interface to support slog compatibility
