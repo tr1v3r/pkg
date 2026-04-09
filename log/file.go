@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -48,7 +49,7 @@ type FileHandler struct {
 	once      sync.Once
 
 	// Performance optimization: pre-calculated next rotation time
-	nextRotationTime time.Time
+	nextRotationTime atomic.Value // stores time.Time
 }
 
 // FileHandlerConfig holds configuration for FileHandler
@@ -101,8 +102,6 @@ func NewFileHandler(config FileHandlerConfig) (*FileHandler, error) {
 
 // SetLevel sets the minimum log level for this handler
 func (h *FileHandler) SetLevel(level Level) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.level = level
 }
 
@@ -228,6 +227,15 @@ func (h *FileHandler) close() {
 	})
 }
 
+// loadNextRotationTime safely loads the next rotation time
+func (h *FileHandler) loadNextRotationTime() time.Time {
+	v := h.nextRotationTime.Load()
+	if v == nil {
+		return time.Time{}
+	}
+	return v.(time.Time)
+}
+
 // tryRotate attempts to rotate the log file if needed based on the current time.
 // It handles both initial file setup and time-based rotation.
 // Returns nil if no rotation was needed or if rotation succeeded.
@@ -239,7 +247,11 @@ func (h *FileHandler) tryRotate(now time.Time) error {
 	}
 
 	// Check if current time has passed the pre-calculated rotation boundary
-	if now.After(h.nextRotationTime) {
+	nextRotation := h.loadNextRotationTime()
+	if nextRotation.IsZero() {
+		return h.openFileIfNull(now)
+	}
+	if now.After(nextRotation) {
 		return h.rotate(now)
 	}
 
@@ -289,7 +301,7 @@ func (h *FileHandler) rotate(now time.Time) error {
 	}
 
 	// Calculate next rotation time
-	h.nextRotationTime = h.calculateNextRotationTime(now)
+	h.nextRotationTime.Store(h.calculateNextRotationTime(now))
 
 	return nil
 }
@@ -325,7 +337,7 @@ func (h *FileHandler) openFile(now time.Time) error {
 	h.rotationTime = now
 
 	// Calculate initial next rotation time
-	h.nextRotationTime = h.calculateNextRotationTime(now)
+	h.nextRotationTime.Store(h.calculateNextRotationTime(now))
 
 	return nil
 }

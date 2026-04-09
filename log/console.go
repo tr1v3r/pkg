@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -37,8 +38,6 @@ func NewConsoleHandler(level Level) *ConsoleHandler {
 
 // SetLevel sets the minimum log level for this handler
 func (h *ConsoleHandler) SetLevel(level Level) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.level = level
 }
 
@@ -108,7 +107,7 @@ func (h *ConsoleHandler) Write(p []byte) (int, error) {
 
 // Flush ensures all buffered messages are written
 func (h *ConsoleHandler) Flush() {
-	// Give other goroutines a chance to run
+	// Yield to give the serve goroutine a chance to process pending messages first
 	runtime.Gosched()
 
 	// Process as many messages as possible from the channel
@@ -154,6 +153,19 @@ func (h *ConsoleHandler) close() {
 	})
 }
 
+// Pre-computed ANSI color strings for each log level
+var levelColorStrings = map[Level]string{
+	TraceLevel: "\033[38;5;45m",  // Magenta
+	DebugLevel: "\033[38;5;39m",  // Blue
+	InfoLevel:  "\033[38;5;33m",  // Yellow
+	WarnLevel:  "\033[38;5;148m", // Orange
+	ErrorLevel: "\033[38;5;161m", // Red
+	FatalLevel: "\033[38;5;160m", // Bright Red
+	PanicLevel: "\033[38;5;196m", // Brightest Red
+}
+
+const colorReset = "\033[0m"
+
 // TextFormatter formats log messages as human-readable text
 type TextFormatter struct {
 	color bool
@@ -170,9 +182,13 @@ func (f *TextFormatter) Format(level Level, ctx context.Context, format string, 
 
 	// Add color if enabled
 	if f.color {
-		buf.WriteString("\033[38;5;")
-		buf.WriteString(fmt.Sprint(level.Color()))
-		buf.WriteString("m")
+		if colorStr, ok := levelColorStrings[level]; ok {
+			buf.WriteString(colorStr)
+		} else {
+			buf.WriteString("\033[38;5;")
+			buf.WriteString(strconv.Itoa(level.Color()))
+			buf.WriteString("m")
+		}
 	}
 
 	// Timestamp
@@ -202,7 +218,7 @@ func (f *TextFormatter) Format(level Level, ctx context.Context, format string, 
 
 	// Reset color if enabled
 	if f.color {
-		buf.WriteString("\033[0m")
+		buf.WriteString(colorReset)
 	}
 
 	buf.WriteByte('\n')

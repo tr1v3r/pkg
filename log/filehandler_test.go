@@ -329,9 +329,7 @@ func TestRotationOptimization(t *testing.T) {
 	defer handler.Close()
 
 	// Test that next rotation time is properly calculated
-	handler.mu.Lock()
-	nextRotation := handler.nextRotationTime
-	handler.mu.Unlock()
+	nextRotation := handler.loadNextRotationTime()
 
 	if nextRotation.IsZero() {
 		t.Error("expected next rotation time to be calculated")
@@ -343,9 +341,7 @@ func TestRotationOptimization(t *testing.T) {
 	}
 
 	// Verify next rotation time hasn't changed (no rotation occurred)
-	handler.mu.Lock()
-	finalRotation := handler.nextRotationTime
-	handler.mu.Unlock()
+	finalRotation := handler.loadNextRotationTime()
 
 	if !nextRotation.Equal(finalRotation) {
 		t.Error("expected next rotation time to remain unchanged during rapid logging")
@@ -375,9 +371,7 @@ func TestNoRotationPerformance(t *testing.T) {
 	}
 
 	// Verify that next rotation time is far in the future (no rotation checks performed)
-	handler.mu.Lock()
-	nextRotation := handler.nextRotationTime
-	handler.mu.Unlock()
+	nextRotation := handler.loadNextRotationTime()
 
 	if nextRotation.IsZero() {
 		t.Error("expected next rotation time to be set for RotationNone configuration")
@@ -515,9 +509,7 @@ func TestRotationBoundaries(t *testing.T) {
 			handler.mu.Unlock()
 
 			// Test rotation at test time
-			handler.mu.Lock()
-			actualRotate := tt.testTime.After(handler.nextRotationTime)
-			handler.mu.Unlock()
+			actualRotate := tt.testTime.After(handler.loadNextRotationTime())
 
 			if actualRotate != tt.shouldRotate {
 				t.Errorf("%s: expected rotate=%v, got rotate=%v", tt.description, tt.shouldRotate, actualRotate)
@@ -554,7 +546,7 @@ func TestRealWorldRotation(t *testing.T) {
 	// Simulate time advancing to 11pm same day
 	handler.mu.Lock()
 	elevenPM := time.Date(2025, 10, 26, 23, 0, 0, 0, time.UTC)
-	shouldRotate := elevenPM.After(handler.nextRotationTime)
+	shouldRotate := elevenPM.After(handler.loadNextRotationTime())
 	handler.mu.Unlock()
 
 	if shouldRotate {
@@ -564,7 +556,7 @@ func TestRealWorldRotation(t *testing.T) {
 	// Simulate time advancing to midnight
 	handler.mu.Lock()
 	midnight := time.Date(2025, 10, 27, 0, 0, 1, 0, time.UTC)
-	shouldRotate = midnight.After(handler.nextRotationTime)
+	shouldRotate = midnight.After(handler.loadNextRotationTime())
 	handler.mu.Unlock()
 
 	if !shouldRotate {
@@ -574,7 +566,7 @@ func TestRealWorldRotation(t *testing.T) {
 	// Simulate time advancing to 9am next day
 	handler.mu.Lock()
 	nextDay9am := time.Date(2025, 10, 27, 9, 0, 0, 0, time.UTC)
-	shouldRotate = nextDay9am.After(handler.nextRotationTime)
+	shouldRotate = nextDay9am.After(handler.loadNextRotationTime())
 	handler.mu.Unlock()
 
 	if !shouldRotate {
@@ -652,5 +644,5 @@ func TestStartOfMonth(t *testing.T) {
 
 // Helper function to check if string contains substring
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && (s[0:len(substr)] == substr || contains(s[1:], substr)))
+	return strings.Contains(s, substr)
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -431,22 +432,44 @@ func TestBaseLogger_Close(t *testing.T) {
 }
 
 func TestBaseLogger_With(t *testing.T) {
-	logger := NewLogger()
+	buf := &bytes.Buffer{}
+	handler := NewSyncConsoleHandler(InfoLevel)
+	handler.SetOutput(buf)
+	logger := NewLogger(handler)
 
-	// Test With returns the same logger (baseLogger doesn't support structured logging)
+	// Test With returns a new logger (handlers are shared but logger is new)
 	newLogger := logger.With("key", "value")
-	if newLogger != logger {
-		t.Error("Expected baseLogger.With() to return the same logger")
+	if newLogger == nil {
+		t.Error("Expected With to return a non-nil logger")
+	}
+
+	// Both loggers should still work
+	newLogger.Info("from new logger")
+	logger.Flush()
+
+	if !strings.Contains(buf.String(), "from new logger") {
+		t.Errorf("Expected new logger to work, got: %s", buf.String())
 	}
 }
 
 func TestBaseLogger_WithGroup(t *testing.T) {
-	logger := NewLogger()
+	buf := &bytes.Buffer{}
+	handler := NewSyncConsoleHandler(InfoLevel)
+	handler.SetOutput(buf)
+	logger := NewLogger(handler)
 
-	// Test WithGroup returns the same logger (baseLogger doesn't support structured logging)
+	// Test WithGroup returns a new logger (handlers are shared but logger is new)
 	newLogger := logger.WithGroup("testgroup")
-	if newLogger != logger {
-		t.Error("Expected baseLogger.WithGroup() to return the same logger")
+	if newLogger == nil {
+		t.Error("Expected WithGroup to return a non-nil logger")
+	}
+
+	// Both loggers should still work
+	newLogger.Info("from group logger")
+	logger.Flush()
+
+	if !strings.Contains(buf.String(), "from group logger") {
+		t.Errorf("Expected group logger to work, got: %s", buf.String())
 	}
 }
 
@@ -457,7 +480,7 @@ func TestBaseLogger_LoggingMethods(t *testing.T) {
 
 	logger := NewLogger(handler)
 
-	// Test all logging levels
+	// Test all logging levels (except Fatal/Panic which terminate the process)
 	testCases := []struct {
 		name     string
 		logFn    func(string, ...any)
@@ -469,8 +492,6 @@ func TestBaseLogger_LoggingMethods(t *testing.T) {
 		{"Info", logger.Info, logger.CtxInfo, "info message"},
 		{"Warn", logger.Warn, logger.CtxWarn, "warn message"},
 		{"Error", logger.Error, logger.CtxError, "error message"},
-		{"Fatal", logger.Fatal, logger.CtxFatal, "fatal message"},
-		{"Panic", logger.Panic, logger.CtxPanic, "panic message"},
 	}
 
 	for _, tc := range testCases {
@@ -494,6 +515,45 @@ func TestBaseLogger_LoggingMethods(t *testing.T) {
 			t.Errorf("%s with context: expected log to contain 'ctx %s', got: %s", tc.name, tc.expected, buf.String())
 		}
 	}
+}
+
+func TestBaseLogger_FatalExits(t *testing.T) {
+	buf := &bytes.Buffer{}
+	handler := NewSyncConsoleHandler(TraceLevel)
+	handler.SetOutput(buf)
+
+	logger := NewLogger(handler)
+
+	if os.Getenv("BE_FATAL") == "1" {
+		logger.Fatal("fatal exit test")
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=TestBaseLogger_FatalExits")
+	cmd.Env = append(os.Environ(), "BE_FATAL=1")
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); !ok || e.ExitCode() != 1 {
+		t.Fatalf("Expected exit code 1, got %v", err)
+	}
+}
+
+func TestBaseLogger_PanicPanics(t *testing.T) {
+	buf := &bytes.Buffer{}
+	handler := NewSyncConsoleHandler(TraceLevel)
+	handler.SetOutput(buf)
+
+	logger := NewLogger(handler)
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("Expected panic from Panic(), got nil")
+		}
+		if s, ok := r.(string); !ok || !strings.Contains(s, "panic test") {
+			t.Errorf("Expected panic message to contain 'panic test', got: %v", r)
+		}
+	}()
+
+	logger.Panic("panic test")
 }
 
 func TestBaseLogger_Output(t *testing.T) {
@@ -529,7 +589,7 @@ func TestGlobalContextFunctions(t *testing.T) {
 	SetOutput(buf)
 	SetLevel(TraceLevel) // Set to trace to capture all levels
 
-	// Test all global context-aware logging functions
+	// Test all global context-aware logging functions (except CtxFatal/CtxPanic which terminate)
 	testCases := []struct {
 		name     string
 		logFn    func(context.Context, string, ...any)
@@ -540,8 +600,6 @@ func TestGlobalContextFunctions(t *testing.T) {
 		{"CtxInfo", CtxInfo, "global info"},
 		{"CtxWarn", CtxWarn, "global warn"},
 		{"CtxError", CtxError, "global error"},
-		{"CtxFatal", CtxFatal, "global fatal"},
-		{"CtxPanic", CtxPanic, "global panic"},
 	}
 
 	for _, tc := range testCases {
@@ -684,7 +742,7 @@ func TestMultiError(t *testing.T) {
 	err2 := errors.New("error 2")
 	multiErr = &MultiError{Errors: []error{err1, err2}}
 
-	expected := "multiple errors occurred while closing handlers"
+	expected := "multiple errors occurred while closing handlers: [error 1; error 2]"
 	if multiErr.Error() != expected {
 		t.Errorf("Expected '%s', got: %s", expected, multiErr.Error())
 	}
@@ -699,8 +757,6 @@ func TestOutput(t *testing.T) {
 	Info("info message")
 	Warn("warn message")
 	Error("error message")
-	Fatal("fatal message")
-	Panic("panic message")
 
 	Flush()
 }

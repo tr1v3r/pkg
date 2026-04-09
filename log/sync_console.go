@@ -27,8 +27,6 @@ func NewSyncConsoleHandler(level Level) *SyncConsoleHandler {
 
 // SetLevel sets the minimum log level for this handler
 func (h *SyncConsoleHandler) SetLevel(level Level) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.level = level
 }
 
@@ -57,12 +55,12 @@ func (h *SyncConsoleHandler) AddOutputs(writers ...io.Writer) {
 
 // Output writes a log message to the console synchronously
 func (h *SyncConsoleHandler) Output(level Level, ctx context.Context, format string, args ...any) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
 	if level < h.level {
 		return
 	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
 
 	// Format the message
 	msg := h.formatter.Format(level, ctx, format, args...)

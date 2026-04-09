@@ -30,6 +30,10 @@ func NewStructuredLogHandler(level Level) *structuredLogHandler {
 
 // Output implements Handler.Output - outputs to structured slog system
 func (h *structuredLogHandler) Output(level Level, ctx context.Context, format string, args ...any) {
+	if level < h.level {
+		return
+	}
+
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -60,8 +64,6 @@ func (h *structuredLogHandler) Output(level Level, ctx context.Context, format s
 
 // SetLevel sets the minimum log level
 func (h *structuredLogHandler) SetLevel(level Level) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.level = level
 }
 
@@ -192,8 +194,21 @@ func (h *structuredLogHandler) convertLevel(level Level) slog.Level {
 
 // AddOutputs adds multiple output writers
 func (h *structuredLogHandler) AddOutputs(writers ...io.Writer) {
-	// For structured logging, we don't support multiple outputs
-	// This method exists to satisfy the Handler interface
+	if len(writers) == 0 {
+		return
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.output == nil {
+		h.output = io.MultiWriter(writers...)
+		return
+	}
+
+	allWriters := []io.Writer{h.output}
+	allWriters = append(allWriters, writers...)
+	h.output = io.MultiWriter(allWriters...)
 }
 
 // Flush flushes any pending log messages
@@ -211,7 +226,11 @@ func (h *structuredLogHandler) Close() error {
 
 // Write implements io.Writer interface
 func (h *structuredLogHandler) Write(p []byte) (n int, err error) {
-	// For structured logging, we don't support direct writing
-	// This method exists to satisfy the io.Writer interface
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	if h.output != nil {
+		return h.output.Write(p)
+	}
 	return len(p), nil
 }

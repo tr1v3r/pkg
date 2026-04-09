@@ -2,7 +2,10 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
+	"strings"
 	"sync"
 )
 
@@ -227,10 +230,16 @@ func (l *baseLogger) CtxError(ctx context.Context, format string, args ...any) {
 
 func (l *baseLogger) CtxFatal(ctx context.Context, format string, args ...any) {
 	l.output(FatalLevel, ctx, format, args...)
+	l.Flush()
+	os.Exit(1)
 }
 
 func (l *baseLogger) CtxPanic(ctx context.Context, format string, args ...any) {
 	l.output(PanicLevel, ctx, format, args...)
+	if len(args) > 0 {
+		panic(fmt.Sprintf(format, args...))
+	}
+	panic(format)
 }
 
 // output sends log messages to all handlers
@@ -252,5 +261,9 @@ func (m *MultiError) Error() string {
 	if len(m.Errors) == 0 {
 		return "no errors"
 	}
-	return "multiple errors occurred while closing handlers"
+	errStrs := make([]string, len(m.Errors))
+	for i, err := range m.Errors {
+		errStrs[i] = err.Error()
+	}
+	return fmt.Sprintf("multiple errors occurred while closing handlers: [%s]", strings.Join(errStrs, "; "))
 }
