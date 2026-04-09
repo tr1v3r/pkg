@@ -1,24 +1,26 @@
-package fetch
+package circuitbreaker
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
 
-// CircuitBreakerState represents the state of the circuit breaker
-type CircuitBreakerState int
+// State represents the state of the circuit breaker
+type State int
 
 const (
-	StateClosed CircuitBreakerState = iota
+	StateClosed State = iota
 	StateOpen
 	StateHalfOpen
 )
 
-// CircuitBreaker implements a simple circuit breaker pattern
+// CircuitBreaker implements the circuit breaker pattern for protecting
+// against cascading failures in distributed systems.
 type CircuitBreaker struct {
 	mu sync.Mutex
 
-	state        CircuitBreakerState
+	state        State
 	failureCount int32
 	successCount int32
 	lastFailure  time.Time
@@ -29,22 +31,22 @@ type CircuitBreaker struct {
 	openTimeout      time.Duration
 }
 
-// CircuitBreakerConfig defines circuit breaker configuration
-type CircuitBreakerConfig struct {
+// Config defines circuit breaker configuration
+type Config struct {
 	FailureThreshold int32         // Number of failures before opening circuit
 	SuccessThreshold int32         // Number of successes before closing circuit
 	OpenTimeout      time.Duration // How long to stay open before half-open
 }
 
-// DefaultCircuitBreakerConfig provides sensible defaults
-var DefaultCircuitBreakerConfig = CircuitBreakerConfig{
+// DefaultConfig provides sensible defaults
+var DefaultConfig = Config{
 	FailureThreshold: 5,
 	SuccessThreshold: 3,
 	OpenTimeout:      30 * time.Second,
 }
 
-// NewCircuitBreaker creates a new circuit breaker
-func NewCircuitBreaker(config CircuitBreakerConfig) *CircuitBreaker {
+// New creates a new circuit breaker
+func New(config Config) *CircuitBreaker {
 	return &CircuitBreaker{
 		state:            StateClosed,
 		failureThreshold: config.FailureThreshold,
@@ -56,7 +58,7 @@ func NewCircuitBreaker(config CircuitBreakerConfig) *CircuitBreaker {
 // Execute runs a function with circuit breaker protection
 func (cb *CircuitBreaker) Execute(fn func() error) error {
 	if !cb.Allow() {
-		return &CircuitBreakerError{Err: ErrCircuitOpen}
+		return &Error{Err: ErrOpen}
 	}
 
 	err := fn()
@@ -75,7 +77,6 @@ func (cb *CircuitBreaker) Allow() bool {
 	case StateHalfOpen:
 		return true
 	case StateOpen:
-		// Check if we should transition to half-open
 		if time.Since(cb.lastFailure) > cb.openTimeout {
 			cb.state = StateHalfOpen
 			cb.successCount = 0
@@ -99,7 +100,6 @@ func (cb *CircuitBreaker) RecordResult(success bool) {
 	}
 }
 
-// onSuccess handles successful execution
 func (cb *CircuitBreaker) onSuccess() {
 	switch cb.state {
 	case StateClosed:
@@ -114,7 +114,6 @@ func (cb *CircuitBreaker) onSuccess() {
 	}
 }
 
-// onFailure handles failed execution
 func (cb *CircuitBreaker) onFailure() {
 	switch cb.state {
 	case StateClosed, StateHalfOpen:
@@ -127,7 +126,7 @@ func (cb *CircuitBreaker) onFailure() {
 }
 
 // State returns the current state of the circuit breaker
-func (cb *CircuitBreaker) State() CircuitBreakerState {
+func (cb *CircuitBreaker) State() State {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
 	return cb.state
@@ -146,3 +145,20 @@ func (cb *CircuitBreaker) SuccessCount() int32 {
 	defer cb.mu.Unlock()
 	return cb.successCount
 }
+
+// Error indicates the circuit breaker is open
+type Error struct {
+	Err error
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("circuit breaker open: %v", e.Err)
+}
+
+// Unwrap returns the underlying error
+func (e *Error) Unwrap() error {
+	return e.Err
+}
+
+// ErrOpen is returned when the circuit breaker is open
+var ErrOpen = fmt.Errorf("circuit breaker open")

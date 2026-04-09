@@ -1,5 +1,7 @@
-// Package fetch provides a comprehensive HTTP client with advanced features
-// including retry mechanisms, circuit breakers, logging, and metrics.
+// Package fetch provides a resilient HTTP client with retry mechanisms,
+// middleware support, logging, and metrics.
+//
+// For circuit breaker functionality, see the circuitbreaker package.
 //
 // Basic Usage:
 //
@@ -33,14 +35,14 @@
 //	)
 //
 //	// Use retry with custom function
-//	status, data, headers, err := fetch.WithRetry(config, func() (int, []byte, http.Header, error) {
+//	status, data, headers, err := fetch.WithRetry(context.Background(), config, func() (int, []byte, http.Header, error) {
 //	    return fetch.DoRequestWithOptions("GET", url, opts, nil)
 //	})
 //
 // Circuit Breaker:
 //
-//	// Create circuit breaker
-//	cb := fetch.NewCircuitBreaker(fetch.DefaultCircuitBreakerConfig)
+//	// Create circuit breaker (import circuitbreaker package)
+//	cb := circuitbreaker.New(circuitbreaker.DefaultConfig)
 //
 //	// Execute with circuit breaker protection
 //	err := cb.Execute(func() error {
@@ -57,10 +59,6 @@
 //
 //	if retryErr, ok := err.(*fetch.RetryableError); ok {
 //	    fmt.Printf("Failed after %d attempts: %v\n", retryErr.Attempts, retryErr.Err)
-//	}
-//
-//	if cbErr, ok := err.(*fetch.CircuitBreakerError); ok {
-//	    fmt.Printf("Circuit breaker open: %v\n", cbErr.Err)
 //	}
 //
 // Security:

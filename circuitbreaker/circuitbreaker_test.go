@@ -1,4 +1,4 @@
-package fetch
+package circuitbreaker
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestCircuitBreakerStates(t *testing.T) {
-	cb := NewCircuitBreaker(DefaultCircuitBreakerConfig)
+	cb := New(DefaultConfig)
 
 	// Initial state should be closed
 	if cb.State() != StateClosed {
@@ -27,12 +27,12 @@ func TestCircuitBreakerStates(t *testing.T) {
 }
 
 func TestCircuitBreakerOpen(t *testing.T) {
-	config := CircuitBreakerConfig{
+	config := Config{
 		FailureThreshold: 2,
 		SuccessThreshold: 1,
 		OpenTimeout:      100 * time.Millisecond,
 	}
-	cb := NewCircuitBreaker(config)
+	cb := New(config)
 
 	// Fail enough times to open the circuit
 	for i := 0; i < int(config.FailureThreshold); i++ {
@@ -56,12 +56,12 @@ func TestCircuitBreakerOpen(t *testing.T) {
 }
 
 func TestCircuitBreakerHalfOpen(t *testing.T) {
-	config := CircuitBreakerConfig{
+	config := Config{
 		FailureThreshold: 2,
 		SuccessThreshold: 2,
 		OpenTimeout:      10 * time.Millisecond,
 	}
-	cb := NewCircuitBreaker(config)
+	cb := New(config)
 
 	// Open the circuit
 	for i := 0; i < int(config.FailureThreshold); i++ {
@@ -105,12 +105,12 @@ func TestCircuitBreakerHalfOpen(t *testing.T) {
 }
 
 func TestCircuitBreakerExecuteError(t *testing.T) {
-	config := CircuitBreakerConfig{
+	config := Config{
 		FailureThreshold: 1,
 		SuccessThreshold: 1,
 		OpenTimeout:      100 * time.Millisecond,
 	}
-	cb := NewCircuitBreaker(config)
+	cb := New(config)
 
 	// Execute should return circuit breaker error when circuit is open
 	_ = cb.Execute(func() error {
@@ -122,7 +122,7 @@ func TestCircuitBreakerExecuteError(t *testing.T) {
 		t.Errorf("expected circuit to be open, got %v", cb.State())
 	}
 
-	// Execute should return CircuitBreakerError when circuit is open
+	// Execute should return Error when circuit is open
 	err := cb.Execute(func() error {
 		return nil
 	})
@@ -130,21 +130,21 @@ func TestCircuitBreakerExecuteError(t *testing.T) {
 	if err == nil {
 		t.Error("expected error, got nil")
 	}
-	if _, ok := err.(*CircuitBreakerError); !ok {
-		t.Errorf("expected CircuitBreakerError, got %T", err)
+	if _, ok := err.(*Error); !ok {
+		t.Errorf("expected *circuitbreaker.Error, got %T", err)
 	}
 }
 
 func TestCircuitBreakerCounters(t *testing.T) {
-	config := CircuitBreakerConfig{
+	config := Config{
 		FailureThreshold: 3,
 		SuccessThreshold: 2,
 		OpenTimeout:      100 * time.Millisecond,
 	}
-	cb := NewCircuitBreaker(config)
+	cb := New(config)
 
 	// Execute some failures
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_ = cb.Execute(func() error {
 			return errors.New("failure")
 		})
@@ -155,7 +155,7 @@ func TestCircuitBreakerCounters(t *testing.T) {
 	}
 
 	// Execute some successes
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_ = cb.Execute(func() error {
 			return nil
 		})

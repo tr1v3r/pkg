@@ -49,23 +49,6 @@ func TestRetryableError(t *testing.T) {
 	}
 }
 
-func TestCircuitBreakerError(t *testing.T) {
-	originalErr := errors.New("circuit open")
-	err := &CircuitBreakerError{
-		Err: originalErr,
-	}
-
-	expected := "circuit breaker open: circuit open"
-	if err.Error() != expected {
-		t.Errorf("expected error message '%s', got '%s'", expected, err.Error())
-	}
-
-	// Test Unwrap
-	if err.Unwrap() != originalErr {
-		t.Error("Unwrap() should return the original error")
-	}
-}
-
 func TestIsRetryableStatusCode(t *testing.T) {
 	testCases := []struct {
 		statusCode int
@@ -159,9 +142,6 @@ func TestCommonErrors(t *testing.T) {
 	if ErrRateLimited == nil {
 		t.Error("ErrRateLimited should not be nil")
 	}
-	if ErrCircuitOpen == nil {
-		t.Error("ErrCircuitOpen should not be nil")
-	}
 	if ErrMaxRetries == nil {
 		t.Error("ErrMaxRetries should not be nil")
 	}
@@ -175,9 +155,6 @@ func TestCommonErrors(t *testing.T) {
 	// Test error messages
 	if ErrRateLimited.Error() != "rate limited" {
 		t.Errorf("ErrRateLimited message incorrect: %s", ErrRateLimited.Error())
-	}
-	if ErrCircuitOpen.Error() != "circuit breaker open" {
-		t.Errorf("ErrCircuitOpen message incorrect: %s", ErrCircuitOpen.Error())
 	}
 	if ErrMaxRetries.Error() != "maximum retries exceeded" {
 		t.Errorf("ErrMaxRetries message incorrect: %s", ErrMaxRetries.Error())
@@ -204,11 +181,5 @@ func TestErrorTypeAssertions(t *testing.T) {
 	err = retryErr
 	if _, ok := err.(*RetryableError); !ok {
 		t.Error("RetryableError should be assertable as *RetryableError")
-	}
-
-	cbErr := &CircuitBreakerError{Err: errors.New("test")}
-	err = cbErr
-	if _, ok := err.(*CircuitBreakerError); !ok {
-		t.Error("CircuitBreakerError should be assertable as *CircuitBreakerError")
 	}
 }

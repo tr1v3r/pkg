@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/tr1v3r/pkg/circuitbreaker"
 )
 
 func TestConcurrentDefaultClient(t *testing.T) {
@@ -14,7 +16,7 @@ func TestConcurrentDefaultClient(t *testing.T) {
 	errors := make(chan error, 100)
 
 	// Test concurrent access to DefaultClient
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -44,7 +46,7 @@ func TestConcurrentSetDefaultClient(t *testing.T) {
 	errors := make(chan error, 10)
 
 	// Test concurrent SetDefaultClient
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
@@ -72,7 +74,7 @@ func TestConcurrentSetDefaultClient(t *testing.T) {
 }
 
 func TestConcurrentCircuitBreaker(t *testing.T) {
-	cb := NewCircuitBreaker(DefaultCircuitBreakerConfig)
+	cb := circuitbreaker.New(circuitbreaker.DefaultConfig)
 
 	var wg sync.WaitGroup
 	successCount := 0
@@ -80,7 +82,7 @@ func TestConcurrentCircuitBreaker(t *testing.T) {
 	var mu sync.Mutex
 
 	// Test concurrent circuit breaker execution
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		wg.Add(1)
 		go func(shouldFail bool) {
 			defer wg.Done()
@@ -105,7 +107,7 @@ func TestConcurrentCircuitBreaker(t *testing.T) {
 
 	// Verify state is reasonable
 	state := cb.State()
-	if state != StateClosed && state != StateOpen && state != StateHalfOpen {
+	if state != circuitbreaker.StateClosed && state != circuitbreaker.StateOpen && state != circuitbreaker.StateHalfOpen {
 		t.Errorf("invalid circuit breaker state: %v", state)
 	}
 
@@ -131,7 +133,7 @@ func TestConcurrentRetry(t *testing.T) {
 	)
 
 	// Test concurrent retry operations
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -165,14 +167,14 @@ func TestRaceConditionPrevention(t *testing.T) {
 		func() { SetDefaultClient(&http.Client{Timeout: 1 * time.Second}) },
 		func() { _ = NewInsecureClient() },
 		func() {
-			cb := NewCircuitBreaker(DefaultCircuitBreakerConfig)
+			cb := circuitbreaker.New(circuitbreaker.DefaultConfig)
 			_ = cb.State()
 		},
 	}
 
 	// Run each operation multiple times concurrently
 	for _, op := range operations {
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			wg.Add(1)
 			go func(operation func()) {
 				defer wg.Done()

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/tr1v3r/pkg/circuitbreaker"
 )
 
 // Test server that simulates various scenarios
@@ -229,7 +231,7 @@ func TestIntegrationCircuitBreaker(t *testing.T) {
 	server := newTestServer()
 	defer server.Close()
 
-	cb := NewCircuitBreaker(CircuitBreakerConfig{
+	cb := circuitbreaker.New(circuitbreaker.Config{
 		FailureThreshold: 2,
 		SuccessThreshold: 1,
 		OpenTimeout:      100 * time.Millisecond,
@@ -253,7 +255,7 @@ func TestIntegrationCircuitBreaker(t *testing.T) {
 	}
 
 	// Circuit should be open
-	if cb.State() != StateOpen {
+	if cb.State() != circuitbreaker.StateOpen {
 		t.Errorf("expected circuit open, got %v", cb.State())
 	}
 
@@ -266,8 +268,8 @@ func TestIntegrationCircuitBreaker(t *testing.T) {
 	if err == nil {
 		t.Error("expected circuit breaker error, got nil")
 	}
-	if _, ok := err.(*CircuitBreakerError); !ok {
-		t.Errorf("expected CircuitBreakerError, got %T", err)
+	if _, ok := err.(*circuitbreaker.Error); !ok {
+		t.Errorf("expected *circuitbreaker.Error, got %T", err)
 	}
 }
 

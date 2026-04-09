@@ -20,11 +20,6 @@ type (
 		Err      error
 		Attempts int
 	}
-
-	// CircuitBreakerError indicates the circuit breaker is open
-	CircuitBreakerError struct {
-		Err error
-	}
 )
 
 // Error implements the error interface
@@ -37,18 +32,8 @@ func (e *RetryableError) Error() string {
 	return fmt.Sprintf("retryable error (attempt %d): %v", e.Attempts, e.Err)
 }
 
-// Error implements the error interface
-func (e *CircuitBreakerError) Error() string {
-	return fmt.Sprintf("circuit breaker open: %v", e.Err)
-}
-
 // Unwrap returns the underlying error
 func (e *RetryableError) Unwrap() error {
-	return e.Err
-}
-
-// Unwrap returns the underlying error
-func (e *CircuitBreakerError) Unwrap() error {
 	return e.Err
 }
 
@@ -75,7 +60,6 @@ func IsServerError(statusCode int) bool {
 // Common errors
 var (
 	ErrRateLimited     = errors.New("rate limited")
-	ErrCircuitOpen     = errors.New("circuit breaker open")
 	ErrMaxRetries      = errors.New("maximum retries exceeded")
 	ErrInvalidResponse = errors.New("invalid response")
 	ErrRequestTimeout  = errors.New("request timeout")
