@@ -119,8 +119,7 @@ func TestWithAuthToken(t *testing.T) {
 
 func TestWithContext(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	type contextKey string
-	ctx := context.WithValue(context.Background(), contextKey("test-key"), "test-value")
+	ctx := context.WithValue(context.Background(), "test-key", "test-value")
 
 	opt := WithContext(ctx)
 	result := opt(req)

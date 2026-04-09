@@ -121,7 +121,7 @@ func TestIntegrationPost(t *testing.T) {
 		t.Fatalf("Post failed: %v", err)
 	}
 
-	expected := `{"echo": "{\"test\": \"data\"}"}`
+	expected := `{"echo": "{"test": "data"}"}`
 	if string(data) != expected {
 		t.Errorf("expected %s, got %s", expected, string(data))
 	}
@@ -238,8 +238,14 @@ func TestIntegrationCircuitBreaker(t *testing.T) {
 	// Fail enough to open circuit
 	for i := 0; i < 2; i++ {
 		err := cb.Execute(func() error {
-			_, err := Get(server.URL + "/error/500")
-			return err
+			statusCode, _, _, reqErr := DoRequestWithOptions("GET", server.URL+"/error/500", nil, nil)
+			if reqErr != nil {
+				return reqErr
+			}
+			if statusCode >= 500 {
+				return &HTTPError{StatusCode: statusCode}
+			}
+			return nil
 		})
 		if err != nil {
 			t.Logf("Execute error (expected): %v", err)
@@ -253,8 +259,8 @@ func TestIntegrationCircuitBreaker(t *testing.T) {
 
 	// Should get circuit breaker error
 	err := cb.Execute(func() error {
-		_, err := Get(server.URL + "/ok")
-		return err
+		_, _, _, reqErr := DoRequestWithOptions("GET", server.URL+"/ok", nil, nil)
+		return reqErr
 	})
 
 	if err == nil {

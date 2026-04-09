@@ -69,7 +69,7 @@ func IsClientError(statusCode int) bool {
 
 // IsServerError checks if the status code indicates a server error
 func IsServerError(statusCode int) bool {
-	return statusCode >= 500
+	return statusCode >= 500 && statusCode < 600
 }
 
 // Common errors

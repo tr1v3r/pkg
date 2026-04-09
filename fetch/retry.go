@@ -40,7 +40,22 @@ var DefaultRetryConfig = RetryConfig{
 
 // WithRetry performs a request with retry logic.
 // The ctx parameter allows cancellation of retry waits between attempts.
+// If config.MaxAttempts is 0 or less, fn is called exactly once with no retries.
 func WithRetry(ctx context.Context, config RetryConfig, fn func() (int, []byte, http.Header, error)) (int, []byte, http.Header, error) {
+	if config.MaxAttempts <= 0 {
+		statusCode, content, headers, err := fn()
+		if err != nil {
+			return statusCode, content, headers, err
+		}
+		if slices.Contains(config.RetryOnStatus, statusCode) {
+			return statusCode, content, headers, &RetryableError{
+				Err:      &HTTPError{StatusCode: statusCode, Body: content},
+				Attempts: 1,
+			}
+		}
+		return statusCode, content, headers, nil
+	}
+
 	var lastErr error
 	var lastStatusCode int
 	var lastContent []byte

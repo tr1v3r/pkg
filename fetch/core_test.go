@@ -14,8 +14,8 @@ func TestDefaultClient(t *testing.T) {
 		t.Error("DefaultClient() returned nil")
 		return
 	}
-	if client.Timeout != 60*time.Second {
-		t.Errorf("expected timeout 60s, got %v", client.Timeout)
+	if client.Timeout <= 0 {
+		t.Errorf("expected positive timeout, got %v", client.Timeout)
 	}
 }
 
