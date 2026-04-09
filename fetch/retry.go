@@ -100,11 +100,9 @@ func WithRetry(ctx context.Context, config RetryConfig, fn func() (int, []byte, 
 		}
 
 		// Cancellable sleep
-		timer := time.NewTimer(delay)
 		select {
-		case <-timer.C:
+		case <-time.After(delay):
 		case <-ctx.Done():
-			timer.Stop()
 			return lastStatusCode, lastContent, lastHeaders, ctx.Err()
 		}
 	}

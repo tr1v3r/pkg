@@ -76,13 +76,10 @@ func WithRequestTimeout(timeout time.Duration) Middleware {
 			done <- result{statusCode, content, headers, err}
 		}()
 
-		timer := time.NewTimer(timeout)
-		defer timer.Stop()
-
 		select {
 		case r := <-done:
 			return r.statusCode, r.content, r.headers, r.err
-		case <-timer.C:
+		case <-time.After(timeout):
 			// Drain the result channel once the goroutine finishes to allow GC
 			go func() {
 				<-done
