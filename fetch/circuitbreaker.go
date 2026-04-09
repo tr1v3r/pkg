@@ -2,7 +2,6 @@ package fetch
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -17,7 +16,7 @@ const (
 
 // CircuitBreaker implements a simple circuit breaker pattern
 type CircuitBreaker struct {
-	mu sync.RWMutex
+	mu sync.Mutex
 
 	state        CircuitBreakerState
 	failureCount int32
@@ -67,8 +66,8 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
 
 // Allow checks if the circuit breaker allows execution
 func (cb *CircuitBreaker) Allow() bool {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 
 	switch cb.state {
 	case StateClosed:
@@ -78,12 +77,8 @@ func (cb *CircuitBreaker) Allow() bool {
 	case StateOpen:
 		// Check if we should transition to half-open
 		if time.Since(cb.lastFailure) > cb.openTimeout {
-			cb.mu.RUnlock()
-			cb.mu.Lock()
 			cb.state = StateHalfOpen
-			atomic.StoreInt32(&cb.successCount, 0)
-			cb.mu.Unlock()
-			cb.mu.RLock()
+			cb.successCount = 0
 			return true
 		}
 		return false
@@ -108,14 +103,13 @@ func (cb *CircuitBreaker) RecordResult(success bool) {
 func (cb *CircuitBreaker) onSuccess() {
 	switch cb.state {
 	case StateClosed:
-		// Reset failure count on success
-		atomic.StoreInt32(&cb.failureCount, 0)
+		cb.failureCount = 0
 	case StateHalfOpen:
-		// Count successes to determine if we can close the circuit
-		if atomic.AddInt32(&cb.successCount, 1) >= cb.successThreshold {
+		cb.successCount++
+		if cb.successCount >= cb.successThreshold {
 			cb.state = StateClosed
-			atomic.StoreInt32(&cb.failureCount, 0)
-			atomic.StoreInt32(&cb.successCount, 0)
+			cb.failureCount = 0
+			cb.successCount = 0
 		}
 	}
 }
@@ -124,8 +118,8 @@ func (cb *CircuitBreaker) onSuccess() {
 func (cb *CircuitBreaker) onFailure() {
 	switch cb.state {
 	case StateClosed, StateHalfOpen:
-		// Count failures to determine if we should open the circuit
-		if atomic.AddInt32(&cb.failureCount, 1) >= cb.failureThreshold {
+		cb.failureCount++
+		if cb.failureCount >= cb.failureThreshold {
 			cb.state = StateOpen
 			cb.lastFailure = time.Now()
 		}
@@ -134,17 +128,21 @@ func (cb *CircuitBreaker) onFailure() {
 
 // State returns the current state of the circuit breaker
 func (cb *CircuitBreaker) State() CircuitBreakerState {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 	return cb.state
 }
 
 // FailureCount returns the current failure count
 func (cb *CircuitBreaker) FailureCount() int32 {
-	return atomic.LoadInt32(&cb.failureCount)
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	return cb.failureCount
 }
 
 // SuccessCount returns the current success count
 func (cb *CircuitBreaker) SuccessCount() int32 {
-	return atomic.LoadInt32(&cb.successCount)
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	return cb.successCount
 }

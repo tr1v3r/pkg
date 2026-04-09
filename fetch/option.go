@@ -9,6 +9,10 @@ import (
 // RequestOption ...
 type RequestOption func(req *http.Request) *http.Request
 
+type contextKey string
+
+const maxBodySizeKey contextKey = "maxBodySize"
+
 var (
 	// WithHeader ...
 	WithHeader = func(key string, values ...string) RequestOption {
@@ -111,6 +115,15 @@ var (
 			}
 			req.URL.RawQuery = q.Encode()
 			return req
+		}
+	}
+
+	// WithMaxResponseBodySize sets the maximum response body size in bytes.
+	// Defaults to 100MB if not specified. Set to -1 for unlimited.
+	WithMaxResponseBodySize = func(maxSize int64) RequestOption {
+		return func(req *http.Request) *http.Request {
+			ctx := context.WithValue(req.Context(), maxBodySizeKey, maxSize)
+			return req.WithContext(ctx)
 		}
 	}
 )

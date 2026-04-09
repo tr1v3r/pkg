@@ -55,29 +55,38 @@ func WithMetrics(metrics RequestMetrics) Middleware {
 	}
 }
 
-// WithRequestTimeout adds a timeout to the request
+// WithRequestTimeout adds a timeout to the request.
+// Note: since the Middleware signature does not propagate context into next(),
+// the underlying request will continue running after timeout until it completes or
+// the HTTP client's own timeout fires. Use DoRequestWithOptions with a context
+// timeout for fully cancellable requests.
 func WithRequestTimeout(timeout time.Duration) Middleware {
 	return func(next func() (int, []byte, http.Header, error)) (int, []byte, http.Header, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
+		type result struct {
+			statusCode int
+			content    []byte
+			headers    http.Header
+			err        error
+		}
 
-		// In a real implementation, you would pass the context to the request
-		// For now, we'll just simulate the timeout behavior
-		done := make(chan struct{})
-		var statusCode int
-		var content []byte
-		var headers http.Header
-		var requestErr error
+		done := make(chan result, 1)
 
 		go func() {
-			statusCode, content, headers, requestErr = next()
-			close(done)
+			statusCode, content, headers, err := next()
+			done <- result{statusCode, content, headers, err}
 		}()
 
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+
 		select {
-		case <-done:
-			return statusCode, content, headers, requestErr
-		case <-ctx.Done():
+		case r := <-done:
+			return r.statusCode, r.content, r.headers, r.err
+		case <-timer.C:
+			// Drain the result channel once the goroutine finishes to allow GC
+			go func() {
+				<-done
+			}()
 			return 0, nil, nil, ErrRequestTimeout
 		}
 	}

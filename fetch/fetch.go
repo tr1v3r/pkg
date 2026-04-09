@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const defaultMaxResponseBodySize int64 = 100 * 1024 * 1024 // 100MB
+
 var (
 	mu         sync.RWMutex
 	httpClient = &http.Client{
@@ -112,8 +114,16 @@ func DoRequestWithOptions(method string, url string, opts []RequestOption, body 
 		return 0, nil, nil, fmt.Errorf("build new request fail: %w", err)
 	}
 
+	var maxBodySize int64 = defaultMaxResponseBodySize
 	for _, opt := range opts {
 		req = opt(req)
+	}
+	if s, ok := req.Context().Value(maxBodySizeKey).(int64); ok {
+		if s < 0 {
+			maxBodySize = 0 // 0 means no limit for io.LimitReader
+		} else if s > 0 {
+			maxBodySize = s
+		}
 	}
 
 	resp, err := DefaultClient().Do(req)
@@ -122,7 +132,11 @@ func DoRequestWithOptions(method string, url string, opts []RequestOption, body 
 	}
 	defer resp.Body.Close() // nolint
 
-	content, err = io.ReadAll(resp.Body)
+	var reader io.Reader = resp.Body
+	if maxBodySize > 0 {
+		reader = io.LimitReader(resp.Body, maxBodySize)
+	}
+	content, err = io.ReadAll(reader)
 	if err != nil {
 		return -1, nil, nil, err
 	}
