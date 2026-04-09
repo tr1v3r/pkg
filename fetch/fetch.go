@@ -28,22 +28,22 @@ var (
 	}
 )
 
-// DefaultClient return default client
+// DefaultClient returns the package-level HTTP client used by all request functions.
 func DefaultClient() *http.Client {
 	mu.RLock()
 	defer mu.RUnlock()
 	return httpClient
 }
 
-// SetDefaultClient set client replace default client
+// SetDefaultClient replaces the package-level HTTP client with the given one.
 func SetDefaultClient(client *http.Client) {
 	mu.Lock()
 	defer mu.Unlock()
 	httpClient = client
 }
 
-// NewInsecureClient creates a new HTTP client with disabled certificate verification
-// WARNING: Only use for testing or development environments
+// NewInsecureClient creates an HTTP client with TLS certificate verification disabled.
+// WARNING: Only use in testing or development environments.
 func NewInsecureClient() *http.Client {
 	return &http.Client{
 		Timeout: 60 * time.Second,
@@ -57,56 +57,56 @@ func NewInsecureClient() *http.Client {
 	}
 }
 
-// Get ...
+// Get sends a GET request and returns the response body.
 func Get(url string, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions(http.MethodGet, url, opts, nil)
 	return content, err
 }
 
-// CtxGet ...
+// CtxGet sends a GET request with context and returns the response body.
 func CtxGet(ctx context.Context, url string, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions(http.MethodGet, url, append([]RequestOption{WithContext(ctx)}, opts...), nil)
 	return content, err
 }
 
-// Post ...
+// Post sends a POST request and returns the response body.
 func Post(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions(http.MethodPost, url, opts, body)
 	return content, err
 }
 
-// CtxPost ...
+// CtxPost sends a POST request with context and returns the response body.
 func CtxPost(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions(http.MethodPost, url, append([]RequestOption{WithContext(ctx)}, opts...), body)
 	return content, err
 }
 
-// Patch ...
+// Patch sends a PATCH request and returns the response body.
 func Patch(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions(http.MethodPatch, url, opts, body)
 	return content, err
 }
 
-// CtxPatch ...
+// CtxPatch sends a PATCH request with context and returns the response body.
 func CtxPatch(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 	_, content, _, err := DoRequestWithOptions(http.MethodPatch, url, append([]RequestOption{WithContext(ctx)}, opts...), body)
 	return content, err
 }
 
-// DoRequest 进行HTTP请求
+// DoRequest sends an HTTP request and returns the status code and response body.
 func DoRequest(method string, url string, body io.Reader) (statusCode int, content []byte, err error) {
 	statusCode, content, _, err = DoRequestWithOptions(method, url, nil, body)
 	return
 }
 
-// DoRequestWithContext 进行HTTP请求
+// DoRequestWithContext sends an HTTP request with context and options, returning the status code and response body.
 func DoRequestWithContext(ctx context.Context, method string, url string, opts []RequestOption, body io.Reader) (
 	statusCode int, content []byte, err error) {
 	statusCode, content, _, err = DoRequestWithOptions(method, url, append(opts, WithContext(ctx)), body)
 	return
 }
 
-// DoRequestWithOptions 进行HTTP请求并返回响应头
+// DoRequestWithOptions sends an HTTP request with options and returns the status code, response body, and headers.
 func DoRequestWithOptions(method string, url string, opts []RequestOption, body io.Reader) (
 	statusCode int, content []byte, respHeaders http.Header, err error) {
 	req, err := http.NewRequest(method, url, body)
