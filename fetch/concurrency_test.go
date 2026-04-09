@@ -138,7 +138,7 @@ func TestConcurrentRetry(t *testing.T) {
 			fn := func() (int, []byte, http.Header, error) {
 				return DoRequestWithOptions("GET", server.URL, nil, nil)
 			}
-			_, _, _, err := WithRetry(config, fn)
+			_, _, _, err := WithRetry(context.Background(), config, fn)
 			errors <- err
 		}()
 	}
@@ -289,7 +289,7 @@ func TestEdgeCaseZeroRetries(t *testing.T) {
 		return http.StatusInternalServerError, []byte("error"), nil, nil
 	}
 
-	statusCode, _, _, err := WithRetry(config, fn)
+	statusCode, _, _, err := WithRetry(context.Background(), config, fn)
 
 	if statusCode != http.StatusInternalServerError {
 		t.Errorf("expected status 500, got %d", statusCode)

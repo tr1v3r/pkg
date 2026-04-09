@@ -163,7 +163,7 @@ func TestIntegrationRetry(t *testing.T) {
 		return DoRequestWithOptions("GET", server.URL+"/error/500", nil, nil)
 	}
 
-	statusCode, _, _, err := WithRetry(config, fn)
+	statusCode, _, _, err := WithRetry(context.Background(), config, fn)
 
 	// Should get the 500 error after retries
 	if statusCode != 500 {
@@ -209,7 +209,7 @@ func TestIntegrationRetrySuccess(t *testing.T) {
 		return DoRequestWithOptions("GET", server.URL, nil, nil)
 	}
 
-	statusCode, content, _, err := WithRetry(config, fn)
+	statusCode, content, _, err := WithRetry(context.Background(), config, fn)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"testing"
@@ -70,7 +71,7 @@ func TestRetrySuccess(t *testing.T) {
 		RetryOnStatus: []int{http.StatusInternalServerError},
 	}
 
-	statusCode, content, _, err := WithRetry(config, fn)
+	statusCode, content, _, err := WithRetry(context.Background(), config, fn)
 
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -101,7 +102,7 @@ func TestRetryMaxAttempts(t *testing.T) {
 		RetryOnStatus: []int{http.StatusInternalServerError},
 	}
 
-	statusCode, content, _, err := WithRetry(config, fn)
+	statusCode, content, _, err := WithRetry(context.Background(), config, fn)
 
 	if err == nil {
 		t.Error("expected error, got nil")
@@ -135,7 +136,7 @@ func TestRetryNetworkError(t *testing.T) {
 		RetryOnStatus: []int{},
 	}
 
-	statusCode, content, headers, err := WithRetry(config, fn)
+	statusCode, content, headers, err := WithRetry(context.Background(), config, fn)
 	_ = statusCode
 	_ = content
 	_ = headers

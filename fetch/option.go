@@ -11,7 +11,11 @@ type RequestOption func(req *http.Request) *http.Request
 
 type contextKey string
 
-const maxBodySizeKey contextKey = "maxBodySize"
+const (
+	maxBodySizeKey   contextKey = "maxBodySize"
+	timeoutCancelKey contextKey = "timeoutCancel"
+	middlewareKey    contextKey = "middlewares"
+)
 
 var (
 	// WithHeader ...
@@ -96,12 +100,12 @@ var (
 		}
 	}
 
-	// WithTimeout set request timeout
+	// WithTimeout set request timeout.
+	// The underlying context cancel is automatically called after the request completes.
 	WithTimeout = func(timeout time.Duration) RequestOption {
 		return func(req *http.Request) *http.Request {
-			// This sets the timeout on the context
 			ctx, cancel := context.WithTimeout(req.Context(), timeout)
-			_ = cancel // The cancel function should be called by the caller
+			ctx = context.WithValue(ctx, timeoutCancelKey, cancel)
 			return req.WithContext(ctx)
 		}
 	}
@@ -123,6 +127,17 @@ var (
 	WithMaxResponseBodySize = func(maxSize int64) RequestOption {
 		return func(req *http.Request) *http.Request {
 			ctx := context.WithValue(req.Context(), maxBodySizeKey, maxSize)
+			return req.WithContext(ctx)
+		}
+	}
+
+	// WithMiddleware applies middleware(s) to the request pipeline.
+	// Middlewares are applied in order, wrapping the actual HTTP execution.
+	WithMiddleware = func(middlewares ...Middleware) RequestOption {
+		return func(req *http.Request) *http.Request {
+			existing, _ := req.Context().Value(middlewareKey).([]Middleware)
+			all := append(existing, middlewares...)
+			ctx := context.WithValue(req.Context(), middlewareKey, all)
 			return req.WithContext(ctx)
 		}
 	}

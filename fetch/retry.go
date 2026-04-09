@@ -1,12 +1,15 @@
 package fetch
 
 import (
-	"crypto/rand"
-	"encoding/binary"
+	"bytes"
+	"context"
+	"fmt"
 	"io"
 	"math"
+	"math/rand"
 	"net/http"
 	"slices"
+	"strconv"
 	"time"
 )
 
@@ -35,14 +38,22 @@ var DefaultRetryConfig = RetryConfig{
 	},
 }
 
-// WithRetry performs a request with retry logic
-func WithRetry(config RetryConfig, fn func() (int, []byte, http.Header, error)) (int, []byte, http.Header, error) {
+// WithRetry performs a request with retry logic.
+// The ctx parameter allows cancellation of retry waits between attempts.
+func WithRetry(ctx context.Context, config RetryConfig, fn func() (int, []byte, http.Header, error)) (int, []byte, http.Header, error) {
 	var lastErr error
 	var lastStatusCode int
 	var lastContent []byte
 	var lastHeaders http.Header
 
 	for attempt := 0; attempt < config.MaxAttempts; attempt++ {
+		// Check context before each attempt
+		select {
+		case <-ctx.Done():
+			return lastStatusCode, lastContent, lastHeaders, ctx.Err()
+		default:
+		}
+
 		statusCode, content, headers, err := fn()
 		lastStatusCode = statusCode
 		lastContent = content
@@ -65,9 +76,22 @@ func WithRetry(config RetryConfig, fn func() (int, []byte, http.Header, error)) 
 			break
 		}
 
-		// Calculate delay with exponential backoff and jitter
-		delay := calculateBackoff(config, attempt)
-		time.Sleep(delay)
+		// Calculate delay: prefer Retry-After header if present
+		var delay time.Duration
+		if retryAfter := parseRetryAfter(headers.Get("Retry-After")); retryAfter > 0 {
+			delay = retryAfter
+		} else {
+			delay = calculateBackoff(config, attempt)
+		}
+
+		// Cancellable sleep
+		timer := time.NewTimer(delay)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+			return lastStatusCode, lastContent, lastHeaders, ctx.Err()
+		}
 	}
 
 	return lastStatusCode, lastContent, lastHeaders, &RetryableError{
@@ -86,7 +110,7 @@ func calculateBackoff(config RetryConfig, attempt int) time.Duration {
 	backoff := float64(config.BaseDelay) * math.Pow(2, float64(attempt))
 
 	// Apply jitter
-	jitter := 1.0 + config.Jitter*(randomFloat64()*2-1)
+	jitter := 1.0 + config.Jitter*(rand.Float64()*2-1)
 	backoff *= jitter
 
 	// Cap at max delay
@@ -95,6 +119,27 @@ func calculateBackoff(config RetryConfig, attempt int) time.Duration {
 	}
 
 	return time.Duration(backoff)
+}
+
+// parseRetryAfter parses the Retry-After header value.
+// Supports both integer seconds and HTTP-date formats (RFC 7231).
+// Returns 0 if the value cannot be parsed.
+func parseRetryAfter(value string) time.Duration {
+	if value == "" {
+		return 0
+	}
+	// Try parsing as seconds (integer)
+	if seconds, err := strconv.Atoi(value); err == nil {
+		return time.Duration(seconds) * time.Second
+	}
+	// Try parsing as HTTP-date (RFC 7231)
+	if t, err := http.ParseTime(value); err == nil {
+		remaining := time.Until(t)
+		if remaining > 0 {
+			return remaining
+		}
+	}
+	return 0
 }
 
 // RetryOption is a functional option for configuring retry behavior
@@ -137,27 +182,36 @@ func NewRetryConfig(opts ...RetryOption) RetryConfig {
 	return config
 }
 
-// DoRequestWithRetry performs an HTTP request with retry logic
-func DoRequestWithRetry(method string, url string, opts []RequestOption, body io.Reader,
+// DoRequestWithRetryContext performs an HTTP request with retry logic and context support.
+// The request body is buffered to allow safe retries.
+func DoRequestWithRetryContext(ctx context.Context, method string, url string, opts []RequestOption, body io.Reader,
 	retryOpts ...RetryOption) (int, []byte, http.Header, error) {
 	config := NewRetryConfig(retryOpts...)
 
-	fn := func() (int, []byte, http.Header, error) {
-		return DoRequestWithOptions(method, url, opts, body)
+	// Buffer the body for retries
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("reading request body for retry: %w", err)
+		}
 	}
 
-	return WithRetry(config, fn)
+	fn := func() (int, []byte, http.Header, error) {
+		var bodyReader io.Reader
+		if bodyBytes != nil {
+			bodyReader = bytes.NewReader(bodyBytes)
+		}
+		return DoRequestWithOptions(method, url, opts, bodyReader)
+	}
+
+	return WithRetry(ctx, config, fn)
 }
 
-// randomFloat64 generates a cryptographically secure random float64 between 0 and 1
-func randomFloat64() float64 {
-	var buf [8]byte
-	_, err := rand.Read(buf[:])
-	if err != nil {
-		// Fallback to a simple pseudo-random if crypto/rand fails
-		return 0.5
-	}
-	// Convert bytes to uint64 and normalize to [0,1)
-	val := binary.BigEndian.Uint64(buf[:])
-	return float64(val) / float64(^uint64(0))
+// DoRequestWithRetry performs an HTTP request with retry logic.
+// The request body is buffered to allow safe retries.
+func DoRequestWithRetry(method string, url string, opts []RequestOption, body io.Reader,
+	retryOpts ...RetryOption) (int, []byte, http.Header, error) {
+	return DoRequestWithRetryContext(context.Background(), method, url, opts, body, retryOpts...)
 }

@@ -114,31 +114,49 @@ func DoRequestWithOptions(method string, url string, opts []RequestOption, body 
 		return 0, nil, nil, fmt.Errorf("build new request fail: %w", err)
 	}
 
-	var maxBodySize int64 = defaultMaxResponseBodySize
 	for _, opt := range opts {
 		req = opt(req)
 	}
+
+	// Extract and defer timeout cancel to prevent timer leaks from WithTimeout
+	if cancel, ok := req.Context().Value(timeoutCancelKey).(context.CancelFunc); ok {
+		defer cancel()
+	}
+
+	// Extract response body size limit
+	var maxBodySize int64 = defaultMaxResponseBodySize
 	if s, ok := req.Context().Value(maxBodySizeKey).(int64); ok {
 		if s < 0 {
-			maxBodySize = 0 // 0 means no limit for io.LimitReader
+			maxBodySize = 0 // 0 means no limit
 		} else if s > 0 {
 			maxBodySize = s
 		}
 	}
 
-	resp, err := DefaultClient().Do(req)
-	if err != nil {
-		return -1, nil, nil, err
-	}
-	defer resp.Body.Close() // nolint
+	// Core request execution
+	doRequest := func() (int, []byte, http.Header, error) {
+		resp, err := DefaultClient().Do(req)
+		if err != nil {
+			return -1, nil, nil, err
+		}
+		defer resp.Body.Close() // nolint
 
-	var reader io.Reader = resp.Body
-	if maxBodySize > 0 {
-		reader = io.LimitReader(resp.Body, maxBodySize)
+		var reader io.Reader = resp.Body
+		if maxBodySize > 0 {
+			reader = io.LimitReader(resp.Body, maxBodySize)
+		}
+		content, err := io.ReadAll(reader)
+		if err != nil {
+			return -1, nil, nil, err
+		}
+		return resp.StatusCode, content, resp.Header, nil
 	}
-	content, err = io.ReadAll(reader)
-	if err != nil {
-		return -1, nil, nil, err
+
+	// Apply middleware chain if present
+	if middlewares, _ := req.Context().Value(middlewareKey).([]Middleware); len(middlewares) > 0 {
+		chain := ChainMiddleware(middlewares...)
+		return chain(doRequest)
 	}
-	return resp.StatusCode, content, resp.Header, nil
+
+	return doRequest()
 }
