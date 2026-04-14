@@ -1,8 +1,9 @@
-// Package rss provides types and parsing functions for RSS, Atom, and OPML formats.
+// Package rss provides types and parsing functions for RSS, Atom, JSON Feed, and OPML formats.
 package rss
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -96,6 +97,15 @@ func ParseAtom(data []byte) (*Feed, error) {
 	return &feed, nil
 }
 
+// ParseJSONFeed parses JSON data into a JSON Feed document.
+func ParseJSONFeed(data []byte) (*JSONFeed, error) {
+	var feed JSONFeed
+	if err := json.Unmarshal(data, &feed); err != nil {
+		return nil, fmt.Errorf("parse JSON Feed: %w", err)
+	}
+	return &feed, nil
+}
+
 // FeedType represents the detected feed format.
 type FeedType int
 
@@ -103,10 +113,30 @@ const (
 	FeedTypeUnknown FeedType = iota
 	FeedTypeRSS
 	FeedTypeAtom
+	FeedTypeJSON
 )
 
-// DetectFeedType detects whether the data is RSS or Atom format.
+// DetectFeedType detects whether the data is RSS, Atom, or JSON Feed format.
 func DetectFeedType(data []byte) FeedType {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return FeedTypeUnknown
+	}
+
+	// JSON Feed documents are JSON objects with a "version" field starting with "https://jsonfeed.org/version/".
+	if trimmed[0] == '{' {
+		var obj map[string]any
+		if err := json.Unmarshal(trimmed, &obj); err == nil {
+			if v, ok := obj["version"].(string); ok {
+				if strings.HasPrefix(v, "https://jsonfeed.org/version/") {
+					return FeedTypeJSON
+				}
+			}
+		}
+		return FeedTypeUnknown
+	}
+
+	// XML detection: RSS 2.0, RSS 1.0 (RDF), and Atom.
 	dec := xml.NewDecoder(bytes.NewReader(data))
 	for {
 		tok, err := dec.Token()
@@ -118,7 +148,7 @@ func DetectFeedType(data []byte) FeedType {
 			continue
 		}
 		switch se.Name.Local {
-		case "rss", "RDF": // RSS 2.0 and RSS 1.0 (RDF)
+		case "rss", "RDF":
 			return FeedTypeRSS
 		case "feed":
 			return FeedTypeAtom
@@ -127,13 +157,15 @@ func DetectFeedType(data []byte) FeedType {
 }
 
 // Parse auto-detects the feed format and parses accordingly.
-// Returns either *RSS or *Feed depending on the detected format.
+// Returns *RSS, *Feed (Atom), or *JSONFeed depending on the detected format.
 func Parse(data []byte) (any, error) {
 	switch DetectFeedType(data) {
 	case FeedTypeRSS:
 		return ParseRSS(data)
 	case FeedTypeAtom:
 		return ParseAtom(data)
+	case FeedTypeJSON:
+		return ParseJSONFeed(data)
 	default:
 		return nil, fmt.Errorf("unknown feed format: %s", strings.TrimSpace(string(data[:min(len(data), 64)])))
 	}

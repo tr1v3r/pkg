@@ -129,18 +129,21 @@ func TestAlternateLink_NoAlternate(t *testing.T) {
 func TestDetectFeedType(t *testing.T) {
 	tests := []struct {
 		name string
-		xml  string
+		data string
 		want FeedType
 	}{
 		{"RSS 2.0", rssXML, FeedTypeRSS},
 		{"Atom", atomXML, FeedTypeAtom},
 		{"RSS 1.0 RDF", `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><channel/></rdf:RDF>`, FeedTypeRSS},
+		{"JSON Feed 1.1", jsonFeedV11, FeedTypeJSON},
+		{"JSON Feed 1.0", jsonFeedV10, FeedTypeJSON},
+		{"JSON not a feed", `{"hello":"world"}`, FeedTypeUnknown},
 		{"unknown", `<html><body/></html>`, FeedTypeUnknown},
 		{"empty", ``, FeedTypeUnknown},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DetectFeedType([]byte(tt.xml))
+			got := DetectFeedType([]byte(tt.data))
 			if got != tt.want {
 				t.Errorf("DetectFeedType() = %v, want %v", got, tt.want)
 			}
@@ -163,6 +166,14 @@ func TestParse_AutoDetect(t *testing.T) {
 	}
 	if _, ok := result.(*Feed); !ok {
 		t.Fatalf("Parse(Atom) returned %T, want *Feed", result)
+	}
+
+	result, err = Parse([]byte(jsonFeedV11))
+	if err != nil {
+		t.Fatalf("Parse(JSON) error = %v", err)
+	}
+	if _, ok := result.(*JSONFeed); !ok {
+		t.Fatalf("Parse(JSON) returned %T, want *JSONFeed", result)
 	}
 }
 
