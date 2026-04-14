@@ -11,6 +11,10 @@ func (r *RSS) ToJSONFeed() *JSONFeed {
 		HomePageURL: r.Channel.Link,
 	}
 
+	if r.Channel.Image != nil {
+		jf.Icon = r.Channel.Image.URL
+	}
+
 	for _, item := range r.Channel.Items {
 		ji := JSONFeedItem{
 			ID:    item.GUID,

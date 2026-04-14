@@ -20,20 +20,28 @@ type Channel struct {
 	Title       string `xml:"title"`
 	Description string `xml:"description"`
 	Link        string `xml:"link"`
+	Image       *Image `xml:"image,omitempty"`
 	Items       []Item `xml:"item"`
+}
+
+// Image represents the image element of an RSS feed.
+type Image struct {
+	URL   string `xml:"url"`
+	Title string `xml:"title,omitempty"`
+	Link  string `xml:"link,omitempty"`
 }
 
 // Item represents a single item in an RSS feed.
 type Item struct {
-	Title       string `xml:"title"`
-	Link        string `xml:"link"`
-	Description string `xml:"description"`
-	Content     string `xml:"http://purl.org/rss/1.0/modules/content/ encoded"` //nolint:staticcheck // SA5008: valid RSS content namespace
-	PubDate     string `xml:"pubDate"`
-	GUID        string `xml:"guid"`
-	Author      string `xml:"author"`
-	Enclosure   *Enclosure  `xml:"enclosure,omitempty"`
-	Categories  []Category  `xml:"category,omitempty"`
+	Title       string     `xml:"title"`
+	Link        string     `xml:"link"`
+	Description string     `xml:"description"`
+	Content     string     `xml:"http://purl.org/rss/1.0/modules/content/ encoded"` //nolint:staticcheck // SA5008: valid RSS content namespace
+	PubDate     string     `xml:"pubDate"`
+	GUID        string     `xml:"guid"`
+	Author      string     `xml:"author"`
+	Enclosure   *Enclosure `xml:"enclosure,omitempty"`
+	Categories  []Category `xml:"category,omitempty"`
 }
 
 // Enclosure represents an RSS enclosure element.
@@ -59,15 +67,15 @@ type Feed struct {
 
 // Entry represents a single entry in an Atom feed.
 type Entry struct {
-	Title       string         `xml:"title"`
-	ID          string         `xml:"id"`
-	Published   string         `xml:"published"`
-	Updated     string         `xml:"updated"`
-	Summary     string         `xml:"summary"`
-	Content     string         `xml:"content"`
-	Author      Author         `xml:"author"`
-	Links       []Link         `xml:"link"`
-	Categories  []AtomCategory `xml:"category,omitempty"`
+	Title      string         `xml:"title"`
+	ID         string         `xml:"id"`
+	Published  string         `xml:"published"`
+	Updated    string         `xml:"updated"`
+	Summary    string         `xml:"summary"`
+	Content    string         `xml:"content"`
+	Author     Author         `xml:"author"`
+	Links      []Link         `xml:"link"`
+	Categories []AtomCategory `xml:"category,omitempty"`
 }
 
 // AtomCategory represents an Atom category element.
