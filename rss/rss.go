@@ -32,24 +32,47 @@ type Item struct {
 	PubDate     string `xml:"pubDate"`
 	GUID        string `xml:"guid"`
 	Author      string `xml:"author"`
+	Enclosure   *Enclosure  `xml:"enclosure,omitempty"`
+	Categories  []Category  `xml:"category,omitempty"`
+}
+
+// Enclosure represents an RSS enclosure element.
+type Enclosure struct {
+	URL    string `xml:"url,attr"`
+	Length int64  `xml:"length,attr"`
+	Type   string `xml:"type,attr"`
+}
+
+// Category represents an RSS category element.
+type Category struct {
+	Domain string `xml:"domain,attr,omitempty"`
+	Value  string `xml:",chardata"`
 }
 
 // Feed represents an Atom feed document.
 type Feed struct {
 	XMLName xml.Name `xml:"feed"`
 	Title   string   `xml:"title"`
+	Links   []Link   `xml:"link"`
 	Entries []Entry  `xml:"entry"`
 }
 
 // Entry represents a single entry in an Atom feed.
 type Entry struct {
-	Title   string `xml:"title"`
-	ID      string `xml:"id"`
-	Updated string `xml:"updated"`
-	Summary string `xml:"summary"`
-	Content string `xml:"content"`
-	Author  Author `xml:"author"`
-	Links   []Link `xml:"link"`
+	Title       string         `xml:"title"`
+	ID          string         `xml:"id"`
+	Published   string         `xml:"published"`
+	Updated     string         `xml:"updated"`
+	Summary     string         `xml:"summary"`
+	Content     string         `xml:"content"`
+	Author      Author         `xml:"author"`
+	Links       []Link         `xml:"link"`
+	Categories  []AtomCategory `xml:"category,omitempty"`
+}
+
+// AtomCategory represents an Atom category element.
+type AtomCategory struct {
+	Term string `xml:"term,attr"`
 }
 
 // AlternateLink returns the href of the first link with rel="alternate",
@@ -69,6 +92,7 @@ func (e *Entry) AlternateLink() string {
 // Author represents an author element in an Atom feed.
 type Author struct {
 	Name  string `xml:"name"`
+	URI   string `xml:"uri,omitempty"`
 	Email string `xml:"email,omitempty"`
 }
 
