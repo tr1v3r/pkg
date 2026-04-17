@@ -177,6 +177,64 @@ func TestParse_AutoDetect(t *testing.T) {
 	}
 }
 
+func TestDeduplicateItems_NoDuplicates(t *testing.T) {
+	ch := &Channel{Items: []Item{
+		{Title: "A", GUID: "1"},
+		{Title: "B", GUID: "2"},
+	}}
+	ch.DeduplicateItems()
+	assertEqual(t, "item count", len(ch.Items), 2)
+}
+
+func TestDeduplicateItems_DuplicateGUIDs(t *testing.T) {
+	ch := &Channel{Items: []Item{
+		{Title: "A", GUID: "1"},
+		{Title: "B", GUID: "1"},
+		{Title: "C", GUID: "2"},
+	}}
+	ch.DeduplicateItems()
+	assertEqual(t, "item count", len(ch.Items), 2)
+	assertEqual(t, "kept first", ch.Items[0].Title, "A")
+	assertEqual(t, "kept third", ch.Items[1].Title, "C")
+}
+
+func TestDeduplicateItems_FallbackToLink(t *testing.T) {
+	ch := &Channel{Items: []Item{
+		{Title: "A", Link: "https://example.com/1"},
+		{Title: "B", Link: "https://example.com/1"},
+		{Title: "C", Link: "https://example.com/2"},
+	}}
+	ch.DeduplicateItems()
+	assertEqual(t, "item count", len(ch.Items), 2)
+	assertEqual(t, "kept first", ch.Items[0].Title, "A")
+}
+
+func TestDeduplicateItems_EmptyKey(t *testing.T) {
+	ch := &Channel{Items: []Item{
+		{Title: "A"},
+		{Title: "B"},
+	}}
+	ch.DeduplicateItems()
+	assertEqual(t, "item count", len(ch.Items), 2)
+}
+
+func TestDeduplicateItems_Mixed(t *testing.T) {
+	ch := &Channel{Items: []Item{
+		{Title: "A", GUID: "1"},
+		{Title: "B", GUID: "1"},   // duplicate GUID
+		{Title: "C", Link: "x"},   // no GUID, Link as key
+		{Title: "D", Link: "x"},   // duplicate Link
+		{Title: "E"},              // no key at all
+		{Title: "F", GUID: "2"},
+	}}
+	ch.DeduplicateItems()
+	assertEqual(t, "item count", len(ch.Items), 4)
+	assertEqual(t, "items[0]", ch.Items[0].Title, "A")
+	assertEqual(t, "items[1]", ch.Items[1].Title, "C")
+	assertEqual(t, "items[2]", ch.Items[2].Title, "E")
+	assertEqual(t, "items[3]", ch.Items[3].Title, "F")
+}
+
 func TestParse_UnknownFormat(t *testing.T) {
 	_, err := Parse([]byte(`<html><body>hello</body></html>`))
 	if err == nil {

@@ -57,6 +57,30 @@ type Category struct {
 	Value  string `xml:",chardata"`
 }
 
+// DeduplicateItems removes duplicate items from the channel.
+// It uses GUID as the primary key; if GUID is empty, it falls back to Link.
+// The first occurrence of each item is kept.
+func (ch *Channel) DeduplicateItems() {
+	seen := make(map[string]struct{})
+	filtered := ch.Items[:0]
+	for _, item := range ch.Items {
+		key := item.GUID
+		if key == "" {
+			key = item.Link
+		}
+		if key == "" {
+			filtered = append(filtered, item)
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		filtered = append(filtered, item)
+	}
+	ch.Items = filtered
+}
+
 // Feed represents an Atom feed document.
 type Feed struct {
 	XMLName xml.Name `xml:"feed"`
