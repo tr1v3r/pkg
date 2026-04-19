@@ -57,14 +57,14 @@ func (pm *PageManager) ID() string {
 // Retrieve retrieve a page
 // docs: https://developers.notion.com/reference/retrieve-a-page
 func (pm *PageManager) Retrieve() (*Object, error) {
-	log.CtxDebug(pm.ctx, "retrieve page %s", pm.id)
+	log.CtxDebugf(pm.ctx, "retrieve page %s", pm.id)
 
 	_ = pm.limiter.Wait(pm.ctx)
 	resp, err := fetch.CtxGet(pm.ctx, pm.api(retrieveOp), pm.Headers()...)
 	if err != nil {
 		return nil, fmt.Errorf("request api fail: %w", err)
 	}
-	log.CtxDebug(pm.ctx, "retrieve page got response %s", string(resp))
+	log.CtxDebugf(pm.ctx, "retrieve page got response %s", string(resp))
 
 	var obj Object
 	if err := json.Unmarshal(resp, &obj); err != nil {
@@ -76,7 +76,7 @@ func (pm *PageManager) Retrieve() (*Object, error) {
 // RetrieveProp retrieve page property item
 // docs: https://developers.notion.com/reference/retrieve-a-page-property
 func (pm *PageManager) RetrieveProp(propID string) (*Object, error) {
-	log.CtxDebug(pm.ctx, "retrieve page %s property %s", pm.id, propID)
+	log.CtxDebugf(pm.ctx, "retrieve page %s property %s", pm.id, propID)
 
 	const pageSize = 30
 	param := url.Values{}
@@ -93,7 +93,7 @@ func (pm *PageManager) RetrieveProp(propID string) (*Object, error) {
 		if err != nil {
 			return nil, fmt.Errorf("request api fail: %w", err)
 		}
-		log.CtxDebug(pm.ctx, "retrieve page property got response %s", string(resp))
+		log.CtxDebugf(pm.ctx, "retrieve page property got response %s", string(resp))
 
 		if err := json.Unmarshal(resp, obj); err != nil {
 			return nil, fmt.Errorf("unmarshal response fail: %w", err)
@@ -109,7 +109,7 @@ func (pm *PageManager) RetrieveProp(propID string) (*Object, error) {
 // docs: https://developers.notion.com/reference/post-page
 // POST https://api.notion.com/v1/pages
 func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
-	log.CtxDebug(pm.ctx, "create page from parent: %+v", parent)
+	log.CtxDebugf(pm.ctx, "create page from parent: %+v", parent)
 
 	payload, _ := json.Marshal(&struct {
 		Parent     PageItem `json:"parent"`
@@ -138,17 +138,17 @@ func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
 // docs: https://developers.notion.com/reference/patch-page
 // PATCH https://api.notion.com/v1/pages/{page_id}
 func (pm *PageManager) Update(properties ...*Property) error {
-	log.CtxDebug(pm.ctx, "update page %s", pm.id)
+	log.CtxDebugf(pm.ctx, "update page %s", pm.id)
 
 	payload, _ := json.Marshal(map[string]any{"properties": PropertyArray(properties).ForUpdate()})
-	log.CtxDebug(pm.ctx, "update page with payload: %s", string(payload))
+	log.CtxDebugf(pm.ctx, "update page with payload: %s", string(payload))
 
 	_ = pm.limiter.Wait(pm.ctx)
 	resp, err := fetch.CtxPatch(pm.ctx, pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
 	if err != nil {
 		return fmt.Errorf("request api fail: %w", err)
 	}
-	log.CtxDebug(pm.ctx, "update page got response %s", string(resp))
+	log.CtxDebugf(pm.ctx, "update page got response %s", string(resp))
 
 	var obj Object
 	if err := json.Unmarshal(resp, &obj); err != nil {
@@ -167,7 +167,7 @@ func (pm *PageManager) Update(properties ...*Property) error {
 // Trash trash a page
 // https://developers.notion.com/reference/archive-a-page
 func (pm *PageManager) Trash() error {
-	log.CtxDebug(pm.ctx, "trash page %s", pm.id)
+	log.CtxDebugf(pm.ctx, "trash page %s", pm.id)
 
 	// archived or in_trash
 	payload, _ := json.Marshal(map[string]any{"in_trash": true})
@@ -177,7 +177,7 @@ func (pm *PageManager) Trash() error {
 	if err != nil {
 		return fmt.Errorf("request api fail: %w", err)
 	}
-	log.CtxDebug(pm.ctx, "trash page got response %s", string(resp))
+	log.CtxDebugf(pm.ctx, "trash page got response %s", string(resp))
 
 	var obj Object
 	if err := json.Unmarshal(resp, &obj); err != nil {

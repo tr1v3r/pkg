@@ -23,13 +23,13 @@ func WSHanlderWithUpgrader(upgrader *websocket.Upgrader, handle func(*websocket.
 		for {
 			mt, msg, err := ws.ReadMessage()
 			if err != nil {
-				log.Warn("read message fail: %s", err)
+				log.Warnf("read message fail: %s", err)
 				break
 			}
 
 			err = ws.WriteMessage(mt, handle(ws, msg))
 			if err != nil {
-				log.Warn("write message fail: %s", err)
+				log.Warnf("write message fail: %s", err)
 				break
 			}
 		}

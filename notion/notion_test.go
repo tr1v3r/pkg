@@ -14,8 +14,7 @@ var (
 )
 
 func init() {
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.DebugLevel)
+	log.Setup(log.ConsoleTo(os.Stdout, log.WithLevel(log.DebugLevel)))
 }
 
 func TestRetrieve_Database(t *testing.T) {
