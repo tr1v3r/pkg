@@ -44,6 +44,18 @@ type Field struct {
 	Value any
 }
 
+// Typed Field constructors for use as log arguments.
+// Example: log.Info("hello", log.Int("count", 3), log.Err(err))
+
+func String(key, val string) Field { return Field{Key: key, Value: val} }
+func Int(key string, val int) Field     { return Field{Key: key, Value: val} }
+func Int64(key string, val int64) Field { return Field{Key: key, Value: val} }
+func Float64(key string, val float64) Field { return Field{Key: key, Value: val} }
+func Bool(key string, val bool) Field   { return Field{Key: key, Value: val} }
+func Err(err error) Field               { return Field{Key: "err", Value: err} }
+func Duration(key string, val time.Duration) Field { return Field{Key: key, Value: val} }
+func Any(key string, val any) Field     { return Field{Key: key, Value: val} }
+
 // Record is the immutable data unit that flows through the logging pipeline.
 type Record struct {
 	Time    time.Time
@@ -84,18 +96,28 @@ func extractLogID(ctx context.Context) string {
 	return ""
 }
 
-// toFields converts alternating key-value pairs into []Field.
+// toFields converts alternating key-value pairs and Field values into []Field.
+// Supports both styles:
+//
+//	log.Info("msg", "key", val)       // alternating key-value
+//	log.Info("msg", log.Int("n", 3))  // typed Field
+//	log.Info("msg", "key", val, log.Err(err))  // mixed
 func toFields(args ...any) []Field {
 	if len(args) == 0 {
 		return nil
 	}
-	fields := make([]Field, 0, len(args)/2)
-	for i := 0; i+1 < len(args); i += 2 {
+	fields := make([]Field, 0, len(args)/2+1)
+	for i := 0; i < len(args); i++ {
+		if f, ok := args[i].(Field); ok {
+			fields = append(fields, f)
+			continue
+		}
 		key, ok := args[i].(string)
-		if !ok {
+		if !ok || i+1 >= len(args) {
 			continue
 		}
 		fields = append(fields, Field{Key: key, Value: args[i+1]})
+		i++ // skip value
 	}
 	return fields
 }
