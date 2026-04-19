@@ -4,10 +4,10 @@ go 1.24.0
 
 require (
 	github.com/gin-gonic/gin v1.8.1
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/miekg/dns v1.1.50
 	github.com/stretchr/testify v1.7.1
-	github.com/tr1v3r/pkg/log v0.0.0-20251026194108-dcfbf2096938
 	golang.org/x/crypto v0.44.0
 	golang.org/x/time v0.3.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b

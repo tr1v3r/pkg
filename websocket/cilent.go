@@ -24,7 +24,7 @@ func Read(c *websocket.Conn) <-chan []byte {
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
-				log.Info("read: %s", err)
+				log.Infof("read: %s", err)
 				return
 			}
 			msg <- message

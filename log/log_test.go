@@ -3,14 +3,14 @@ package log
 import (
 	"bytes"
 	"context"
-	"errors"
-	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 )
+
+// --- Level tests ---
 
 func TestLevelString(t *testing.T) {
 	tests := []struct {
@@ -23,834 +23,411 @@ func TestLevelString(t *testing.T) {
 		{WarnLevel, "WARN"},
 		{ErrorLevel, "ERROR"},
 		{FatalLevel, "FATAL"},
-		{PanicLevel, "PANIC"},
-		{Level(100), "UNKNOWN"},
 	}
-
-	for _, test := range tests {
-		result := test.level.String()
-		if result != test.expected {
-			t.Errorf("Level(%d).String() = %s, expected %s", test.level, result, test.expected)
+	for _, tt := range tests {
+		if got := tt.level.String(); got != tt.expected {
+			t.Errorf("Level(%d).String() = %s, want %s", tt.level, got, tt.expected)
 		}
 	}
 }
 
-func TestParseLevel(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected Level
-	}{
-		{"trace", TraceLevel},
-		{"TRACE", TraceLevel},
-		{"debug", DebugLevel},
-		{"DEBUG", DebugLevel},
-		{"info", InfoLevel},
-		{"INFO", InfoLevel},
-		{"warn", WarnLevel},
-		{"WARN", WarnLevel},
-		{"warning", WarnLevel},
-		{"error", ErrorLevel},
-		{"ERROR", ErrorLevel},
-		{"fatal", FatalLevel},
-		{"FATAL", FatalLevel},
-		{"panic", PanicLevel},
-		{"PANIC", PanicLevel},
-		{"unknown", InfoLevel},
-		{"", InfoLevel},
-	}
+// --- toFields tests ---
 
-	for _, test := range tests {
-		result := ParseLevel(test.input)
-		if result != test.expected {
-			t.Errorf("ParseLevel(%s) = %d, expected %d", test.input, result, test.expected)
-		}
+func TestToFields(t *testing.T) {
+	fields := toFields("user", "alice", "port", 8080)
+	if len(fields) != 2 {
+		t.Fatalf("expected 2 fields, got %d", len(fields))
+	}
+	if fields[0].Key != "user" || fields[0].Value != "alice" {
+		t.Errorf("field[0] = %v, want {user, alice}", fields[0])
+	}
+	if fields[1].Key != "port" || fields[1].Value != 8080 {
+		t.Errorf("field[1] = %v, want {port, 8080}", fields[1])
 	}
 }
 
-func TestTextFormatter(t *testing.T) {
-	formatter := NewTextFormatter(false) // No color
-
-	// Test basic formatting
-	result := formatter.Format(InfoLevel, nil, "test %s", "message")
-	if !strings.Contains(result, "test message") {
-		t.Errorf("Expected formatted message to contain 'test message', got: %s", result)
-	}
-	if !strings.Contains(result, "INFO") {
-		t.Errorf("Expected formatted message to contain 'INFO', got: %s", result)
-	}
-
-	// Test with context
-	ctx := context.WithValue(context.Background(), LogIDKey, "ctx123")
-	result = formatter.Format(InfoLevel, ctx, "context test")
-	if !strings.Contains(result, "ctx123") {
-		t.Errorf("Expected formatted message to contain log_id 'ctx123', got: %s", result)
+func TestToFields_Empty(t *testing.T) {
+	if fields := toFields(); fields != nil {
+		t.Errorf("expected nil for empty args, got %v", fields)
 	}
 }
+
+func TestToFields_OddArgs(t *testing.T) {
+	fields := toFields("user", "alice", "orphan")
+	if len(fields) != 1 {
+		t.Fatalf("expected 1 field, got %d", len(fields))
+	}
+	if fields[0].Key != "user" {
+		t.Errorf("field[0].Key = %s, want user", fields[0].Key)
+	}
+}
+
+// --- Context tests ---
+
+func TestWithLogID(t *testing.T) {
+	ctx := WithLogID(context.Background(), "req-123")
+	if id := extractLogID(ctx); id != "req-123" {
+		t.Errorf("extractLogID = %s, want req-123", id)
+	}
+}
+
+func TestNewLogID(t *testing.T) {
+	id := NewLogID()
+	if id == "" {
+		t.Error("NewLogID returned empty string")
+	}
+	if len(id) != 36 { // UUID v4 format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+		t.Errorf("NewLogID length = %d, want 36", len(id))
+	}
+}
+
+// --- TextEncoder tests ---
+
+func TestTextEncoder(t *testing.T) {
+	enc := NewTextEncoder(false)
+	record := Record{
+		Time:    parseTime("2024-01-01T12:00:00Z"),
+		Level:   InfoLevel,
+		Message: "request received",
+		Fields:  []Field{{Key: "method", Value: "GET"}},
+	}
+	out := string(enc.Encode(record))
+	if !strings.Contains(out, "[INFO]") {
+		t.Errorf("expected [INFO] in output, got: %s", out)
+	}
+	if !strings.Contains(out, "request received") {
+		t.Errorf("expected message in output, got: %s", out)
+	}
+	if !strings.Contains(out, "method=GET") {
+		t.Errorf("expected field in output, got: %s", out)
+	}
+}
+
+func TestTextEncoder_LogID(t *testing.T) {
+	enc := NewTextEncoder(false)
+	record := Record{
+		Time:    parseTime("2024-01-01T12:00:00Z"),
+		Level:   InfoLevel,
+		Message: "test",
+		LogID:   "req-abc",
+	}
+	out := string(enc.Encode(record))
+	if !strings.Contains(out, "[req-abc]") {
+		t.Errorf("expected [req-abc] in output, got: %s", out)
+	}
+}
+
+// --- JSONEncoder tests ---
+
+func TestJSONEncoder(t *testing.T) {
+	enc := NewJSONEncoder()
+	record := Record{
+		Time:    parseTime("2024-01-01T12:00:00Z"),
+		Level:   InfoLevel,
+		Message: "hello",
+		Fields:  []Field{{Key: "user", Value: "alice"}},
+	}
+	out := string(enc.Encode(record))
+	if !strings.Contains(out, `"level":"INFO"`) {
+		t.Errorf("expected level in JSON, got: %s", out)
+	}
+	if !strings.Contains(out, `"msg":"hello"`) {
+		t.Errorf("expected message in JSON, got: %s", out)
+	}
+	if !strings.Contains(out, `"user":"alice"`) {
+		t.Errorf("expected field in JSON, got: %s", out)
+	}
+}
+
+// --- Sink + Logger integration tests ---
+
+func newTestSink() (*Sink, *bytes.Buffer) {
+	var buf bytes.Buffer
+	return newSink(NewTextEncoder(false), &buf, WithLevel(TraceLevel)), &buf
+}
+
+func TestLogger_Structured(t *testing.T) {
+	sink, buf := newTestSink()
+	logger := New(sink)
+
+	logger.Info("hello", "user", "alice", "port", 8080)
+
+	out := buf.String()
+	if !strings.Contains(out, "hello") {
+		t.Errorf("expected message, got: %s", out)
+	}
+	if !strings.Contains(out, "user=alice") {
+		t.Errorf("expected field, got: %s", out)
+	}
+	if !strings.Contains(out, "port=8080") {
+		t.Errorf("expected field, got: %s", out)
+	}
+}
+
+func TestLogger_Printf(t *testing.T) {
+	sink, buf := newTestSink()
+	logger := New(sink)
+
+	logger.Infof("server started on :%d", 8080)
+
+	out := buf.String()
+	if !strings.Contains(out, "server started on :8080") {
+		t.Errorf("expected formatted message, got: %s", out)
+	}
+}
+
+func TestLogger_CtxStructured(t *testing.T) {
+	sink, buf := newTestSink()
+	logger := New(sink)
+
+	ctx := WithLogID(context.Background(), "req-456")
+	logger.CtxInfo(ctx, "got response", "bytes", 1024)
+
+	out := buf.String()
+	if !strings.Contains(out, "got response") {
+		t.Errorf("expected message, got: %s", out)
+	}
+	if !strings.Contains(out, "bytes=1024") {
+		t.Errorf("expected structured field, got: %s", out)
+	}
+	if !strings.Contains(out, "[req-456]") {
+		t.Errorf("expected logID, got: %s", out)
+	}
+}
+
+func TestLogger_CtxPrintf(t *testing.T) {
+	sink, buf := newTestSink()
+	logger := New(sink)
+
+	ctx := WithLogID(context.Background(), "req-789")
+	logger.CtxInfof(ctx, "got response %d bytes", 1024)
+
+	out := buf.String()
+	if !strings.Contains(out, "got response 1024 bytes") {
+		t.Errorf("expected formatted message, got: %s", out)
+	}
+	if !strings.Contains(out, "[req-789]") {
+		t.Errorf("expected logID, got: %s", out)
+	}
+}
+
+func TestLogger_With(t *testing.T) {
+	sink, buf := newTestSink()
+	logger := New(sink)
+
+	child := logger.With("service", "api")
+	child.Info("request handled", "method", "GET")
+
+	out := buf.String()
+	if !strings.Contains(out, "service=api") {
+		t.Errorf("expected preset field, got: %s", out)
+	}
+	if !strings.Contains(out, "method=GET") {
+		t.Errorf("expected per-call field, got: %s", out)
+	}
+}
+
+func TestLogger_LevelFilter(t *testing.T) {
+	sink, buf := newTestSink()
+	sink.SetLevel(WarnLevel)
+	logger := New(sink)
+
+	logger.Info("should be filtered")
+	logger.Warn("should appear")
+
+	out := buf.String()
+	if strings.Contains(out, "should be filtered") {
+		t.Error("info should be filtered at warn level")
+	}
+	if !strings.Contains(out, "should appear") {
+		t.Error("warn should pass through")
+	}
+}
+
+// --- Global function tests ---
 
 func TestGlobalFunctions(t *testing.T) {
-	var buf bytes.Buffer
+	sink, buf := newTestSink()
+	Setup(sink)
 
-	// Setup test logger
-	originalLogger := defaultLogger
-	originalHandler := defaultHandler
-	defer func() {
-		defaultLogger = originalLogger
-		defaultHandler = originalHandler
-	}()
-
-	testHandler := NewSyncConsoleHandler(DebugLevel)
-	testHandler.SetOutput(&buf)
-	defaultHandler = testHandler
-	defaultLogger = NewLogger(testHandler)
-
-	// Test global functions
-	Info("global info message")
-	Flush()
-
-	output := buf.String()
-	if !strings.Contains(output, "global info message") {
-		t.Errorf("Expected global Info to work, got: %s", output)
+	Info("global test", "key", "value")
+	if !strings.Contains(buf.String(), "global test") {
+		t.Errorf("global Info failed, got: %s", buf.String())
 	}
 
-	// Test context function
 	buf.Reset()
-	ctx := context.WithValue(context.Background(), LogIDKey, "global123")
-	CtxInfo(ctx, "context global message")
-	Flush()
-
-	output = buf.String()
-	if !strings.Contains(output, "global123") {
-		t.Errorf("Expected global CtxInfo to include log_id, got: %s", output)
+	ctx := WithLogID(context.Background(), "global-123")
+	CtxDebugf(ctx, "ctx test %s", "arg")
+	if !strings.Contains(buf.String(), "ctx test arg") {
+		t.Errorf("global CtxDebugf failed, got: %s", buf.String())
 	}
-}
-
-func TestStructuredLogHandler(t *testing.T) {
-	var buf bytes.Buffer
-	handler := NewStructuredLogHandler(DebugLevel)
-	handler.SetOutput(&buf)
-
-	logger := NewLogger(handler)
-
-	// Test traditional logging
-	logger.Info("traditional %s", "message")
-	logger.Flush()
-
-	output := buf.String()
-	if !strings.Contains(output, "traditional message") {
-		t.Errorf("Expected structured logger to handle traditional format, got: %s", output)
+	if !strings.Contains(buf.String(), "[global-123]") {
+		t.Errorf("global CtxDebugf missing logID, got: %s", buf.String())
 	}
 
-	// Test With method - structuredLogHandler should return a new instance
-	newLogger := logger.With("key", "value")
-	if newLogger == logger {
-		t.Errorf("Expected With to return new logger for structuredLogHandler")
-	}
-}
-
-// func TestFileHandler(t *testing.T) {
-// 	// Create temporary directory for test
-// 	tmpDir, err := os.MkdirTemp("", "log_test")
-// 	if err != nil {
-// 		t.Fatalf("Failed to create temp dir: %v", err)
-// 	}
-// 	defer os.RemoveAll(tmpDir)
-//
-// 	// Test file handler creation
-// 	handler, err := NewFileHandler(InfoLevel, tmpDir, WithFilePrefix("test"))
-// 	if err != nil {
-// 		t.Fatalf("Failed to create file handler: %v", err)
-// 	}
-// 	defer handler.Close()
-//
-// 	// Test file name generation
-// 	fileName := handler.FileName()
-// 	if !strings.Contains(fileName, "test.") {
-// 		t.Errorf("Expected file name to contain prefix 'test.', got: %s", fileName)
-// 	}
-// 	if !strings.HasPrefix(fileName, tmpDir) {
-// 		t.Errorf("Expected file name to be in temp dir, got: %s", fileName)
-// 	}
-//
-// 	// Test basic output
-// 	handler.Output(InfoLevel, nil, "file test message")
-// 	handler.Flush()
-//
-// 	// Note: In a real test, we would read the file to verify contents
-// 	// but for simplicity we're just testing that no errors occur
-// }
-
-// Benchmark tests
-
-func BenchmarkConsoleHandler(b *testing.B) {
-	handler := NewConsoleHandler(InfoLevel)
-	handler.SetOutput(io.Discard)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		handler.Output(InfoLevel, nil, "benchmark message %d", i)
-	}
-	handler.Flush()
-}
-
-func BenchmarkTextFormatter(b *testing.B) {
-	formatter := NewTextFormatter(false)
-	ctx := context.WithValue(context.Background(), LogIDKey, "bench123")
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		formatter.Format(InfoLevel, ctx, "benchmark %s", "message")
-	}
-}
-
-// FileHandler benchmarks
-func BenchmarkFileHandler_NoRotation(b *testing.B) {
-	tmpDir := b.TempDir()
-
-	handler, err := NewFileHandler(FileHandlerConfig{
-		LogDir:   tmpDir,
-		Filename: "benchmark.log",
-		Rotation: RotationNone,
-		Level:    InfoLevel,
-	})
-	if err != nil {
-		b.Fatalf("failed to create handler: %v", err)
-	}
-	defer handler.Close()
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			handler.Output(InfoLevel, context.Background(), "benchmark message")
-		}
-	})
-}
-
-func BenchmarkFileHandler_DailyRotation(b *testing.B) {
-	tmpDir := b.TempDir()
-
-	handler, err := NewFileHandler(FileHandlerConfig{
-		LogDir:   tmpDir,
-		Filename: "benchmark_daily.log",
-		Rotation: RotationDaily,
-		Level:    InfoLevel,
-	})
-	if err != nil {
-		b.Fatalf("failed to create handler: %v", err)
-	}
-	defer handler.Close()
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			handler.Output(InfoLevel, context.Background(), "benchmark message")
-		}
-	})
-}
-
-func BenchmarkFileHandler_HourlyRotation(b *testing.B) {
-	tmpDir := b.TempDir()
-
-	handler, err := NewFileHandler(FileHandlerConfig{
-		LogDir:   tmpDir,
-		Filename: "benchmark_hourly.log",
-		Rotation: RotationHourly,
-		Level:    InfoLevel,
-	})
-	if err != nil {
-		b.Fatalf("failed to create handler: %v", err)
-	}
-	defer handler.Close()
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			handler.Output(InfoLevel, context.Background(), "benchmark message")
-		}
-	})
-}
-
-func BenchmarkFileHandler_WithContext(b *testing.B) {
-	tmpDir := b.TempDir()
-
-	handler, err := NewFileHandler(FileHandlerConfig{
-		LogDir:   tmpDir,
-		Filename: "benchmark_context.log",
-		Rotation: RotationNone,
-		Level:    InfoLevel,
-	})
-	if err != nil {
-		b.Fatalf("failed to create handler: %v", err)
-	}
-	defer handler.Close()
-
-	ctx := WithLogID(context.Background(), "benchmark-request")
-
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			handler.Output(InfoLevel, ctx, "benchmark message with context")
-		}
-	})
-}
-
-// Logger tests
-func TestNewLogger(t *testing.T) {
-	// Test with no handlers (should use default console handler)
-	logger := NewLogger()
-	if logger == nil {
-		t.Fatal("NewLogger() returned nil")
-	}
-
-	// Test with custom handlers
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf)
-
-	logger = NewLogger(handler)
-	if logger == nil {
-		t.Fatal("NewLogger(handler) returned nil")
-	}
-
-	// Test logging works
-	logger.Info("test message")
-	logger.Flush()
-
-	if !strings.Contains(buf.String(), "test message") {
-		t.Errorf("Expected log output to contain 'test message', got: %s", buf.String())
-	}
-}
-
-func TestBaseLogger_SetLevel(t *testing.T) {
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf)
-
-	logger := NewLogger(handler).(*baseLogger)
-
-	// Test setting level
-	logger.SetLevel(DebugLevel)
-
-	// Verify debug messages are now logged
-	logger.Debug("debug message")
-	logger.Flush()
-
-	if !strings.Contains(buf.String(), "debug message") {
-		t.Errorf("Expected debug message to be logged after setting DebugLevel, got: %s", buf.String())
-	}
-
-	// Test setting higher level
 	buf.Reset()
-	logger.SetLevel(WarnLevel)
-	logger.Debug("debug message 2")
-	logger.Flush()
-
-	if strings.Contains(buf.String(), "debug message 2") {
-		t.Errorf("Expected debug message to be filtered out after setting WarnLevel, got: %s", buf.String())
+	Infof("printf %d", 42)
+	if !strings.Contains(buf.String(), "printf 42") {
+		t.Errorf("global Infof failed, got: %s", buf.String())
 	}
 }
 
-func TestBaseLogger_SetOutput(t *testing.T) {
-	buf1 := &bytes.Buffer{}
-	buf2 := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf1)
+// --- File sink test ---
 
-	logger := NewLogger(handler)
-
-	// Test SetOutput
-	logger.SetOutput(buf2)
-	logger.Info("test output")
-	logger.Flush()
-
-	if buf1.String() != "" {
-		t.Errorf("Expected original buffer to be empty after SetOutput, got: %s", buf1.String())
-	}
-	if !strings.Contains(buf2.String(), "test output") {
-		t.Errorf("Expected new buffer to contain log, got: %s", buf2.String())
-	}
-}
-
-func TestBaseLogger_AddOutput(t *testing.T) {
-	buf1 := &bytes.Buffer{}
-	buf2 := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf1)
-
-	logger := NewLogger(handler)
-
-	// Test AddOutputs
-	logger.AddOutputs(buf2)
-	logger.Info("test multi-output")
-	logger.Flush()
-
-	if !strings.Contains(buf1.String(), "test multi-output") {
-		t.Errorf("Expected buffer1 to contain log, got: %s", buf1.String())
-	}
-	if !strings.Contains(buf2.String(), "test multi-output") {
-		t.Errorf("Expected buffer2 to contain log, got: %s", buf2.String())
-	}
-}
-
-func TestBaseLogger_Flush(t *testing.T) {
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf)
-
-	logger := NewLogger(handler)
-
-	// Test Flush doesn't panic
-	logger.Flush()
-
-	// Test Flush after logging
-	logger.Info("flush test")
-	logger.Flush()
-
-	if !strings.Contains(buf.String(), "flush test") {
-		t.Errorf("Expected flush to write logs, got: %s", buf.String())
-	}
-}
-
-func TestBaseLogger_Close(t *testing.T) {
-	handler := NewSyncConsoleHandler(InfoLevel)
-	logger := NewLogger(handler)
-
-	// Test Close doesn't panic
-	err := logger.Close()
+func TestFileSink(t *testing.T) {
+	tmpDir := t.TempDir()
+	sink, err := File(tmpDir + "/test.log", WithLevel(DebugLevel))
 	if err != nil {
-		t.Errorf("Expected Close to return nil error, got: %v", err)
+		t.Fatal(err)
 	}
+	defer sink.Close()
 
-	// Test Close with multiple handlers
-	handler1 := NewSyncConsoleHandler(InfoLevel)
-	handler2 := NewSyncConsoleHandler(InfoLevel)
-	logger = NewLogger(handler1, handler2)
+	logger := New(sink)
+	logger.Info("file test", "key", "value")
+	sink.Sync()
 
-	err = logger.Close()
+	data, err := os.ReadFile(tmpDir + "/test.log")
 	if err != nil {
-		t.Errorf("Expected Close with multiple handlers to return nil error, got: %v", err)
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "file test") {
+		t.Errorf("expected message in file, got: %s", string(data))
+	}
+	if !strings.Contains(string(data), "key=value") {
+		t.Errorf("expected field in file, got: %s", string(data))
 	}
 }
 
-func TestBaseLogger_With(t *testing.T) {
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf)
-	logger := NewLogger(handler)
+// --- RotateFile sink test ---
 
-	// Test With returns a new logger (handlers are shared but logger is new)
-	newLogger := logger.With("key", "value")
-	if newLogger == nil {
-		t.Error("Expected With to return a non-nil logger")
+func TestRotateFileSink(t *testing.T) {
+	tmpDir := t.TempDir()
+	sink, err := RotateFile(tmpDir, "app", Hourly, WithLevel(InfoLevel))
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer sink.Close()
 
-	// Both loggers should still work
-	newLogger.Info("from new logger")
-	logger.Flush()
+	logger := New(sink)
+	logger.Info("rotate test")
+	sink.Sync()
 
-	if !strings.Contains(buf.String(), "from new logger") {
-		t.Errorf("Expected new logger to work, got: %s", buf.String())
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestBaseLogger_WithGroup(t *testing.T) {
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf)
-	logger := NewLogger(handler)
-
-	// Test WithGroup returns a new logger (handlers are shared but logger is new)
-	newLogger := logger.WithGroup("testgroup")
-	if newLogger == nil {
-		t.Error("Expected WithGroup to return a non-nil logger")
-	}
-
-	// Both loggers should still work
-	newLogger.Info("from group logger")
-	logger.Flush()
-
-	if !strings.Contains(buf.String(), "from group logger") {
-		t.Errorf("Expected group logger to work, got: %s", buf.String())
+	if len(entries) == 0 {
+		t.Error("expected at least one log file")
 	}
 }
 
-func TestBaseLogger_LoggingMethods(t *testing.T) {
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(TraceLevel) // Set to trace to capture all levels
-	handler.SetOutput(buf)
+// --- SizeRotateFile sink test ---
 
-	logger := NewLogger(handler)
-
-	// Test all logging levels (except Fatal/Panic which terminate the process)
-	testCases := []struct {
-		name     string
-		logFn    func(string, ...any)
-		ctxLogFn func(context.Context, string, ...any)
-		expected string
-	}{
-		{"Trace", logger.Trace, logger.CtxTrace, "trace message"},
-		{"Debug", logger.Debug, logger.CtxDebug, "debug message"},
-		{"Info", logger.Info, logger.CtxInfo, "info message"},
-		{"Warn", logger.Warn, logger.CtxWarn, "warn message"},
-		{"Error", logger.Error, logger.CtxError, "error message"},
+func TestSizeRotateFileSink(t *testing.T) {
+	tmpDir := t.TempDir()
+	// 100 bytes max to trigger rotation quickly
+	sink, err := SizeRotateFile(tmpDir, "app", 100, WithLevel(TraceLevel))
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer sink.Close()
 
-	for _, tc := range testCases {
-		buf.Reset()
+	logger := New(sink)
+	for i := 0; i < 20; i++ {
+		logger.Info("test message that should fill up the file", "iter", i)
+	}
+	sink.Sync()
 
-		// Test without context
-		tc.logFn(tc.expected)
-		logger.Flush()
-
-		if !strings.Contains(buf.String(), tc.expected) {
-			t.Errorf("%s: expected log to contain '%s', got: %s", tc.name, tc.expected, buf.String())
-		}
-
-		// Test with context
-		buf.Reset()
-		ctx := context.WithValue(context.Background(), LogIDKey, "test-123")
-		tc.ctxLogFn(ctx, "ctx "+tc.expected)
-		logger.Flush()
-
-		if !strings.Contains(buf.String(), "ctx "+tc.expected) {
-			t.Errorf("%s with context: expected log to contain 'ctx %s', got: %s", tc.name, tc.expected, buf.String())
-		}
+	entries, err := os.ReadDir(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) < 2 {
+		t.Errorf("expected rotation (>= 2 files), got %d files", len(entries))
 	}
 }
 
-func TestBaseLogger_FatalExits(t *testing.T) {
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(TraceLevel)
-	handler.SetOutput(buf)
+// --- JSON sink test ---
 
-	logger := NewLogger(handler)
+func TestJSONSink(t *testing.T) {
+	var buf bytes.Buffer
+	sink := newSink(NewJSONEncoder(), &buf, WithLevel(InfoLevel))
 
+	logger := New(sink)
+	logger.Info("json test", "user", "bob")
+
+	out := buf.String()
+	if !strings.Contains(out, `"msg":"json test"`) {
+		t.Errorf("expected JSON message, got: %s", out)
+	}
+	if !strings.Contains(out, `"user":"bob"`) {
+		t.Errorf("expected JSON field, got: %s", out)
+	}
+}
+
+// --- Fatal test (subprocess) ---
+
+func TestFatalExits(t *testing.T) {
 	if os.Getenv("BE_FATAL") == "1" {
-		logger.Fatal("fatal exit test")
+		Fatal("fatal test")
 		return
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=TestBaseLogger_FatalExits")
+	cmd := exec.Command(os.Args[0], "-test.run=TestFatalExits")
 	cmd.Env = append(os.Environ(), "BE_FATAL=1")
 	err := cmd.Run()
 	if e, ok := err.(*exec.ExitError); !ok || e.ExitCode() != 1 {
-		t.Fatalf("Expected exit code 1, got %v", err)
+		t.Fatalf("expected exit code 1, got %v", err)
 	}
 }
 
-func TestBaseLogger_PanicPanics(t *testing.T) {
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(TraceLevel)
-	handler.SetOutput(buf)
+// --- Multi-sink test ---
 
-	logger := NewLogger(handler)
+func TestMultiSink(t *testing.T) {
+	sink1, buf1 := newTestSink()
+	sink2, buf2 := newTestSink()
 
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Error("Expected panic from Panic(), got nil")
-		}
-		if s, ok := r.(string); !ok || !strings.Contains(s, "panic test") {
-			t.Errorf("Expected panic message to contain 'panic test', got: %v", r)
-		}
-	}()
+	logger := New(sink1, sink2)
+	logger.Info("multi test")
 
-	logger.Panic("panic test")
-}
-
-func TestBaseLogger_Output(t *testing.T) {
-	buf := &bytes.Buffer{}
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf)
-
-	logger := NewLogger(handler).(*baseLogger)
-
-	// Test output method directly
-	logger.output(InfoLevel, nil, "direct output test")
-	logger.Flush()
-
-	if !strings.Contains(buf.String(), "direct output test") {
-		t.Errorf("Expected direct output to be logged, got: %s", buf.String())
+	if !strings.Contains(buf1.String(), "multi test") {
+		t.Error("sink1 should receive message")
 	}
-
-	// Test output with context
-	buf.Reset()
-	ctx := context.WithValue(context.Background(), LogIDKey, "test-456")
-	logger.output(InfoLevel, ctx, "context output test")
-	logger.Flush()
-
-	if !strings.Contains(buf.String(), "context output test") {
-		t.Errorf("Expected context output to be logged, got: %s", buf.String())
+	if !strings.Contains(buf2.String(), "multi test") {
+		t.Error("sink2 should receive message")
 	}
 }
 
-// Global function tests
-func TestGlobalContextFunctions(t *testing.T) {
-	// Capture output for testing
-	buf := &bytes.Buffer{}
-	SetOutput(buf)
-	SetLevel(TraceLevel) // Set to trace to capture all levels
+// --- Benchmark ---
 
-	// Test all global context-aware logging functions (except CtxFatal/CtxPanic which terminate)
-	testCases := []struct {
-		name     string
-		logFn    func(context.Context, string, ...any)
-		expected string
-	}{
-		{"CtxTrace", CtxTrace, "global trace"},
-		{"CtxDebug", CtxDebug, "global debug"},
-		{"CtxInfo", CtxInfo, "global info"},
-		{"CtxWarn", CtxWarn, "global warn"},
-		{"CtxError", CtxError, "global error"},
+func BenchmarkTextEncode(b *testing.B) {
+	enc := NewTextEncoder(false)
+	record := Record{
+		Level:   InfoLevel,
+		Message: "benchmark message",
+		Fields:  []Field{{Key: "key1", Value: "val1"}, {Key: "key2", Value: 42}},
 	}
-
-	for _, tc := range testCases {
-		buf.Reset()
-
-		// Test with context
-		ctx := context.WithValue(context.Background(), LogIDKey, "global-test-123")
-		tc.logFn(ctx, tc.expected)
-		Flush()
-
-		if !strings.Contains(buf.String(), tc.expected) {
-			t.Errorf("%s: expected log to contain '%s', got: %s", tc.name, tc.expected, buf.String())
-		}
-	}
-
-	// Test WithGroup function
-	buf.Reset()
-	groupLogger := WithGroup("testgroup")
-	groupLogger.Info("group test")
-	Flush()
-
-	if !strings.Contains(buf.String(), "group test") {
-		t.Error("Expected WithGroup logger to work")
-	}
-
-	// Test RegisterHandler function
-	buf.Reset()
-	ClearHandler() // Clear existing handlers
-
-	handler := NewSyncConsoleHandler(InfoLevel)
-	handler.SetOutput(buf)
-	RegisterHandler(handler)
-
-	Info("registered handler test")
-	Flush()
-
-	if !strings.Contains(buf.String(), "registered handler test") {
-		t.Error("Expected RegisterHandler to work")
-	}
-
-	// Test ClearHandler function
-	buf.Reset()
-	ClearHandler()
-	Info("after clear handler")
-	Flush()
-
-	// After clearing handlers, logs should still work but might go to different output
-	// This is expected behavior
-
-	// Reset to default state
-	defaultHandler = NewStructuredLogHandler(InfoLevel)
-	defaultLogger = NewLogger(defaultHandler)
-}
-
-func TestGlobalConfiguration(t *testing.T) {
-	// Test SetOutput
-	buf1 := &bytes.Buffer{}
-	buf2 := &bytes.Buffer{}
-
-	SetOutput(buf1)
-	Info("test output 1")
-	Flush()
-
-	if !strings.Contains(buf1.String(), "test output 1") {
-		t.Error("Expected SetOutput to work")
-	}
-
-	// Test AddOutputs
-	AddOutputs(buf2)
-	Info("test output 2")
-	Flush()
-
-	if !strings.Contains(buf1.String(), "test output 2") {
-		t.Error("Expected original output to still work")
-	}
-	if !strings.Contains(buf2.String(), "test output 2") {
-		t.Error("Expected AddOutput to work")
-	}
-
-	// Test SetLevel
-	buf1.Reset()
-	buf2.Reset()
-	SetLevel(WarnLevel)
-
-	Info("filtered info")
-	Warn("warn message")
-	Flush()
-
-	if strings.Contains(buf1.String(), "filtered info") {
-		t.Error("Expected info message to be filtered")
-	}
-	if !strings.Contains(buf1.String(), "warn message") {
-		t.Error("Expected warn message to be logged")
-	}
-
-	// Reset to default level
-	SetLevel(InfoLevel)
-}
-
-func TestGlobalStructuredOutput(t *testing.T) {
-	// Test SetStructuredOutput
-	buf := &bytes.Buffer{}
-	SetStructuredOutput(buf, true) // JSON output
-
-	Info("json test")
-	Flush()
-
-	output := buf.String()
-	if !strings.Contains(output, "json test") || !strings.Contains(output, "\"level\":\"INFO\"") {
-		t.Errorf("Expected JSON structured output, got: %s", output)
-	}
-
-	// Test text structured output
-	buf.Reset()
-	SetStructuredOutput(buf, false) // Text output
-
-	Info("text test")
-	Flush()
-
-	output = buf.String()
-	if !strings.Contains(output, "text test") || !strings.Contains(output, "level=INFO") {
-		t.Errorf("Expected text structured output, got: %s", output)
-	}
-
-	// Reset to default
-	defaultHandler = NewStructuredLogHandler(InfoLevel)
-	defaultLogger = NewLogger(defaultHandler)
-}
-
-// MultiError test
-func TestMultiError(t *testing.T) {
-	// Test MultiError with no errors
-	multiErr := &MultiError{Errors: []error{}}
-	if multiErr.Error() != "no errors" {
-		t.Errorf("Expected 'no errors', got: %s", multiErr.Error())
-	}
-
-	// Test MultiError with multiple errors
-	err1 := errors.New("error 1")
-	err2 := errors.New("error 2")
-	multiErr = &MultiError{Errors: []error{err1, err2}}
-
-	expected := "multiple errors occurred while closing handlers: [error 1; error 2]"
-	if multiErr.Error() != expected {
-		t.Errorf("Expected '%s', got: %s", expected, multiErr.Error())
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		enc.Encode(record)
 	}
 }
 
-// Export test function
-func TestOutput(t *testing.T) {
-	SetLevel(TraceLevel)
-
-	Trace("trace message")
-	Debug("debug message")
-	Info("info message")
-	Warn("warn message")
-	Error("error message")
-
-	Flush()
-}
-
-// Example tests
-func TestStructuredLoggingExamples(t *testing.T) {
-	// Example 1: Traditional format string logging (backward compatible)
-	Info("User %s logged in from %s", "alice", "192.168.1.100")
-
-	// Example 2: Structured logging with key-value pairs
-	ctx := context.WithValue(context.Background(), LogIDKey, "req-12345")
-	CtxInfo(ctx, "User login", "user", "alice", "ip", "192.168.1.100", "success", true)
-
-	// Example 3: Using With() for contextual logging
-	logger := With("service", "auth", "version", "1.0.0")
-	logger.Info("Processing request", "method", "POST", "path", "/login")
-
-	// Flush to ensure all logs are written
-	Flush()
-}
-
-func TestStructuredLogging(t *testing.T) {
-	// Test backward compatibility
-	Info("Traditional format: %s", "works")
-
-	// Test structured logging
-	ctx := context.WithValue(context.Background(), LogIDKey, "test-123")
-	CtxInfo(ctx, "Structured log", "key1", "value1", "key2", 42, "key3", true)
-
-	// Test With() method
-	logger := With("component", "test")
-	logger.Debug("Debug message", "debug_key", "debug_value")
-
-	// Test mixed usage
-	Warn("Mixed %s logging", "format", "extra_key", "extra_value")
-}
-
-func TestWithLogIDFunction(t *testing.T) {
-	// Example 1: Using WithLogID convenience function
-	ctx := WithLogID(context.Background(), "request-abc123")
-	CtxInfo(ctx, "Request processed", "status", "success", "duration_ms", 250)
-
-	// Example 2: Using WithLogID with existing context
-	// Note: In real applications, define your own context key types
-	type userKey string
-	const userIDKey userKey = "user_id"
-	parentCtx := context.WithValue(context.Background(), userIDKey, "user-789")
-	ctx = WithLogID(parentCtx, "request-def456")
-	CtxInfo(ctx, "User request", "user_id", "user-789", "action", "login")
-
-	// Example 3: Using LogIDKey directly
-	ctx = context.WithValue(context.Background(), LogIDKey, "manual-log-id")
-	CtxWarn(ctx, "Manual log ID usage")
-
-	Flush()
-}
-
-// Test the performance optimization by simulating many rapid log calls
-func TestFileHandler_PerformanceOptimization(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	handler, err := NewFileHandler(FileHandlerConfig{
-		LogDir:   tmpDir,
-		Filename: "performance.log",
-		Rotation: RotationDaily,
-		Level:    InfoLevel,
-	})
-	if err != nil {
-		t.Fatalf("failed to create handler: %v", err)
+func BenchmarkLoggerWrite(b *testing.B) {
+	sink := newSink(NewTextEncoder(false), ioDiscarder{}, WithLevel(InfoLevel))
+	logger := New(sink)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		logger.Info("benchmark", "iter", i)
 	}
-	defer handler.Close()
-
-	// Simulate high-frequency logging
-	start := time.Now()
-	for i := 0; i < 10000; i++ {
-		handler.Output(InfoLevel, context.Background(), "performance test message %d", i)
-	}
-	duration := time.Since(start)
-
-	// Flush to ensure all messages are written
-	handler.Flush()
-
-	t.Logf("Logged 10,000 messages in %v (avg %v per message)", duration, duration/10000)
-
-	// Verify all messages were written
-	filePath := handler.GetCurrentFilePath()
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		t.Fatalf("failed to read log file: %v", err)
-	}
-
-	// Count the number of log lines
-	lines := strings.Count(string(content), "\n")
-	// Due to async processing and channel capacity, some messages may be dropped
-	// This is expected behavior - the test verifies performance, not exact message count
-	t.Logf("Successfully logged %d messages (some may be dropped due to async processing)", lines)
 }
+
+// helpers
+
+func parseTime(s string) time.Time {
+	t, _ := time.Parse(time.RFC3339, s)
+	return t
+}
+
+type ioDiscarder struct{}
+
+func (ioDiscarder) Write(p []byte) (int, error) { return len(p), nil }
