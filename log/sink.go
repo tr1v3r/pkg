@@ -27,12 +27,13 @@ func WithSync() SinkOption {
 
 // Sink is a self-contained output unit: level filter + encoder + writer.
 type Sink struct {
-	level  Level
-	enc    Encoder
-	writer io.Writer
-	closer io.Closer
-	ch     chan []byte // nil = sync mode
-	done   chan struct{}
+	level   Level
+	enc     Encoder
+	writer  io.Writer
+	closer  io.Closer
+	ch      chan []byte // nil = sync mode
+	done    chan struct{}
+	logFunc func(Record) // if set, called instead of encode+write
 }
 
 // newSink creates a Sink with the given encoder, writer, and options.
@@ -56,6 +57,10 @@ func newSink(enc Encoder, w io.Writer, opts ...SinkOption) *Sink {
 // Records below the sink's level are dropped.
 func (s *Sink) Log(record Record) {
 	if record.Level < s.level {
+		return
+	}
+	if s.logFunc != nil {
+		s.logFunc(record)
 		return
 	}
 	data := s.enc.Encode(record)

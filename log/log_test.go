@@ -3,6 +3,7 @@ package log
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -452,3 +453,57 @@ func parseTime(s string) time.Time {
 type ioDiscarder struct{}
 
 func (ioDiscarder) Write(p []byte) (int, error) { return len(p), nil }
+
+// --- slog adapter tests ---
+
+func TestSlogHandler_AsSink(t *testing.T) {
+	// Direction 2: slog.Handler → our Sink
+	var buf bytes.Buffer
+	textHandler := slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+
+	sink := SlogHandler(textHandler, WithLevel(DebugLevel))
+	logger := New(sink)
+
+	logger.Info("from our log", "key", "value")
+
+	out := buf.String()
+	if !strings.Contains(out, "from our log") {
+		t.Errorf("expected message in slog output, got: %s", out)
+	}
+	if !strings.Contains(out, "key=value") {
+		t.Errorf("expected field in slog output, got: %s", out)
+	}
+}
+
+func TestSink_AsSlogHandler(t *testing.T) {
+	// Direction 1: our Sink → slog.Handler
+	sink, buf := newTestSink()
+	handler := AsSlogHandler(sink)
+
+	slogger := slog.New(handler)
+	slogger.Info("from slog", "count", 42, "active", true)
+
+	out := buf.String()
+	if !strings.Contains(out, "from slog") {
+		t.Errorf("expected message in sink output, got: %s", out)
+	}
+	if !strings.Contains(out, "count=42") {
+		t.Errorf("expected field in sink output, got: %s", out)
+	}
+}
+
+func TestSink_AsSlogHandler_WithGroup(t *testing.T) {
+	sink, buf := newTestSink()
+	handler := AsSlogHandler(sink).WithGroup("request").WithAttrs([]slog.Attr{slog.String("method", "GET")})
+
+	slogger := slog.New(handler)
+	slogger.Info("handled", "path", "/api")
+
+	out := buf.String()
+	if !strings.Contains(out, "request.method=GET") {
+		t.Errorf("expected grouped attr, got: %s", out)
+	}
+	if !strings.Contains(out, "request.path=/api") {
+		t.Errorf("expected grouped attr, got: %s", out)
+	}
+}
