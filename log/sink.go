@@ -52,9 +52,9 @@ func newSink(enc Encoder, w io.Writer, opts ...SinkOption) *Sink {
 	return s
 }
 
-// Write encodes the record and writes it.
+// Log encodes the record and writes it.
 // Records below the sink's level are dropped.
-func (s *Sink) Write(record Record) {
+func (s *Sink) Log(record Record) {
 	if record.Level < s.level {
 		return
 	}
@@ -64,6 +64,18 @@ func (s *Sink) Write(record Record) {
 	} else {
 		s.writer.Write(data)
 	}
+}
+
+// Write implements io.Writer, writing raw bytes directly to the underlying writer.
+// This allows a Sink to replace gin.DefaultWriter or any io.Writer destination.
+func (s *Sink) Write(p []byte) (int, error) {
+	if s.ch != nil {
+		cp := make([]byte, len(p))
+		copy(cp, p)
+		s.ch <- cp
+		return len(p), nil
+	}
+	return s.writer.Write(p)
 }
 
 // SetLevel changes the minimum level at runtime.

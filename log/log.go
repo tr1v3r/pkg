@@ -115,7 +115,7 @@ func (l *Logger) dispatch(record Record) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	for _, s := range l.sinks {
-		s.Write(record)
+		s.Log(record)
 	}
 }
 
