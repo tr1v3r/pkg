@@ -298,6 +298,27 @@ func TestFileSink(t *testing.T) {
 	}
 }
 
+func TestFileSink_SyncOverride(t *testing.T) {
+	tmpDir := t.TempDir()
+	sink, err := File(tmpDir+"/test.log", WithSync(), WithLevel(DebugLevel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sink.Close()
+
+	logger := New(sink)
+	logger.Info("sync write", "mode", "sync")
+
+	// No Sync() needed — data written synchronously.
+	data, err := os.ReadFile(tmpDir + "/test.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "sync write") {
+		t.Errorf("expected message in file, got: %s", string(data))
+	}
+}
+
 // --- RotateFile sink test ---
 
 func TestRotateFileSink(t *testing.T) {

@@ -12,6 +12,7 @@ func File(path string, opts ...SinkOption) (*Sink, error) {
 	if err != nil {
 		return nil, fmt.Errorf("log: open file %s: %w", path, err)
 	}
+	opts = append([]SinkOption{WithAsync(1024)}, opts...)
 	s := newSink(NewTextEncoder(false), f, opts...)
 	s.closer = f
 	return s, nil

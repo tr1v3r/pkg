@@ -34,6 +34,7 @@ func RotateFile(dir, prefix string, rotation Rotation, opts ...SinkOption) (*Sin
 		return nil, err
 	}
 
+	opts = append([]SinkOption{WithAsync(1024)}, opts...)
 	s := newSink(NewTextEncoder(false), rw, opts...)
 	s.closer = rw
 	return s, nil

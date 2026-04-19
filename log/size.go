@@ -26,6 +26,7 @@ func SizeRotateFile(dir, prefix string, maxSize int64, opts ...SinkOption) (*Sin
 		return nil, err
 	}
 
+	opts = append([]SinkOption{WithAsync(1024)}, opts...)
 	s := newSink(NewTextEncoder(false), sw, opts...)
 	s.closer = sw
 	return s, nil
