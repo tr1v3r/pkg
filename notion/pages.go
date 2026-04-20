@@ -51,8 +51,8 @@ func (pm *PageManager) Create(ctx context.Context, parent ParentRef, properties 
 	log.CtxDebugf(ctx, "create page from parent: %+v", parent)
 
 	body := &struct {
-		Parent     ParentRef         `json:"parent"`
-		Properties json.RawMessage   `json:"properties"`
+		Parent     ParentRef       `json:"parent"`
+		Properties json.RawMessage `json:"properties"`
 	}{
 		Parent:     parent,
 		Properties: PropertyArray(properties).ForUpdate(),

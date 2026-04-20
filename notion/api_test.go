@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/time/rate"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -780,16 +782,19 @@ func TestContext_Cancellation(t *testing.T) {
 }
 
 // =============================================================================
-// Client.WithLimiter test
+// ClientOption tests
 // =============================================================================
 
-func TestClient_WithLimiter(t *testing.T) {
+func TestNewClient_WithRateLimiter(t *testing.T) {
+	custom := rate.NewLimiter(10, 20)
+	mgr := NewClient("2022-06-28", "test-token", WithRateLimiter(custom))
+	assert.NotNil(t, mgr)
+	assert.Same(t, custom, mgr.client.limiter)
+}
+
+func TestNewClient_DefaultLimiter(t *testing.T) {
 	mgr := NewClient("2022-06-28", "test-token")
-	newMgr := mgr.WithLimiter(defaultLimiter())
-	assert.NotNil(t, newMgr)
-	assert.NotNil(t, newMgr.client)
-	// Original manager should be unchanged.
-	assert.NotNil(t, mgr.client)
+	assert.NotNil(t, mgr.client.limiter)
 }
 
 // =============================================================================

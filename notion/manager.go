@@ -1,7 +1,6 @@
 package notion
 
 import (
-	"context"
 	"fmt"
 
 	"golang.org/x/time/rate"
@@ -21,6 +20,14 @@ func defaultLimiter() *rate.Limiter {
 	return rate.NewLimiter(rateLimit, 4*rateLimit)
 }
 
+// ClientOption configures a [Client].
+type ClientOption func(*Client)
+
+// WithRateLimiter sets a custom rate limiter. Defaults to 3 requests/second with burst of 12.
+func WithRateLimiter(limiter *rate.Limiter) ClientOption {
+	return func(c *Client) { c.client.limiter = limiter }
+}
+
 // Client is the top-level facade for the Notion API.
 type Client struct {
 	Database DatabaseAPI
@@ -34,43 +41,27 @@ type Client struct {
 }
 
 // NewClient creates a Client with the given Notion API version and token.
-func NewClient(version, token string) *Client {
-	limiter := defaultLimiter()
-	client := newNotionClient(version, token, limiter)
+func NewClient(version, token string, opts ...ClientOption) *Client {
+	nc := newNotionClient(version, token, defaultLimiter())
 
-	return &Client{
-		Database: &DatabaseManager{client: client},
-		Page:     &PageManager{client: client},
-		Block:    &BlockManager{client: client},
-		Search:   &SearchManager{client: client},
-		User:     &UserManager{client: client},
-		Comment:  &CommentManager{client: client},
-		client:   client,
+	c := &Client{
+		Database: &DatabaseManager{client: nc},
+		Page:     &PageManager{client: nc},
+		Block:    &BlockManager{client: nc},
+		Search:   &SearchManager{client: nc},
+		User:     &UserManager{client: nc},
+		Comment:  &CommentManager{client: nc},
+		client:   nc,
 	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
 }
 
 // Set updates the Notion API version and token.
 func (c *Client) Set(version, token string) {
 	c.client.version = version
 	c.client.token = token
-}
-
-// WithContext returns a new Client with the given context.
-func (c Client) WithContext(ctx context.Context) *Client {
-	c.client = &notionClient{
-		version: c.client.version,
-		token:   c.client.token,
-		limiter: c.client.limiter,
-	}
-	return &c
-}
-
-// WithLimiter returns a new Client with the given rate limiter.
-func (c Client) WithLimiter(limiter *rate.Limiter) *Client {
-	c.client = &notionClient{
-		version: c.client.version,
-		token:   c.client.token,
-		limiter: limiter,
-	}
-	return &c
 }

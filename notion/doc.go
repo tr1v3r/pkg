@@ -92,9 +92,11 @@
 // # Rate Limiting
 //
 // The client enforces the Notion API rate limit of 3 requests per second by default.
-// Customize with [Client.WithLimiter]:
+// Customize with [WithRateLimiter]:
 //
-//	customMgr := mgr.WithLimiter(rate.NewLimiter(10, 20))
+//	mgr := notion.NewClient("2022-06-28", "token",
+//	    notion.WithRateLimiter(rate.NewLimiter(10, 20)),
+//	)
 //
 // # Mock Testing
 //
