@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 
 	"golang.org/x/time/rate"
@@ -121,23 +122,40 @@ func (c *notionClient) delete(ctx context.Context, path string, result any) erro
 	return c.do(ctx, http.MethodDelete, path, nil, result)
 }
 
+// paginateEach lazily iterates over a paginated endpoint, yielding one item at a time.
+func paginateEach[T any](ctx context.Context, c *notionClient, method, path string, bodyFn func(cursor string) any) iter.Seq2[T, error] {
+	return func(yield func(T, error) bool) {
+		var nextCursor string
+		for {
+			body := bodyFn(nextCursor)
+			var resp ListResponse[T]
+			if err := c.do(ctx, method, path, body, &resp); err != nil {
+				var zero T
+				yield(zero, err)
+				return
+			}
+			for _, item := range resp.Results {
+				if !yield(item, nil) {
+					return
+				}
+			}
+			if !resp.HasMore {
+				return
+			}
+			nextCursor = resp.NextCursor
+			log.CtxDebugf(ctx, "paginated fetch: fetching next page with cursor %s", nextCursor)
+		}
+	}
+}
+
 // paginateAll fetches all pages of a paginated endpoint.
 func paginateAll[T any](ctx context.Context, c *notionClient, method, path string, bodyFn func(cursor string) any) ([]T, error) {
 	var all []T
-	var nextCursor string
-
-	for {
-		body := bodyFn(nextCursor)
-		var resp ListResponse[T]
-		if err := c.do(ctx, method, path, body, &resp); err != nil {
+	for item, err := range paginateEach[T](ctx, c, method, path, bodyFn) {
+		if err != nil {
 			return nil, err
 		}
-		all = append(all, resp.Results...)
-		if !resp.HasMore {
-			break
-		}
-		nextCursor = resp.NextCursor
-		log.CtxDebugf(ctx, "paginated fetch: got %d items, fetching next page", len(all))
+		all = append(all, item)
 	}
 	return all, nil
 }

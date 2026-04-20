@@ -882,3 +882,113 @@ func TestDatabaseManager_Query_WithFilterProperties(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, pages)
 }
+
+// =============================================================================
+// DatabaseManager.QueryIter
+// =============================================================================
+
+func TestDatabaseManager_QueryIter_SinglePage(t *testing.T) {
+	_, client := mockServer(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/v1/databases/db-123/query", r.URL.Path)
+
+		pages := []map[string]any{
+			{"object": "page", "id": "page-1", "created_time": "2024-01-01T00:00:00Z",
+				"created_by": map[string]any{"object": "user", "id": "u1"}},
+		}
+		jsonRespond(w, http.StatusOK, paginatedResponse(pages, false, ""))
+	})
+
+	dm := &DatabaseManager{client: client}
+	var collected []Page
+	for page, err := range dm.QueryIter(testContext(), "db-123", nil) {
+		require.NoError(t, err)
+		collected = append(collected, page)
+	}
+	assert.Len(t, collected, 1)
+	assert.Equal(t, "page-1", collected[0].ID)
+}
+
+func TestDatabaseManager_QueryIter_MultiplePages(t *testing.T) {
+	callCount := 0
+	_, client := mockServer(t, func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		body := readBody(t, r)
+
+		if callCount == 1 {
+			_, hasCursor := body["start_cursor"]
+			assert.False(t, hasCursor)
+			pages := []map[string]any{
+				{"object": "page", "id": "page-1", "created_time": "2024-01-01T00:00:00Z",
+					"created_by": map[string]any{"object": "user", "id": "u1"}},
+				{"object": "page", "id": "page-2", "created_time": "2024-01-01T00:00:00Z",
+					"created_by": map[string]any{"object": "user", "id": "u1"}},
+			}
+			jsonRespond(w, http.StatusOK, paginatedResponse(pages, true, "cursor-abc"))
+		} else {
+			assert.Equal(t, "cursor-abc", body["start_cursor"])
+			pages := []map[string]any{
+				{"object": "page", "id": "page-3", "created_time": "2024-01-01T00:00:00Z",
+					"created_by": map[string]any{"object": "user", "id": "u1"}},
+			}
+			jsonRespond(w, http.StatusOK, paginatedResponse(pages, false, ""))
+		}
+	})
+
+	dm := &DatabaseManager{client: client}
+	var collected []Page
+	for page, err := range dm.QueryIter(testContext(), "db-123", &Condition{PageSize: 2}) {
+		require.NoError(t, err)
+		collected = append(collected, page)
+	}
+	assert.Len(t, collected, 3)
+	assert.Equal(t, "page-1", collected[0].ID)
+	assert.Equal(t, "page-2", collected[1].ID)
+	assert.Equal(t, "page-3", collected[2].ID)
+	assert.Equal(t, 2, callCount)
+}
+
+func TestDatabaseManager_QueryIter_EarlyBreak(t *testing.T) {
+	callCount := 0
+	_, client := mockServer(t, func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		pages := []map[string]any{
+			{"object": "page", "id": "page-1", "created_time": "2024-01-01T00:00:00Z",
+				"created_by": map[string]any{"object": "user", "id": "u1"}},
+			{"object": "page", "id": "page-2", "created_time": "2024-01-01T00:00:00Z",
+				"created_by": map[string]any{"object": "user", "id": "u1"}},
+		}
+		jsonRespond(w, http.StatusOK, paginatedResponse(pages, true, "cursor-next"))
+	})
+
+	dm := &DatabaseManager{client: client}
+	count := 0
+	for range dm.QueryIter(testContext(), "db-123", nil) {
+		count++
+		if count == 1 {
+			break
+		}
+	}
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 1, callCount, "should not fetch second page after break")
+}
+
+func TestDatabaseManager_QueryIter_APIError(t *testing.T) {
+	_, client := mockServer(t, func(w http.ResponseWriter, r *http.Request) {
+		jsonRespond(w, http.StatusInternalServerError, map[string]any{
+			"object":  "error",
+			"status":  500,
+			"code":    "internal_error",
+			"message": "something went wrong",
+		})
+	})
+
+	dm := &DatabaseManager{client: client}
+	var gotErr error
+	for _, err := range dm.QueryIter(testContext(), "db-123", nil) {
+		gotErr = err
+		break
+	}
+	require.Error(t, gotErr)
+	assert.Contains(t, gotErr.Error(), "internal_error")
+}

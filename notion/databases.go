@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"iter"
 
 	"github.com/tr1v3r/pkg/log"
 )
@@ -59,24 +60,34 @@ func (dm *DatabaseManager) Retrieve(ctx context.Context, id string) (*Database, 
 // POST /v1/databases/{database_id}/query
 func (dm *DatabaseManager) Query(ctx context.Context, id string, cond *Condition) ([]Page, error) {
 	log.CtxDebugf(ctx, "query database %s", id)
+	path, bodyFn := dm.querySetup(id, cond)
+	return paginateAll[Page](ctx, dm.client, "POST", path, bodyFn)
+}
 
+// QueryIter lazily iterates over database query results, yielding one page at a time.
+// POST /v1/databases/{database_id}/query
+func (dm *DatabaseManager) QueryIter(ctx context.Context, id string, cond *Condition) iter.Seq2[Page, error] {
+	log.CtxDebugf(ctx, "query iter database %s", id)
+	path, bodyFn := dm.querySetup(id, cond)
+	return paginateEach[Page](ctx, dm.client, "POST", path, bodyFn)
+}
+
+func (dm *DatabaseManager) querySetup(id string, cond *Condition) (string, func(cursor string) any) {
 	if cond == nil {
 		cond = &Condition{}
 	}
 	if cond.PageSize <= 0 {
 		cond.PageSize = 100
 	}
-
 	path := "/databases/" + id + "/query"
 	if qp := cond.QueryParams(); qp != "" {
 		path += "?" + qp
 	}
-
-	return paginateAll[Page](ctx, dm.client, "POST", path, func(cursor string) any {
+	return path, func(cursor string) any {
 		c := *cond
 		c.StartCursor = cursor
 		return c
-	})
+	}
 }
 
 // Update updates a database.

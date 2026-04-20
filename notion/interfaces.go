@@ -3,6 +3,7 @@ package notion
 import (
 	"context"
 	"io"
+	"iter"
 )
 
 // DatabaseAPI defines database operations against the Notion API.
@@ -10,6 +11,7 @@ type DatabaseAPI interface {
 	Create(ctx context.Context, parent ParentRef, title []TextObject, properties map[string]*Property) (*Database, error)
 	Retrieve(ctx context.Context, id string) (*Database, error)
 	Query(ctx context.Context, id string, cond *Condition) ([]Page, error)
+	QueryIter(ctx context.Context, id string, cond *Condition) iter.Seq2[Page, error]
 	Update(ctx context.Context, id string, payload io.Reader) (*Database, error)
 }
 

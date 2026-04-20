@@ -35,6 +35,13 @@
 //	    },
 //	})
 //
+// For large result sets, use [DatabaseAPI.QueryIter] to lazily iterate one item at a time:
+//
+//	for page, err := range mgr.Database.QueryIter(ctx, "database-id", cond) {
+//	    if err != nil { return err }
+//	    // process page — next batch is fetched on demand
+//	}
+//
 // Retrieve or create databases:
 //
 //	db, err := mgr.Database.Retrieve(ctx, "database-id")
@@ -107,6 +114,9 @@
 //
 //	func (m *mockDB) Query(_ context.Context, _ string, _ *notion.Condition) ([]notion.Page, error) {
 //	    return []notion.Page{{ID: "mock-page"}}, nil
+//	}
+//	func (m *mockDB) QueryIter(ctx context.Context, id string, cond *notion.Condition) iter.Seq2[notion.Page, error] {
+//	    // delegate to Query, wrap results as iterator
 //	}
 //
 //	testMgr := &notion.Client{Database: &mockDB{}}
