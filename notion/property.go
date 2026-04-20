@@ -59,7 +59,7 @@ func (p Property) ForUpdate() (data json.RawMessage) {
 	case p.Files != nil:
 		data, _ = json.Marshal(map[PropertyType]json.RawMessage{FilesProp: p.Files})
 	case p.URL != nil:
-		data, _ = json.Marshal(map[PropertyType]string{URLProp: string(p.URL)})
+		data, _ = json.Marshal(map[PropertyType]json.RawMessage{URLProp: p.URL})
 	case p.Checkbox != nil:
 		data, _ = json.Marshal(map[PropertyType]bool{CheckboxProp: *p.Checkbox})
 	case p.Relation != nil:

@@ -19,13 +19,13 @@ type Object struct {
 	CreatedBy      PureObject          `json:"created_by"`
 	LastEditedTime string              `json:"last_edited_time"`
 	LastEditedBy   PureObject          `json:"last_edited_by"`
-	Cover          FileItem            `json:"cover,omitempty"`
-	Icon           IconItem            `json:"icon,omitempty"`
+	Cover          FileItem            `json:"cover"`
+	Icon           IconItem            `json:"icon"`
 	Title          []TextItem          `json:"title,omitempty"`
 	Description    []TextItem          `json:"description,omitempty"`
 	IsInline       bool                `json:"is_inline,omitempty"`
 	Properties     map[string]Property `json:"properties,omitempty"`
-	Parent         PageItem            `json:"parent,omitempty"`
+	Parent         PageItem            `json:"parent"`
 	URL            string              `json:"url,omitempty"`
 	Archived       bool                `json:"archived,omitempty"`
 	Results        []Object            `json:"results,omitempty"`
@@ -33,10 +33,10 @@ type Object struct {
 	HasMore        bool                `json:"has_more"`
 	Type           string              `json:"type"`
 	RequestID      string              `json:"request_id,omitempty"`
-	PropertyItem   Property            `json:"property,omitempty"`
+	PropertyItem   Property            `json:"property"`
 
-	Relation RelationItem `json:"relation,omitempty"`
-	RichText TextObject   `json:"rich_text,omitempty"`
+	Relation RelationItem `json:"relation"`
+	RichText TextObject   `json:"rich_text"`
 
 	Status  int    `json:"status,omitempty"`
 	Code    string `json:"code,omitempty"`

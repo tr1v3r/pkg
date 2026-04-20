@@ -2,34 +2,39 @@ package notion
 
 import (
 	"context"
+	"fmt"
 
-	"golang.org/x/time/rate"
+	"github.com/tr1v3r/pkg/log"
 )
 
-// NewSearchManager return a new search manager
-func NewSearchManager(version, token string) *SearchManager {
-	return &SearchManager{baseInfo: &baseInfo{
-		NotionVersion: version,
-		BearerToken:   token,
-	}, ctx: context.Background()}
-}
-
-// SearchManager ...
+// SearchManager implements SearchAPI.
 type SearchManager struct {
-	*baseInfo
-
-	ctx     context.Context
-	limiter *rate.Limiter
+	client *notionClient
 }
 
-// WithContext set Context
-func (sm SearchManager) WithContext(ctx context.Context) *SearchManager {
-	sm.ctx = ctx
-	return &sm
+// NewSearchManager creates a SearchManager with default settings.
+func NewSearchManager(version, token string) *SearchManager {
+	return &SearchManager{
+		client: newNotionClient(version, token, defaultLimiter()),
+	}
 }
 
-// WithLimiter with limiiter
-func (sm SearchManager) WithLimiter(limiter *rate.Limiter) *SearchManager {
-	sm.limiter = limiter
-	return &sm
+// Search searches pages and databases in the workspace.
+// POST /v1/search
+func (sm *SearchManager) Search(ctx context.Context, query string, filter *SearchFilter) (*ListResponse[SearchResult], error) {
+	log.CtxDebugf(ctx, "search: %s", query)
+
+	body := map[string]any{}
+	if query != "" {
+		body["query"] = query
+	}
+	if filter != nil {
+		body["filter"] = filter
+	}
+
+	var resp ListResponse[SearchResult]
+	if err := sm.client.post(ctx, "/search", body, &resp); err != nil {
+		return nil, fmt.Errorf("search: %w", err)
+	}
+	return &resp, nil
 }

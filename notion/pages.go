@@ -1,211 +1,94 @@
 package notion
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
-	"strconv"
 
-	"golang.org/x/time/rate"
-
-	"github.com/tr1v3r/pkg/fetch"
 	"github.com/tr1v3r/pkg/log"
 )
 
-// NewPageManager return a new page manager
-func NewPageManager(version, token string) *PageManager {
-	return &PageManager{baseInfo: &baseInfo{
-		NotionVersion: version,
-		BearerToken:   token,
-	}, ctx: context.Background(), limiter: rate.NewLimiter(rateLimit, 4*rateLimit)}
-}
-
-// PageManager ...
+// PageManager implements PageAPI.
 type PageManager struct {
-	*baseInfo
-
-	ctx     context.Context
-	id      string
-	limiter *rate.Limiter
+	client *notionClient
 }
 
-// WithContext set Context
-func (pm PageManager) WithContext(ctx context.Context) *PageManager {
-	pm.ctx = ctx
-	return &pm
-}
-
-// WithID set page id
-func (pm PageManager) WithID(id string) *PageManager {
-	pm.id = id
-	return &pm
-}
-
-// WithLimiter with limiiter
-func (pm PageManager) WithLimiter(limiter *rate.Limiter) *PageManager {
-	pm.limiter = limiter
-	return &pm
-}
-
-// ID get page id
-func (pm *PageManager) ID() string {
-	return pm.id
-}
-
-// Retrieve retrieve a page
-// docs: https://developers.notion.com/reference/retrieve-a-page
-func (pm *PageManager) Retrieve() (*Object, error) {
-	log.CtxDebugf(pm.ctx, "retrieve page %s", pm.id)
-
-	_ = pm.limiter.Wait(pm.ctx)
-	resp, err := fetch.CtxGet(pm.ctx, pm.api(retrieveOp), pm.Headers()...)
-	if err != nil {
-		return nil, fmt.Errorf("request api fail: %w", err)
+// NewPageManager creates a PageManager with default settings.
+func NewPageManager(version, token string) *PageManager {
+	return &PageManager{
+		client: newNotionClient(version, token, defaultLimiter()),
 	}
-	log.CtxDebugf(pm.ctx, "retrieve page got response %s", string(resp))
-
-	var obj Object
-	if err := json.Unmarshal(resp, &obj); err != nil {
-		return nil, fmt.Errorf("unmarshal response fail: %w", err)
-	}
-	return &obj, nil
 }
 
-// RetrieveProp retrieve page property item
-// docs: https://developers.notion.com/reference/retrieve-a-page-property
-func (pm *PageManager) RetrieveProp(propID string) (*Object, error) {
-	log.CtxDebugf(pm.ctx, "retrieve page %s property %s", pm.id, propID)
+// Retrieve retrieves a page by ID.
+// GET /v1/pages/{page_id}
+func (pm *PageManager) Retrieve(ctx context.Context, id string) (*Page, error) {
+	log.CtxDebugf(ctx, "retrieve page %s", id)
 
-	const pageSize = 30
-	param := url.Values{}
-	param.Set("page_size", strconv.Itoa(pageSize))
-
-	var obj, results = new(Object), make([]Object, 0, 2*pageSize)
-	for obj.HasMore = true; obj.HasMore; {
-		if obj.NextCursor != "" {
-			param.Set("start_cursor", obj.NextCursor)
-		}
-
-		_ = pm.limiter.Wait(pm.ctx)
-		resp, err := fetch.CtxGet(pm.ctx, pm.api(retrievePropOp)+propID+"?"+param.Encode(), pm.Headers()...)
-		if err != nil {
-			return nil, fmt.Errorf("request api fail: %w", err)
-		}
-		log.CtxDebugf(pm.ctx, "retrieve page property got response %s", string(resp))
-
-		if err := json.Unmarshal(resp, obj); err != nil {
-			return nil, fmt.Errorf("unmarshal response fail: %w", err)
-		}
-
-		results = append(results, obj.Results...)
+	var page Page
+	if err := pm.client.get(ctx, "/pages/"+id, &page); err != nil {
+		return nil, fmt.Errorf("retrieve page %s: %w", id, err)
 	}
-	obj.Results = results
-	return obj, nil
+	return &page, nil
 }
 
-// Create create page
-// docs: https://developers.notion.com/reference/post-page
-// POST https://api.notion.com/v1/pages
-func (pm *PageManager) Create(parent PageItem, properties ...*Property) error {
-	log.CtxDebugf(pm.ctx, "create page from parent: %+v", parent)
+// RetrieveProperty retrieves a page property item, handling pagination automatically.
+// GET /v1/pages/{page_id}/properties/{property_id}
+func (pm *PageManager) RetrieveProperty(ctx context.Context, pageID, propertyID string) (*Property, error) {
+	log.CtxDebugf(ctx, "retrieve page %s property %s", pageID, propertyID)
 
-	payload, _ := json.Marshal(&struct {
-		Parent     PageItem `json:"parent"`
-		Properties any      `json:"properties"`
+	path := "/pages/" + pageID + "/properties/" + propertyID
+	var prop Property
+	if err := pm.client.get(ctx, path, &prop); err != nil {
+		return nil, fmt.Errorf("retrieve property %s/%s: %w", pageID, propertyID, err)
+	}
+	return &prop, nil
+}
+
+// Create creates a new page.
+// POST /v1/pages
+func (pm *PageManager) Create(ctx context.Context, parent ParentRef, properties ...*Property) (*Page, error) {
+	log.CtxDebugf(ctx, "create page from parent: %+v", parent)
+
+	body := &struct {
+		Parent     ParentRef       `json:"parent"`
+		Properties json.RawMessage `json:"properties"`
 	}{
 		Parent:     parent,
 		Properties: PropertyArray(properties).ForUpdate(),
-	})
-	_ = pm.limiter.Wait(pm.ctx)
-	statusCode, resp, _, err := fetch.DoRequestWithOptions("POST", pm.api(createOp),
-		append(pm.Headers(), fetch.WithContext(pm.ctx)), bytes.NewReader(payload))
-	if err != nil {
-		return fmt.Errorf("request api fail: %w", err)
 	}
 
-	if statusCode == 429 {
-		return ErrRateLimited
+	var page Page
+	if err := pm.client.post(ctx, "/pages", body, &page); err != nil {
+		return nil, fmt.Errorf("create page: %w", err)
 	}
-	if statusCode != 200 {
-		return fmt.Errorf("response error: [%d] %s", statusCode, string(resp))
-	}
-	return nil
+	return &page, nil
 }
 
-// Update update page
-// docs: https://developers.notion.com/reference/patch-page
-// PATCH https://api.notion.com/v1/pages/{page_id}
-func (pm *PageManager) Update(properties ...*Property) error {
-	log.CtxDebugf(pm.ctx, "update page %s", pm.id)
+// Update updates page properties.
+// PATCH /v1/pages/{page_id}
+func (pm *PageManager) Update(ctx context.Context, id string, properties ...*Property) (*Page, error) {
+	log.CtxDebugf(ctx, "update page %s", id)
 
-	payload, _ := json.Marshal(map[string]any{"properties": PropertyArray(properties).ForUpdate()})
-	log.CtxDebugf(pm.ctx, "update page with payload: %s", string(payload))
+	body := map[string]any{"properties": PropertyArray(properties).ForUpdate()}
 
-	_ = pm.limiter.Wait(pm.ctx)
-	resp, err := fetch.CtxPatch(pm.ctx, pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
-	if err != nil {
-		return fmt.Errorf("request api fail: %w", err)
+	var page Page
+	if err := pm.client.patch(ctx, "/pages/"+id, body, &page); err != nil {
+		return nil, fmt.Errorf("update page %s: %w", id, err)
 	}
-	log.CtxDebugf(pm.ctx, "update page got response %s", string(resp))
-
-	var obj Object
-	if err := json.Unmarshal(resp, &obj); err != nil {
-		return fmt.Errorf("unmarshal response fail: %w", err)
-	}
-	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-	if obj.Object == ErrorObjectType {
-		if obj.Status == 429 {
-			return ErrRateLimited
-		}
-		return fmt.Errorf("response error: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
-	}
-	return nil
+	return &page, nil
 }
 
-// Trash trash a page
-// https://developers.notion.com/reference/archive-a-page
-func (pm *PageManager) Trash() error {
-	log.CtxDebugf(pm.ctx, "trash page %s", pm.id)
+// Trash moves a page to trash.
+// PATCH /v1/pages/{page_id} with in_trash: true
+func (pm *PageManager) Trash(ctx context.Context, id string) (*Page, error) {
+	log.CtxDebugf(ctx, "trash page %s", id)
 
-	// archived or in_trash
-	payload, _ := json.Marshal(map[string]any{"in_trash": true})
+	body := map[string]any{"in_trash": true}
 
-	_ = pm.limiter.Wait(pm.ctx)
-	resp, err := fetch.CtxPatch(pm.ctx, pm.api(updateOp), bytes.NewReader(payload), pm.Headers()...)
-	if err != nil {
-		return fmt.Errorf("request api fail: %w", err)
+	var page Page
+	if err := pm.client.patch(ctx, "/pages/"+id, body, &page); err != nil {
+		return nil, fmt.Errorf("trash page %s: %w", id, err)
 	}
-	log.CtxDebugf(pm.ctx, "trash page got response %s", string(resp))
-
-	var obj Object
-	if err := json.Unmarshal(resp, &obj); err != nil {
-		return fmt.Errorf("unmarshal response fail: %w", err)
-	}
-	// {"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}
-	if obj.Object == ErrorObjectType {
-		if obj.Status == 429 {
-			return ErrRateLimited
-		}
-		return fmt.Errorf("response error: [%d / %s] %s", obj.Status, obj.Code, obj.Message)
-	}
-	return nil
-}
-
-// api return page api
-func (pm *PageManager) api(typ operateType) string {
-	baseAPI := notionAPI() + "/pages"
-	switch typ {
-	case createOp: // POST https://api.notion.com/v1/pages
-		return baseAPI
-	case retrieveOp: // GET https://api.notion.com/v1/pages/{page_id}
-		return baseAPI + "/" + pm.id
-	case retrievePropOp: // GET https://api.notion.com/v1/pages/{page_id}/properties/{property_id}
-		return baseAPI + "/" + pm.id + "/properties/"
-	case updateOp: // PATCH https://api.notion.com/v1/pages/{page_id}
-		return baseAPI + "/" + pm.id
-	default:
-		return ""
-	}
+	return &page, nil
 }
