@@ -4,11 +4,11 @@
 //
 // # Getting Started
 //
-// Create a [Manager] with your Notion API version and integration token:
+// Create a [Client] with your Notion API version and integration token:
 //
-//	mgr := notion.NewManager("2022-06-28", "your-notion-token")
+//	mgr := notion.NewClient("2022-06-28", "your-notion-token")
 //
-// The [Manager] exposes six domain-specific API interfaces:
+// The [Client] exposes six domain-specific API interfaces:
 //
 //   - [DatabaseAPI] — create, retrieve, query, and update databases
 //   - [PageAPI] — create, retrieve, update, trash pages, and retrieve page properties
@@ -92,13 +92,13 @@
 // # Rate Limiting
 //
 // The client enforces the Notion API rate limit of 3 requests per second by default.
-// Customize with [Manager.WithLimiter]:
+// Customize with [Client.WithLimiter]:
 //
 //	customMgr := mgr.WithLimiter(rate.NewLimiter(10, 20))
 //
 // # Mock Testing
 //
-// All Manager fields are interface types ([DatabaseAPI], [PageAPI], [BlockAPI],
+// All Client fields are interface types ([DatabaseAPI], [PageAPI], [BlockAPI],
 // [UserAPI], [SearchAPI], [CommentAPI]), enabling straightforward mock testing:
 //
 //	type mockDB struct{ notion.DatabaseAPI }
@@ -107,7 +107,7 @@
 //	    return []notion.Page{{ID: "mock-page"}}, nil
 //	}
 //
-//	testMgr := &notion.Manager{Database: &mockDB{}}
+//	testMgr := &notion.Client{Database: &mockDB{}}
 //
 // # Error Handling
 //

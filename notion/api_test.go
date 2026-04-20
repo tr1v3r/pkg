@@ -780,11 +780,11 @@ func TestContext_Cancellation(t *testing.T) {
 }
 
 // =============================================================================
-// Manager.WithLimiter test
+// Client.WithLimiter test
 // =============================================================================
 
-func TestManager_WithLimiter(t *testing.T) {
-	mgr := NewManager("2022-06-28", "test-token")
+func TestClient_WithLimiter(t *testing.T) {
+	mgr := NewClient("2022-06-28", "test-token")
 	newMgr := mgr.WithLimiter(defaultLimiter())
 	assert.NotNil(t, newMgr)
 	assert.NotNil(t, newMgr.client)

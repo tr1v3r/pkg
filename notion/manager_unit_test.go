@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewManager(t *testing.T) {
+func TestNewClient(t *testing.T) {
 	version := "2022-06-28"
 	token := "test-token"
 
-	mgr := NewManager(version, token)
+	mgr := NewClient(version, token)
 
 	assert.NotNil(t, mgr)
 	assert.NotNil(t, mgr.Database)
@@ -25,7 +25,7 @@ func TestManagerClient(t *testing.T) {
 	version := "2022-06-28"
 	token := "test-token"
 
-	mgr := NewManager(version, token)
+	mgr := NewClient(version, token)
 
 	assert.NotNil(t, mgr.client)
 	assert.Equal(t, version, mgr.client.version)
@@ -39,7 +39,7 @@ func TestManagerSet(t *testing.T) {
 	version2 := "2022-10-01"
 	token2 := "test-token-2"
 
-	mgr := NewManager(version1, token1)
+	mgr := NewClient(version1, token1)
 	assert.Equal(t, version1, mgr.client.version)
 	assert.Equal(t, token1, mgr.client.token)
 

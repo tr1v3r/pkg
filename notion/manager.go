@@ -21,8 +21,8 @@ func defaultLimiter() *rate.Limiter {
 	return rate.NewLimiter(rateLimit, 4*rateLimit)
 }
 
-// Manager is the top-level facade for the Notion API.
-type Manager struct {
+// Client is the top-level facade for the Notion API.
+type Client struct {
 	Database DatabaseAPI
 	Page     PageAPI
 	Block    BlockAPI
@@ -33,12 +33,12 @@ type Manager struct {
 	client *notionClient
 }
 
-// NewManager creates a Manager with the given Notion API version and token.
-func NewManager(version, token string) *Manager {
+// NewClient creates a Client with the given Notion API version and token.
+func NewClient(version, token string) *Client {
 	limiter := defaultLimiter()
 	client := newNotionClient(version, token, limiter)
 
-	return &Manager{
+	return &Client{
 		Database: &DatabaseManager{client: client},
 		Page:     &PageManager{client: client},
 		Block:    &BlockManager{client: client},
@@ -50,27 +50,27 @@ func NewManager(version, token string) *Manager {
 }
 
 // Set updates the Notion API version and token.
-func (mgr *Manager) Set(version, token string) {
-	mgr.client.version = version
-	mgr.client.token = token
+func (c *Client) Set(version, token string) {
+	c.client.version = version
+	c.client.token = token
 }
 
-// WithContext returns a new Manager with the given context.
-func (mgr Manager) WithContext(ctx context.Context) *Manager {
-	mgr.client = &notionClient{
-		version: mgr.client.version,
-		token:   mgr.client.token,
-		limiter: mgr.client.limiter,
+// WithContext returns a new Client with the given context.
+func (c Client) WithContext(ctx context.Context) *Client {
+	c.client = &notionClient{
+		version: c.client.version,
+		token:   c.client.token,
+		limiter: c.client.limiter,
 	}
-	return &mgr
+	return &c
 }
 
-// WithLimiter returns a new Manager with the given rate limiter.
-func (mgr Manager) WithLimiter(limiter *rate.Limiter) *Manager {
-	mgr.client = &notionClient{
-		version: mgr.client.version,
-		token:   mgr.client.token,
+// WithLimiter returns a new Client with the given rate limiter.
+func (c Client) WithLimiter(limiter *rate.Limiter) *Client {
+	c.client = &notionClient{
+		version: c.client.version,
+		token:   c.client.token,
 		limiter: limiter,
 	}
-	return &mgr
+	return &c
 }

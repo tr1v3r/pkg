@@ -20,7 +20,7 @@ func init() {
 }
 
 func TestRetrieve_Database(t *testing.T) {
-	mgr := NewManager(version, token)
+	mgr := NewClient(version, token)
 	db, err := mgr.Database.Retrieve(context.Background(), databaseID)
 	if err != nil {
 		t.Fatalf("retrieve fail: %s", err)
@@ -31,7 +31,7 @@ func TestRetrieve_Database(t *testing.T) {
 }
 
 func TestQuery_Database_all(t *testing.T) {
-	mgr := NewManager(version, token)
+	mgr := NewClient(version, token)
 
 	results, err := mgr.Database.Query(context.Background(), databaseID, &Condition{
 		Sorts: []PropSortCondition{{Property: "总市值", Direction: "descending"}},
@@ -46,7 +46,7 @@ func TestQuery_Database_all(t *testing.T) {
 }
 
 func TestCreate_Page(t *testing.T) {
-	mgr := NewManager(version, token)
+	mgr := NewClient(version, token)
 
 	data, _ := json.Marshal([]TextObject{{
 		Text:        TextItem{Content: "000001"},
