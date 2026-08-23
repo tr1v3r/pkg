@@ -1,6 +1,9 @@
 package rss
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // ToJSONFeed converts an RSS feed to a JSON Feed document.
 func (r *RSS) ToJSONFeed() *JSONFeed {
@@ -236,20 +239,43 @@ func jsonFeedAuthorName(authors []JSONFeedAuthor) string {
 	return ""
 }
 
+// rfc822Layouts covers the date shapes real-world feeds emit. The RSS 2.0
+// spec mandates RFC 822 (2-digit year, optional seconds), but four-digit-year
+// RFC 1123 forms are ubiquitous, some feeds drop the day-of-week, and older
+// generators append a parenthesized timezone comment ("+0800 (CST)").
+var rfc822Layouts = []string{
+	time.RFC1123Z, // Mon, 02 Jan 2006 15:04:05 -0700
+	time.RFC1123,  // Mon, 02 Jan 2006 15:04:05 MST
+	time.RFC822Z,  // 02 Jan 06 15:04 -0700
+	time.RFC822,   // 02 Jan 06 15:04 MST
+	"Mon, 02 Jan 2006 15:04 -0700",
+	"Mon, 02 Jan 2006 15:04 MST",
+	"Mon, 02 Jan 06 15:04:05 -0700",
+	"Mon, 02 Jan 06 15:04:05 MST",
+	"Mon, 02 Jan 2006 15:04:05 UT",
+	"Mon, 02 Jan 2006 15:04:05 Z",
+	"Mon, 2 Jan 2006 15:04:05 -0700",
+	"Mon, 2 Jan 2006 15:04:05 MST",
+}
+
 // rfc822ToRFC3339 converts an RFC 822 date string to RFC 3339 format.
+// Falls back to the input as-is when no known layout matches.
 func rfc822ToRFC3339(s string) string {
-	t, err := time.Parse(time.RFC1123Z, s)
-	if err != nil {
-		// Try without timezone name.
-		t, err = time.Parse(time.RFC1123, s)
-		if err != nil {
-			return s // Return as-is if parsing fails.
+	s = strings.TrimSpace(s)
+	// Strip a trailing parenthesized timezone comment: "+0800 (CST)" -> "+0800".
+	if i := strings.IndexByte(s, '('); i > 0 {
+		s = strings.TrimSpace(s[:i])
+	}
+	for _, layout := range rfc822Layouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.Format(time.RFC3339)
 		}
 	}
-	return t.Format(time.RFC3339)
+	return s
 }
 
 // rfc3339ToRFC822 converts an RFC 3339 date string to RFC 822 format.
+// Fractional seconds (allowed by JSON Feed) are accepted and dropped.
 func rfc3339ToRFC822(s string) string {
 	t, err := time.Parse(time.RFC3339, s)
 	if err != nil {

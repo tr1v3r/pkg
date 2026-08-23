@@ -62,7 +62,9 @@ type Category struct {
 // The first occurrence of each item is kept.
 func (ch *Channel) DeduplicateItems() {
 	seen := make(map[string]struct{})
-	filtered := ch.Items[:0]
+	// fresh backing array: reusing ch.Items[:0] would overwrite any slice
+	// aliases the caller may still hold from before the call
+	filtered := make([]Item, 0, len(ch.Items))
 	for _, item := range ch.Items {
 		key := item.GUID
 		if key == "" {
@@ -231,5 +233,59 @@ func Parse(data []byte) (any, error) {
 		return ParseJSONFeed(data)
 	default:
 		return nil, fmt.Errorf("unknown feed format: %s", strings.TrimSpace(string(data[:min(len(data), 64)])))
+	}
+}
+
+// ParseTyped auto-detects the feed format and parses into the concrete type
+// named by T (*RSS, *Feed or *JSONFeed). It errors at runtime when the data
+// is not of that format, giving callers a compile-time-typed alternative to
+// the any-returning Parse.
+func ParseTyped[T any](data []byte) (T, error) {
+	var zero T
+
+	want := FeedTypeUnknown
+	switch any(zero).(type) {
+	case *RSS:
+		want = FeedTypeRSS
+	case *Feed:
+		want = FeedTypeAtom
+	case *JSONFeed:
+		want = FeedTypeJSON
+	}
+
+	got := DetectFeedType(data)
+	if want == FeedTypeUnknown {
+		return zero, fmt.Errorf("ParseTyped: type parameter must be *rss.RSS, *rss.Feed or *rss.JSONFeed")
+	}
+	if got != want {
+		return zero, fmt.Errorf("ParseTyped: feed is %s, not %s", got, want)
+	}
+
+	parsed, err := Parse(data)
+	if err != nil {
+		return zero, err
+	}
+	return parsed.(T), nil
+}
+
+// Feed type names for error messages and String().
+const (
+	feedNameRSS    = "RSS"
+	feedNameAtom   = "Atom"
+	feedNameJSON   = "JSON Feed"
+	feedNameUnknow = "unknown"
+)
+
+// String makes feed types readable in error messages.
+func (t FeedType) String() string {
+	switch t {
+	case FeedTypeRSS:
+		return feedNameRSS
+	case FeedTypeAtom:
+		return feedNameAtom
+	case FeedTypeJSON:
+		return feedNameJSON
+	default:
+		return feedNameUnknow
 	}
 }
