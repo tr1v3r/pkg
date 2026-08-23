@@ -29,12 +29,14 @@ type pool struct {
 	wg sync.WaitGroup
 }
 
+// Init initializes the pool with the given capacity.
 func (p *pool) Init(size int) {
 	if size >= 0 {
 		p.pool = make(chan struct{}, size)
 	}
 }
 
+// Wait acquires a pool token (blocking or async).
 func (p *pool) Wait() {
 	if p.pool != nil {
 		p.wg.Add(1)
@@ -42,6 +44,7 @@ func (p *pool) Wait() {
 	}
 }
 
+// AsyncWait acquires a pool token (blocking or async).
 func (p *pool) AsyncWait() <-chan struct{} {
 	sig := make(chan struct{})
 	if p == nil || p.pool == nil {
@@ -56,6 +59,7 @@ func (p *pool) AsyncWait() <-chan struct{} {
 	return sig
 }
 
+// Done releases a pool token.
 func (p *pool) Done() {
 	if p != nil && p.pool != nil {
 		<-p.pool
@@ -63,6 +67,7 @@ func (p *pool) Done() {
 	}
 }
 
+// Num returns the number of issued tokens.
 func (p *pool) Num() int {
 	if p != nil && p.pool != nil {
 		return len(p.pool)
@@ -70,6 +75,7 @@ func (p *pool) Num() int {
 	return 0
 }
 
+// Size returns the total token capacity.
 func (p *pool) Size() int {
 	if p != nil && p.pool != nil {
 		return cap(p.pool)
@@ -86,6 +92,7 @@ func (p *pool) WaitAll() {
 	}
 }
 
+// AsyncWaitAll acquires a pool token (blocking or async).
 func (p *pool) AsyncWaitAll() <-chan struct{} {
 	sig := make(chan struct{})
 	go func() {

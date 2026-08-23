@@ -279,9 +279,13 @@ func ParseJSONFeed(data []byte) (*JSONFeed, error) {
 type FeedType int
 
 const (
+	// FeedTypeUnknown identifies a feed format.
 	FeedTypeUnknown FeedType = iota
+	// FeedTypeRSS identifies a feed format.
 	FeedTypeRSS
+	// FeedTypeAtom identifies a feed format.
 	FeedTypeAtom
+	// FeedTypeJSON identifies a feed format.
 	FeedTypeJSON
 )
 

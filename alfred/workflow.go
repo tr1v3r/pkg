@@ -130,13 +130,19 @@ type ItemTextReact struct {
 type ModifierKey string
 
 const (
-	AltKey   ModifierKey = "alt"
-	CmdKey   ModifierKey = "cmd"
-	CtrlKey  ModifierKey = "ctrl"
+	// AltKey is a modifier key constant.
+	AltKey ModifierKey = "alt"
+	// CmdKey is a modifier key constant.
+	CmdKey ModifierKey = "cmd"
+	// CtrlKey is a modifier key constant.
+	CtrlKey ModifierKey = "ctrl"
+	// ShiftKey is a modifier key constant.
 	ShiftKey ModifierKey = "shift"
-	FnKey    ModifierKey = "fn"
+	// FnKey is a modifier key constant.
+	FnKey ModifierKey = "fn"
 )
 
+// Combine joins the modifier keys into a compound key expression.
 func (k ModifierKey) Combine(keys ...ModifierKey) ModifierKey {
 	for _, key := range keys {
 		k += "+" + key

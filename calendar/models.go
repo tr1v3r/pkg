@@ -8,10 +8,14 @@ import (
 )
 
 const (
+	// LayoutTimeUTC is an iCalendar time layout constant.
 	LayoutTimeUTC = "20060102T150405Z" // UTC time (Z suffix)
-	LayoutTime    = "20060102T150405"  // local (floating) time
-	LayoutDate    = "20060102"
+	// LayoutTime is an iCalendar time layout constant.
+	LayoutTime = "20060102T150405" // local (floating) time
+	// LayoutDate is an iCalendar time layout constant.
+	LayoutDate = "20060102"
 
+	// DateFormat is the VALUE=DATE parameter marking date-only values.
 	DateFormat = "VALUE=DATE"
 )
 
@@ -28,38 +32,62 @@ const (
 )
 
 type (
+	// Header is a component BEGIN line value.
 	Header string // 开始标记
+	// Tailer is a component END line value.
 	Tailer string // 结束标记
 
 	// ============== VCALENDAR ==============
-	ProdID   string // 软件信息
-	Version  string // 遵循的 iCalendar 版本号
-	Scale    string // 历法：公历
-	Method   string // 方法PUBLISH/REQUEST等日历间的信息沟通方法
+	ProdID string // 软件信息
+	// Version is the VERSION property of a calendar.
+	Version string // 遵循的 iCalendar 版本号
+	// Scale is an iCalendar enumeration value.
+	Scale string // 历法：公历
+	// Method is an iCalendar enumeration value.
+	Method string // 方法PUBLISH/REQUEST等日历间的信息沟通方法
+	// TimeZone is the X-WR-TIMEZONE calendar property.
 	TimeZone string // 通用扩展属性 表示时区
-	CalName  string // 通用扩展属性 表示本日历的名称
-	CalDesc  string // 日历描述
+	// CalName is the X-WR-CALNAME calendar property.
+	CalName string // 通用扩展属性 表示本日历的名称
+	// CalDesc is the X-WR-CALDESC calendar property.
+	CalDesc string // 日历描述
 
 	// ============== VEVENT ==============
-	Status      string // 状态 TENTATIVE 试探 CONFIRMED 确认 CANCELLED 取消
-	Summary     string // 简介 一般是标题
-	UID         string // UID
-	Class       string // 事件类型
+	Status string // 状态 TENTATIVE 试探 CONFIRMED 确认 CANCELLED 取消
+	// Summary is the SUMMARY property text.
+	Summary string // 简介 一般是标题
+	// UID is the unique identifier property.
+	UID string // UID
+	// Class is an iCalendar enumeration value.
+	Class string // 事件类型
+	// Transparent is an iCalendar enumeration value.
 	Transparent string // 对于忙闲查询是否透明 OPAQUE 不透明 TRANSPARENT 透明
-	Location    string // location
-	Sequence    int    // 排列序号 0 最高
-	Desc        string // 描述
-	RRULE       string // 重复规则 e.g. FREQ=YEARLY
+	// Location is the LOCATION property text.
+	Location string // location
+	// Sequence is the SEQUENCE revision counter.
+	Sequence int // 排列序号 0 最高
+	// Desc is the DESCRIPTION property text.
+	Desc string // 描述
+	// RRULE is a recurrence rule string.
+	RRULE string // 重复规则 e.g. FREQ=YEARLY
 
 	// ============== RFC 5545 Additional ==============
-	Duration      string // e.g. "PT30M", "P1D"
-	Priority      int    // 0-9
-	URL           string
-	Comment       string
-	Contact       string
-	RelatedTo     string
-	Resources     string
-	TodoStatus    string
+	Duration string // e.g. "PT30M", "P1D"
+	// Priority is the PRIORITY property value.
+	Priority int // 0-9
+	// URL is the URL property value.
+	URL string
+	// Comment is the COMMENT property text.
+	Comment string
+	// Contact is the CONTACT property text.
+	Contact string
+	// RelatedTo is the RELATED-TO property value.
+	RelatedTo string
+	// Resources is the RESOURCES property text.
+	Resources string
+	// TodoStatus is an iCalendar enumeration value.
+	TodoStatus string
+	// JournalStatus is an iCalendar enumeration value.
 	JournalStatus string
 )
 
@@ -70,68 +98,139 @@ const (
 	// eventCreatedAt  Item = "CREATED:"       // 创建的日期时间: 20090305T092105Z
 	// eventModifiedAt Item = "LAST-MODIFIED:" // 最后修改日期时间: 20090305T092130Z
 
+	// ScaleGregorian is an iCalendar enumeration value.
 	ScaleGregorian Scale = "GREGORIAN"
 
+	// MethodPublish is an iCalendar enumeration value.
 	MethodPublish Method = "PUBLISH"
+	// MetohdRequest is the REQUEST method value (historical spelling kept as exported API).
 	MetohdRequest Method = "REQUEST"
 
 	// https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-	TZShanghai  TimeZone = "Asia/Shanghai"
+	TZShanghai TimeZone = "Asia/Shanghai"
+	// TZSingapore is a timezone property value.
 	TZSingapore TimeZone = "Asia/Singapore"
 
+	// StatusTentative is an iCalendar enumeration value.
 	StatusTentative Status = "TENTATIVE"
+	// StatusConfirmed is an iCalendar enumeration value.
 	StatusConfirmed Status = "CONFIRMED"
+	// StatusCancelled is an iCalendar enumeration value.
 	StatusCancelled Status = "CANCELLED"
 
-	ClassPublic       Class = "PUBLIC"
-	ClassPrivate      Class = "PRIVATE"
+	// ClassPublic is an iCalendar enumeration value.
+	ClassPublic Class = "PUBLIC"
+	// ClassPrivate is an iCalendar enumeration value.
+	ClassPrivate Class = "PRIVATE"
+	// ClassConfidential is an iCalendar enumeration value.
 	ClassConfidential Class = "CONFIDENTIAL"
 
+	// TranspTransparent is an iCalendar enumeration value.
 	TranspTransparent Transparent = "TRANSPARENT"
-	TranspOpaque      Transparent = "OPAQUE"
+	// TranspOpaque is an iCalendar enumeration value.
+	TranspOpaque Transparent = "OPAQUE"
 
 	// VTODO status
 	TodoStatusNeedsAction TodoStatus = "NEEDS-ACTION"
-	TodoStatusInProgress  TodoStatus = "IN-PROCESS"
-	TodoStatusCompleted   TodoStatus = "COMPLETED"
-	TodoStatusCancelled   TodoStatus = "CANCELLED"
+	// TodoStatusInProgress is an iCalendar enumeration value.
+	TodoStatusInProgress TodoStatus = "IN-PROCESS"
+	// TodoStatusCompleted is an iCalendar enumeration value.
+	TodoStatusCompleted TodoStatus = "COMPLETED"
+	// TodoStatusCancelled is an iCalendar enumeration value.
+	TodoStatusCancelled TodoStatus = "CANCELLED"
 
 	// VJOURNAL status
-	JournalStatusDraft     JournalStatus = "DRAFT"
-	JournalStatusFinal     JournalStatus = "FINAL"
+	JournalStatusDraft JournalStatus = "DRAFT"
+	// JournalStatusFinal is an iCalendar enumeration value.
+	JournalStatusFinal JournalStatus = "FINAL"
+	// JournalStatusCancelled is an iCalendar enumeration value.
 	JournalStatusCancelled JournalStatus = "CANCELLED"
 )
 
-func (h Header) Output() []byte        { return append([]byte("BEGIN:"), []byte(h)...) }
-func (t Tailer) Output() []byte        { return append([]byte("END:"), []byte(t)...) }
-func (id ProdID) Output() []byte       { return append([]byte("PRODID:"), []byte(id)...) }
-func (v Version) Output() []byte       { return append([]byte("VERSION:"), []byte(v)...) }
-func (n CalName) Output() []byte       { return append([]byte("X-WR-CALNAME:"), EscapeText(string(n))...) }
-func (d CalDesc) Output() []byte       { return append([]byte("X-WR-CALDESC:"), EscapeText(string(d))...) }
-func (s Scale) Output() []byte         { return append([]byte("CALSCALE:"), []byte(s)...) }
-func (m Method) Output() []byte        { return append([]byte("METHOD:"), []byte(m)...) }
-func (tz TimeZone) Output() []byte     { return append([]byte("X-WR-TIMEZONE:"), []byte(tz)...) }
-func (s Status) Output() []byte        { return append([]byte("STATUS:"), []byte(s)...) }
-func (s Summary) Output() []byte       { return append([]byte("SUMMARY:"), EscapeText(string(s))...) }
-func (u UID) Output() []byte           { return append([]byte("UID:"), []byte(u)...) }
-func (c Class) Output() []byte         { return append([]byte("CLASS:"), []byte(c)...) }
-func (t Transparent) Output() []byte   { return append([]byte("TRANSP:"), []byte(t)...) }
-func (l Location) Output() []byte      { return append([]byte("LOCATION:"), EscapeText(string(l))...) }
-func (s Sequence) Output() []byte      { return append([]byte("SEQUENCE:"), fmt.Append(nil, s)...) }
-func (d Desc) Output() []byte          { return append([]byte("DESCRIPTION:"), EscapeText(string(d))...) }
-func (r RRULE) Output() []byte         { return append([]byte("RRULE:"), []byte(r)...) }
-func (d Duration) Output() []byte      { return append([]byte("DURATION:"), []byte(d)...) }
-func (p Priority) Output() []byte      { return append([]byte("PRIORITY:"), fmt.Append(nil, int(p))...) }
-func (u URL) Output() []byte           { return append([]byte("URL:"), []byte(u)...) }
-func (c Comment) Output() []byte       { return append([]byte("COMMENT:"), EscapeText(string(c))...) }
-func (c Contact) Output() []byte       { return append([]byte("CONTACT:"), EscapeText(string(c))...) }
-func (r RelatedTo) Output() []byte     { return append([]byte("RELATED-TO:"), []byte(r)...) }
-func (r Resources) Output() []byte     { return append([]byte("RESOURCES:"), EscapeText(string(r))...) }
-func (s TodoStatus) Output() []byte    { return append([]byte("STATUS:"), []byte(s)...) }
+// Output renders the value as an ICS content line.
+func (h Header) Output() []byte { return append([]byte("BEGIN:"), []byte(h)...) }
+
+// Output renders the value as an ICS content line.
+func (t Tailer) Output() []byte { return append([]byte("END:"), []byte(t)...) }
+
+// Output renders the value as an ICS content line.
+func (id ProdID) Output() []byte { return append([]byte("PRODID:"), []byte(id)...) }
+
+// Output renders the value as an ICS content line.
+func (v Version) Output() []byte { return append([]byte("VERSION:"), []byte(v)...) }
+
+// Output renders the value as an ICS content line.
+func (n CalName) Output() []byte { return append([]byte("X-WR-CALNAME:"), EscapeText(string(n))...) }
+
+// Output renders the value as an ICS content line.
+func (d CalDesc) Output() []byte { return append([]byte("X-WR-CALDESC:"), EscapeText(string(d))...) }
+
+// Output renders the value as an ICS content line.
+func (s Scale) Output() []byte { return append([]byte("CALSCALE:"), []byte(s)...) }
+
+// Output renders the value as an ICS content line.
+func (m Method) Output() []byte { return append([]byte("METHOD:"), []byte(m)...) }
+
+// Output renders the value as an ICS content line.
+func (tz TimeZone) Output() []byte { return append([]byte("X-WR-TIMEZONE:"), []byte(tz)...) }
+
+// Output renders the value as an ICS content line.
+func (s Status) Output() []byte { return append([]byte("STATUS:"), []byte(s)...) }
+
+// Output renders the value as an ICS content line.
+func (s Summary) Output() []byte { return append([]byte("SUMMARY:"), EscapeText(string(s))...) }
+
+// Output renders the value as an ICS content line.
+func (u UID) Output() []byte { return append([]byte("UID:"), []byte(u)...) }
+
+// Output renders the value as an ICS content line.
+func (c Class) Output() []byte { return append([]byte("CLASS:"), []byte(c)...) }
+
+// Output renders the value as an ICS content line.
+func (t Transparent) Output() []byte { return append([]byte("TRANSP:"), []byte(t)...) }
+
+// Output renders the value as an ICS content line.
+func (l Location) Output() []byte { return append([]byte("LOCATION:"), EscapeText(string(l))...) }
+
+// Output renders the value as an ICS content line.
+func (s Sequence) Output() []byte { return append([]byte("SEQUENCE:"), fmt.Append(nil, s)...) }
+
+// Output renders the value as an ICS content line.
+func (d Desc) Output() []byte { return append([]byte("DESCRIPTION:"), EscapeText(string(d))...) }
+
+// Output renders the value as an ICS content line.
+func (r RRULE) Output() []byte { return append([]byte("RRULE:"), []byte(r)...) }
+
+// Output renders the value as an ICS content line.
+func (d Duration) Output() []byte { return append([]byte("DURATION:"), []byte(d)...) }
+
+// Output renders the value as an ICS content line.
+func (p Priority) Output() []byte { return append([]byte("PRIORITY:"), fmt.Append(nil, int(p))...) }
+
+// Output renders the value as an ICS content line.
+func (u URL) Output() []byte { return append([]byte("URL:"), []byte(u)...) }
+
+// Output renders the value as an ICS content line.
+func (c Comment) Output() []byte { return append([]byte("COMMENT:"), EscapeText(string(c))...) }
+
+// Output renders the value as an ICS content line.
+func (c Contact) Output() []byte { return append([]byte("CONTACT:"), EscapeText(string(c))...) }
+
+// Output renders the value as an ICS content line.
+func (r RelatedTo) Output() []byte { return append([]byte("RELATED-TO:"), []byte(r)...) }
+
+// Output renders the value as an ICS content line.
+func (r Resources) Output() []byte { return append([]byte("RESOURCES:"), EscapeText(string(r))...) }
+
+// Output renders the value as an ICS content line.
+func (s TodoStatus) Output() []byte { return append([]byte("STATUS:"), []byte(s)...) }
+
+// Output renders the value as an ICS content line.
 func (s JournalStatus) Output() []byte { return append([]byte("STATUS:"), []byte(s)...) }
 
 // ============== Date ==============
 
+// NewDate creates a new date.
 func NewDate(key string, t time.Time) Date { return Date{key: key, layout: LayoutTimeUTC, Time: t} }
 
 // Date
@@ -147,6 +246,7 @@ type Date struct {
 	time.Time
 }
 
+// Output renders the value as an ICS content line.
 func (d Date) Output() []byte {
 	var buf bytes.Buffer
 
@@ -259,10 +359,12 @@ type Attendee struct {
 	URI    string
 }
 
+// NewAttendee creates a new attendee.
 func NewAttendee(uri string, params ...string) Attendee {
 	return Attendee{URI: uri, params: params}
 }
 
+// Output renders the value as an ICS content line.
 func (a Attendee) Output() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("ATTENDEE")
@@ -282,10 +384,12 @@ type Organizer struct {
 	URI    string
 }
 
+// NewOrganizer creates a new organizer.
 func NewOrganizer(uri string, params ...string) Organizer {
 	return Organizer{URI: uri, params: params}
 }
 
+// Output renders the value as an ICS content line.
 func (o Organizer) Output() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("ORGANIZER")
@@ -305,10 +409,12 @@ type Attachment struct {
 	URI    string
 }
 
+// NewAttachment creates a new attachment.
 func NewAttachment(uri string, params ...string) Attachment {
 	return Attachment{URI: uri, params: params}
 }
 
+// Output renders the value as an ICS content line.
 func (a Attachment) Output() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("ATTACH")
@@ -329,10 +435,12 @@ type DateList struct {
 	Dates   []time.Time
 }
 
+// NewDateList creates a new datelist.
 func NewDateList(key string, dates []time.Time) DateList {
 	return DateList{key: key, layout: LayoutTimeUTC, Dates: dates}
 }
 
+// Output renders the value as an ICS content line.
 func (dl DateList) Output() []byte {
 	var buf bytes.Buffer
 	buf.WriteString(dl.key)
@@ -356,6 +464,7 @@ type Geo struct {
 	Lon float64
 }
 
+// Output renders the value as an ICS content line.
 func (g Geo) Output() []byte {
 	return fmt.Appendf(nil, "GEO:%s;%s", formatGeoCoord(g.Lat), formatGeoCoord(g.Lon))
 }
@@ -367,6 +476,7 @@ func formatGeoCoord(v float64) string {
 // Categories represents CATEGORIES property (comma-separated values).
 type Categories []string
 
+// Output renders the value as an ICS content line.
 func (c Categories) Output() []byte {
 	return append([]byte("CATEGORIES:"), []byte(strings.Join(c, ","))...)
 }
