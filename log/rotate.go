@@ -12,7 +12,7 @@ import (
 type Rotation int
 
 const (
-	Hourly  Rotation = iota
+	Hourly Rotation = iota
 	Daily
 	Weekly
 	Monthly
@@ -21,7 +21,7 @@ const (
 // RotateFile returns a Sink that writes plain text to time-rotated files.
 // Files are named: {dir}/{prefix}_{timestamp}.log
 func RotateFile(dir, prefix string, rotation Rotation, opts ...SinkOption) (*Sink, error) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, fmt.Errorf("log: create dir %s: %w", dir, err)
 	}
 
@@ -60,7 +60,7 @@ func (w *rotateWriter) Write(data []byte) (int, error) {
 
 func (w *rotateWriter) rotate(now time.Time) {
 	if w.current != nil {
-		w.current.Close()
+		_ = w.current.Close()
 	}
 	_ = w.openFile(now)
 }
@@ -69,7 +69,7 @@ func (w *rotateWriter) openFile(now time.Time) error {
 	ts := formatTimestamp(now, w.rotation)
 	name := fmt.Sprintf("%s_%s.log", w.prefix, ts)
 	path := filepath.Join(w.dir, name)
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return fmt.Errorf("log: open rotated file %s: %w", path, err)
 	}

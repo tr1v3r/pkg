@@ -107,11 +107,18 @@ type AtomCategory struct {
 	Term string `xml:"term,attr"`
 }
 
+// Link relation names used across RSS/Atom/JSON Feed conversions.
+const (
+	relAlternate = "alternate"
+	relRelated   = "related"
+	relEnclosure = "enclosure"
+)
+
 // AlternateLink returns the href of the first link with rel="alternate",
 // or the first link if none has that rel.
 func (e *Entry) AlternateLink() string {
 	for _, l := range e.Links {
-		if l.Rel == "alternate" {
+		if l.Rel == relAlternate {
 			return l.Href
 		}
 	}

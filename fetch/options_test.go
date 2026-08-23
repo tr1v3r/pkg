@@ -117,14 +117,16 @@ func TestWithAuthToken(t *testing.T) {
 	}
 }
 
+type testContextKey string
+
 func TestWithContext(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://example.com", nil)
-	ctx := context.WithValue(context.Background(), "test-key", "test-value")
+	ctx := context.WithValue(context.Background(), testContextKey("test-key"), "test-value")
 
 	opt := WithContext(ctx)
 	result := opt(req)
 
-	if result.Context().Value("test-key") != "test-value" {
+	if result.Context().Value(testContextKey("test-key")) != "test-value" {
 		t.Error("WithContext did not set the request context")
 	}
 }

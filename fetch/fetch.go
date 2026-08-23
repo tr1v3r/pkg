@@ -124,7 +124,7 @@ func DoRequestWithOptions(method string, url string, opts []RequestOption, body 
 	}
 
 	// Extract response body size limit
-	var maxBodySize int64 = defaultMaxResponseBodySize
+	maxBodySize := defaultMaxResponseBodySize
 	if s, ok := req.Context().Value(maxBodySizeKey).(int64); ok {
 		if s < 0 {
 			maxBodySize = 0 // 0 means no limit

@@ -67,7 +67,7 @@ func (s *Sink) Log(record Record) {
 	if s.ch != nil {
 		s.ch <- data
 	} else {
-		s.writer.Write(data)
+		_, _ = s.writer.Write(data)
 	}
 }
 
@@ -90,7 +90,7 @@ func (s *Sink) SetLevel(level Level) { s.level = level }
 func (s *Sink) Sync() {
 	if s.ch == nil {
 		if f, ok := s.writer.(interface{ Sync() error }); ok {
-			f.Sync()
+			_ = f.Sync()
 		}
 		return
 	}
@@ -122,7 +122,7 @@ func (s *Sink) drain() {
 			s.done <- struct{}{}
 			return
 		}
-		s.writer.Write(data)
+		_, _ = s.writer.Write(data)
 	}
 	s.done <- struct{}{}
 }

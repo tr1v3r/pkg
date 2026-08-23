@@ -12,7 +12,7 @@ import (
 // SizeRotateFile returns a Sink that rotates files when they exceed maxSize bytes.
 // Files are named: {dir}/{prefix}_001.log, {dir}/{prefix}_002.log, ...
 func SizeRotateFile(dir, prefix string, maxSize int64, opts ...SinkOption) (*Sink, error) {
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, fmt.Errorf("log: create dir %s: %w", dir, err)
 	}
 
@@ -56,7 +56,7 @@ func (w *sizeWriter) Write(data []byte) (int, error) {
 }
 
 func (w *sizeWriter) rotate() {
-	w.current.Close()
+	_ = w.current.Close()
 	w.seq++
 	_ = w.openFile()
 }
@@ -64,7 +64,7 @@ func (w *sizeWriter) rotate() {
 func (w *sizeWriter) openFile() error {
 	name := fmt.Sprintf("%s_%03d.log", w.prefix, w.seq)
 	path := filepath.Join(w.dir, name)
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return fmt.Errorf("log: open size-rotated file %s: %w", path, err)
 	}

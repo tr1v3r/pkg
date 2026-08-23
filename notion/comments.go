@@ -35,8 +35,8 @@ func (cm *CommentManager) Create(ctx context.Context, parent ParentRef, text []T
 	log.CtxDebugf(ctx, "create comment on %+v", parent)
 
 	body := map[string]any{
-		"parent":    parent,
-		"rich_text": text,
+		"parent":             parent,
+		string(RichTextProp): text,
 	}
 
 	var comment Comment

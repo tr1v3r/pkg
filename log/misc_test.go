@@ -43,11 +43,11 @@ func TestFormatValueBranches(t *testing.T) {
 
 func TestWithLogID_NilContext(t *testing.T) {
 	// nil ctx must not panic
-	ctx := WithLogID(nil, "id-1")
+	ctx := WithLogID(nil, "id-1") //nolint:staticcheck // nil ctx handling is exactly what is under test
 	if extractLogID(ctx) != "id-1" {
 		t.Errorf("extractLogID = %q, want %q", extractLogID(ctx), "id-1")
 	}
-	if extractLogID(nil) != "" {
+	if extractLogID(nil) != "" { //nolint:staticcheck // nil ctx handling is exactly what is under test
 		t.Error("extractLogID(nil) should be empty")
 	}
 	if extractLogID(context.WithValue(context.Background(), logIDKey, 42)) != "" {

@@ -123,7 +123,7 @@ func calculateBackoff(config RetryConfig, attempt int) time.Duration {
 	backoff := float64(config.BaseDelay) * math.Pow(2, float64(attempt))
 
 	// Apply jitter
-	jitter := 1.0 + config.Jitter*(rand.Float64()*2-1)
+	jitter := 1.0 + config.Jitter*(rand.Float64()*2-1) //nolint:gosec // jitter intentionally uses non-crypto randomness
 	backoff *= jitter
 
 	// Cap at max delay
