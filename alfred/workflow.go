@@ -51,6 +51,7 @@ func (wf *WorkFlow) Print() (n int64, err error) {
 func (wf *WorkFlow) Reset() {
 	wf.Vars = nil
 	wf.Rerun = 0
+	wf.SkipKnowledge = false
 	wf.Items = nil
 }
 
