@@ -11,14 +11,21 @@ import (
 type Level int8
 
 const (
+	// TraceLevel is a log severity level.
 	TraceLevel Level = iota - 1
+	// DebugLevel is a log severity level.
 	DebugLevel
+	// InfoLevel is a log severity level.
 	InfoLevel
+	// WarnLevel is a log severity level.
 	WarnLevel
+	// ErrorLevel is a log severity level.
 	ErrorLevel
+	// FatalLevel is a log severity level.
 	FatalLevel
 )
 
+// String implements fmt.Stringer.
 func (l Level) String() string {
 	switch l {
 	case TraceLevel:
@@ -47,14 +54,29 @@ type Field struct {
 // Typed Field constructors for use as log arguments.
 // Example: log.Info("hello", log.Int("count", 3), log.Err(err))
 
-func String(key, val string) Field                 { return Field{Key: key, Value: val} }
-func Int(key string, val int) Field                { return Field{Key: key, Value: val} }
-func Int64(key string, val int64) Field            { return Field{Key: key, Value: val} }
-func Float64(key string, val float64) Field        { return Field{Key: key, Value: val} }
-func Bool(key string, val bool) Field              { return Field{Key: key, Value: val} }
-func Err(err error) Field                          { return Field{Key: "err", Value: err} }
+// String implements fmt.Stringer.
+func String(key, val string) Field { return Field{Key: key, Value: val} }
+
+// Int builds a typed int log field.
+func Int(key string, val int) Field { return Field{Key: key, Value: val} }
+
+// Int64 builds a typed int64 log field.
+func Int64(key string, val int64) Field { return Field{Key: key, Value: val} }
+
+// Float64 builds a typed float64 log field.
+func Float64(key string, val float64) Field { return Field{Key: key, Value: val} }
+
+// Bool builds a typed bool log field.
+func Bool(key string, val bool) Field { return Field{Key: key, Value: val} }
+
+// Err builds an error log field under the key "err".
+func Err(err error) Field { return Field{Key: "err", Value: err} }
+
+// Duration builds a typed time.Duration log field.
 func Duration(key string, val time.Duration) Field { return Field{Key: key, Value: val} }
-func Any(key string, val any) Field                { return Field{Key: key, Value: val} }
+
+// Any builds a log field holding any value.
+func Any(key string, val any) Field { return Field{Key: key, Value: val} }
 
 // Record is the immutable data unit that flows through the logging pipeline.
 type Record struct {

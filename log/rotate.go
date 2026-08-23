@@ -12,9 +12,13 @@ import (
 type Rotation int
 
 const (
+	// Hourly rotates the log file every hour.
 	Hourly Rotation = iota
+	// Daily rotates the log file every day.
 	Daily
+	// Weekly rotates the log file every ISO week.
 	Weekly
+	// Monthly rotates the log file every month.
 	Monthly
 )
 
@@ -49,6 +53,7 @@ type rotateWriter struct {
 	nextRot  time.Time
 }
 
+// Write implements io.Writer.
 func (w *rotateWriter) Write(data []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -78,6 +83,7 @@ func (w *rotateWriter) openFile(now time.Time) error {
 	return nil
 }
 
+// Close implements io.Closer.
 func (w *rotateWriter) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()

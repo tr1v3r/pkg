@@ -10,8 +10,11 @@ import (
 type State int
 
 const (
+	// StateClosed is a circuit breaker state constant.
 	StateClosed State = iota
+	// StateOpen is a circuit breaker state constant.
 	StateOpen
+	// StateHalfOpen is a circuit breaker state constant.
 	StateHalfOpen
 )
 
@@ -151,6 +154,7 @@ type Error struct {
 	Err error
 }
 
+// Error implements the error interface.
 func (e *Error) Error() string {
 	return fmt.Sprintf("circuit breaker open: %v", e.Err)
 }

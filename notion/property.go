@@ -8,17 +8,28 @@ import (
 type PropertyType string
 
 const (
-	TitleProp       PropertyType = "title"
-	NumberProp      PropertyType = "number"
-	RichTextProp    PropertyType = "rich_text"
-	SelectProp      PropertyType = "select"
+	// TitleProp is a Notion property type constant.
+	TitleProp PropertyType = "title"
+	// NumberProp is a Notion property type constant.
+	NumberProp PropertyType = "number"
+	// RichTextProp is a Notion property type constant.
+	RichTextProp PropertyType = "rich_text"
+	// SelectProp is a Notion property type constant.
+	SelectProp PropertyType = "select"
+	// MultiSelectProp is a Notion property type constant.
 	MultiSelectProp PropertyType = "multi_select"
-	FilesProp       PropertyType = "files"
-	URLProp         PropertyType = "url"
-	DateProp        PropertyType = "date"
-	CheckboxProp    PropertyType = "checkbox"
-	RelationProp    PropertyType = "relation"
-	RollupProp      PropertyType = "rollup" // do not used when update
+	// FilesProp is a Notion property type constant.
+	FilesProp PropertyType = "files"
+	// URLProp is a Notion property type constant.
+	URLProp PropertyType = "url"
+	// DateProp is a Notion property type constant.
+	DateProp PropertyType = "date"
+	// CheckboxProp is a Notion property type constant.
+	CheckboxProp PropertyType = "checkbox"
+	// RelationProp is a Notion property type constant.
+	RelationProp PropertyType = "relation"
+	// RollupProp is a Notion property type constant.
+	RollupProp PropertyType = "rollup" // do not used when update
 )
 
 // Property
@@ -68,6 +79,7 @@ func (p Property) ForUpdate() (data json.RawMessage) {
 	return data
 }
 
+// GetRelationIDs returns relationids.
 func (p Property) GetRelationIDs() (ids []string) {
 	if p.Relation == nil {
 		return nil
@@ -133,8 +145,10 @@ func (p Property) PlainText() (text string) {
 	}
 }
 
+// PropertyArray represents the corresponding API object.
 type PropertyArray []*Property
 
+// ForUpdate returns the property serialized in the update-page payload format.
 func (pa PropertyArray) ForUpdate() json.RawMessage {
 	var m = make(map[string]json.RawMessage, len(pa))
 	for _, p := range pa {

@@ -49,19 +49,23 @@ type PureObject struct {
 	ID     string `json:"id"`
 }
 
+// PageItem represents the corresponding API object.
 type PageItem struct {
 	Type       string `json:"type,omitempty"`
 	PageID     string `json:"page_id,omitempty"`
 	DatabaseID string `json:"database_id,omitempty"`
 }
 
+// TextObjectArray represents the corresponding API object.
 type TextObjectArray []TextObject
 
+// JSON returns the value serialized as json.RawMessage.
 func (a TextObjectArray) JSON() json.RawMessage {
 	data, _ := json.Marshal(a)
 	return data
 }
 
+// TextObject represents the corresponding API object.
 type TextObject struct {
 	Type        string      `json:"type,omitempty"`
 	Text        TextItem    `json:"text"`
@@ -70,11 +74,13 @@ type TextObject struct {
 	Href        *string     `json:"href,omitempty"`
 }
 
+// TextItem represents the corresponding API object.
 type TextItem struct {
 	Content string  `json:"content"`
 	Link    *string `json:"link,omitempty"`
 }
 
+// Annotation carries rich-text styling flags.
 type Annotation struct {
 	Bold          bool   `json:"bold"`
 	Italic        bool   `json:"italic"`
@@ -92,17 +98,21 @@ type DateObject struct {
 	TimeZone string `json:"time_zone,omitempty"`
 }
 
+// JSON returns the value serialized as json.RawMessage.
 func (o DateObject) JSON() json.RawMessage {
 	data, _ := json.Marshal(o)
 	return data
 }
 
+// RelationItem represents the corresponding API object.
 type RelationItem struct {
 	ID string `json:"id"`
 }
 
+// RelationObject represents the corresponding API object.
 type RelationObject []RelationItem
 
+// IDs returns the identifiers of every item.
 func (o RelationObject) IDs() (ids []string) {
 	for _, item := range o {
 		ids = append(ids, item.ID)
@@ -110,6 +120,7 @@ func (o RelationObject) IDs() (ids []string) {
 	return ids
 }
 
+// JSON returns the value serialized as json.RawMessage.
 func (o RelationObject) JSON() json.RawMessage {
 	data, _ := json.Marshal(o)
 	return data
@@ -130,6 +141,7 @@ type RollupObject struct {
 	} `json:"array,omitempty"`
 }
 
+// PlainStrings extracts the plain-text representation.
 func (o RollupObject) PlainStrings() (strs []string) {
 	if o.Type != rollupTypeArray || len(o.Array) == 0 {
 		return nil
@@ -145,13 +157,16 @@ func (o RollupObject) PlainStrings() (strs []string) {
 	return strs
 }
 
+// FileItemArray represents the corresponding API object.
 type FileItemArray []FileItem
 
+// JSON returns the value serialized as json.RawMessage.
 func (a FileItemArray) JSON() json.RawMessage {
 	data, _ := json.Marshal(a)
 	return data
 }
 
+// FileItem represents the corresponding API object.
 type FileItem struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
@@ -160,25 +175,30 @@ type FileItem struct {
 	} `json:"external"`
 }
 
+// IconItem represents the corresponding API object.
 type IconItem struct {
 	Type  string `json:"type"`
 	Emoji string `json:"emoji"`
 }
 
+// NumberProperty is a number-typed page property value.
 type NumberProperty struct {
 	Format string `json:"format"`
 }
 
+// SelectProperty is a select-typed page property value.
 type SelectProperty struct {
 	Options []SelectOptionObject `json:"options"`
 }
 
+// SelectOptionObject represents the corresponding API object.
 type SelectOptionObject struct {
 	ID    string `json:"id,omitempty"`
 	Name  string `json:"name"`
 	Color string `json:"color,omitempty"`
 }
 
+// JSON returns the value serialized as json.RawMessage.
 func (o SelectOptionObject) JSON() json.RawMessage {
 	data, _ := json.Marshal(o)
 	return data

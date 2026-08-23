@@ -22,8 +22,10 @@ type sinkAsHandler struct {
 	attrs []slog.Attr
 }
 
+// Enabled implements slog.Handler.
 func (h *sinkAsHandler) Enabled(_ context.Context, _ slog.Level) bool { return true }
 
+// Handle implements slog.Handler.
 func (h *sinkAsHandler) Handle(ctx context.Context, r slog.Record) error {
 	fields := make([]Field, 0, r.NumAttrs()+len(h.attrs))
 	for _, a := range h.attrs {
@@ -45,6 +47,7 @@ func (h *sinkAsHandler) Handle(ctx context.Context, r slog.Record) error {
 	return nil
 }
 
+// WithAttrs sets attrs on the value.
 func (h *sinkAsHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	newAttrs := make([]slog.Attr, len(h.attrs)+len(attrs))
 	copy(newAttrs, h.attrs)
@@ -52,6 +55,7 @@ func (h *sinkAsHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &sinkAsHandler{sink: h.sink, group: h.group, attrs: newAttrs}
 }
 
+// WithGroup sets group on the value.
 func (h *sinkAsHandler) WithGroup(name string) slog.Handler {
 	return &sinkAsHandler{sink: h.sink, group: joinGroup(h.group, name), attrs: h.attrs}
 }

@@ -23,8 +23,13 @@ type sorter[T any] struct {
 	by    By[T] // Closure used in the Less method.
 }
 
-func (s *sorter[T]) Len() int           { return len(s.items) }
-func (s *sorter[T]) Swap(i, j int)      { s.items[i], s.items[j] = s.items[j], s.items[i] }
+// Len implements sort.Interface.
+func (s *sorter[T]) Len() int { return len(s.items) }
+
+// Swap implements sort.Interface.
+func (s *sorter[T]) Swap(i, j int) { s.items[i], s.items[j] = s.items[j], s.items[i] }
+
+// Less implements sort.Interface.
 func (s *sorter[T]) Less(i, j int) bool { return s.by(s.items[i], s.items[j]) }
 
 // ReverseBy return an reverse closure By
@@ -49,7 +54,10 @@ func (ms *multiSorter[T]) Sort(items []*T) {
 
 // implement of sort.Interface
 
-func (ms *multiSorter[T]) Len() int      { return len(ms.items) }
+// Len implements sort.Interface.
+func (ms *multiSorter[T]) Len() int { return len(ms.items) }
+
+// Swap implements sort.Interface.
 func (ms *multiSorter[T]) Swap(i, j int) { ms.items[i], ms.items[j] = ms.items[j], ms.items[i] }
 
 // Less is part of sort.Interface. It is implemented by looping along the

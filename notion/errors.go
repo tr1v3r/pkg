@@ -18,6 +18,7 @@ type APIError struct {
 	Message string
 }
 
+// Error implements the error interface.
 func (e *APIError) Error() string {
 	return fmt.Sprintf("notion api error: [%d/%s] %s", e.Status, e.Code, e.Message)
 }

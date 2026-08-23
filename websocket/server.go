@@ -9,10 +9,12 @@ import (
 
 var upgrader = new(websocket.Upgrader)
 
+// WSHanlder wraps a message handler into a Gin handler using the default upgrader.
 func WSHanlder(handle func(*websocket.Conn, []byte) []byte) gin.HandlerFunc {
 	return WSHanlderWithUpgrader(upgrader, handle)
 }
 
+// WSHanlderWithUpgrader wraps a message handler into a Gin handler with a custom upgrader.
 func WSHanlderWithUpgrader(upgrader *websocket.Upgrader, handle func(*websocket.Conn, []byte) []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)

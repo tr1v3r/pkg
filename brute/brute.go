@@ -5,19 +5,24 @@ import (
 	"slices"
 )
 
+// METHOD selects the search strategy for Bruter.Find.
 type METHOD string
 
 const (
+	// BFS is the breadth-first search method.
 	BFS METHOD = "bfs"
+	// DFS is the depth-first search method.
 	DFS METHOD = "dfs"
 )
 
+// State is a circuit breaker state constant.
 type State interface {
 	Key() string
 	Preprocess() error
 	Done() bool
 }
 
+// NewStep creates a new step.
 func NewStep[S State](s S, lastStep *Step[S]) *Step[S] {
 	if lastStep == nil {
 		return &Step[S]{State: s}
@@ -30,6 +35,7 @@ func NewStep[S State](s S, lastStep *Step[S]) *Step[S] {
 	}
 }
 
+// Step is one node in the search tree, linked to its parent for backtracking.
 type Step[S State] struct {
 	State S
 
@@ -38,6 +44,7 @@ type Step[S State] struct {
 	children []*Step[S]
 }
 
+// Backtrack returns the path of steps from the root to this step.
 func (s *Step[S]) Backtrack() (steps []*Step[S]) {
 	if s == nil {
 		return nil
@@ -49,12 +56,15 @@ func (s *Step[S]) Backtrack() (steps []*Step[S]) {
 	slices.Reverse(steps)
 	return steps
 }
+
+// Cost returns the accumulated step cost.
 func (s *Step[S]) Cost() int { return s.cost }
 
 func (s *Step[S]) visited(key string) bool {
 	return key == s.State.Key() || (s.parent != nil && s.parent.visited(key))
 }
 
+// NewBruter creates a new bruter.
 func NewBruter[S State](processor func(S) []S) *Bruter[S] {
 	return &Bruter[S]{
 		steps:   make(map[string]*Step[S]),
@@ -62,12 +72,14 @@ func NewBruter[S State](processor func(S) []S) *Bruter[S] {
 	}
 }
 
+// Bruter searches a state space for a Done state using a caller-supplied successor function.
 type Bruter[S State] struct {
 	steps map[string]*Step[S]
 
 	process func(S) []S // process state to next state
 }
 
+// Find searches for a done state using the given method.
 func (b Bruter[S]) Find(state S, method METHOD) (finalStep *Step[S], err error) {
 	if err := state.Preprocess(); err != nil {
 		return nil, err
@@ -134,14 +146,20 @@ func (b Bruter[S]) bfs(s *Step[S]) (finalStep *Step[S]) {
 	return nil
 }
 
+// Queue is a FIFO queue of search steps.
 type Queue[S State] struct {
 	queue []*Step[S]
 }
 
+// Empty reports whether the queue has no items.
 func (q *Queue[S]) Empty() bool { return len(q.queue) == 0 }
+
+// Enqueue appends steps to the queue.
 func (q *Queue[S]) Enqueue(steps ...*Step[S]) {
 	q.queue = append(q.queue, steps...)
 }
+
+// Dequeue removes and returns the head of the queue.
 func (q *Queue[S]) Dequeue() *Step[S] {
 	if len(q.queue) == 0 {
 		return nil

@@ -38,6 +38,8 @@ func Write(c *websocket.Conn, msg []byte) error {
 	return c.WriteMessage(websocket.TextMessage, msg)
 }
 
+// Close cleanly closes the connection: sends a close message and waits (with
+// a timeout) for the server to finish the handshake.
 func Close(c *websocket.Conn) error {
 	// Cleanly close the connection by sending a close message and then
 	// waiting (with timeout) for the server to close the connection.

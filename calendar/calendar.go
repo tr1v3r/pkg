@@ -12,6 +12,7 @@ const (
 	generalVersion = "2.0"
 )
 
+// Calendar is a VCALENDAR component: the root of an iCalendar document holding timezones, events, todos and journals.
 type Calendar struct {
 	header    Header
 	prodID    ProdID
@@ -50,16 +51,31 @@ func NewCalendar(name, desc string, opts ...CalendarOption) *Calendar {
 	return c
 }
 
-func (c *Calendar) AddEvents(events ...Event)    { c.events = append(c.events, events...) }
+// AddEvents appends the given events values.
+func (c *Calendar) AddEvents(events ...Event) { c.events = append(c.events, events...) }
+
+// AddTimezones appends the given timezones values.
 func (c *Calendar) AddTimezones(tzs ...Timezone) { c.timezones = append(c.timezones, tzs...) }
-func (c *Calendar) AddTodos(todos ...Todo)       { c.todos = append(c.todos, todos...) }
-func (c *Calendar) AddJournals(js ...Journal)    { c.journals = append(c.journals, js...) }
 
-func (c *Calendar) Events() []Event       { return c.events }
+// AddTodos appends the given todos values.
+func (c *Calendar) AddTodos(todos ...Todo) { c.todos = append(c.todos, todos...) }
+
+// AddJournals appends the given journals values.
+func (c *Calendar) AddJournals(js ...Journal) { c.journals = append(c.journals, js...) }
+
+// Events returns the calendar VEVENT components.
+func (c *Calendar) Events() []Event { return c.events }
+
+// Timezones returns the calendar VTIMEZONE components.
 func (c *Calendar) Timezones() []Timezone { return c.timezones }
-func (c *Calendar) Todos() []Todo         { return c.todos }
-func (c *Calendar) Journals() []Journal   { return c.journals }
 
+// Todos is an iCalendar enumeration value.
+func (c *Calendar) Todos() []Todo { return c.todos }
+
+// Journals is an iCalendar enumeration value.
+func (c *Calendar) Journals() []Journal { return c.journals }
+
+// Output renders the value as an ICS content line.
 func (c *Calendar) Output() []byte {
 	var buf bytes.Buffer
 
@@ -179,6 +195,7 @@ func NewEvent(sum, description string, start time.Time, opts ...EventOption) *Ev
 	return e
 }
 
+// Event is a VEVENT component describing a scheduled calendar entry.
 type Event struct {
 	header       Header
 	start        Date
@@ -214,6 +231,7 @@ type Event struct {
 	tailer       Tailer
 }
 
+// Output renders the value as an ICS content line.
 func (e *Event) Output() []byte {
 	var buf bytes.Buffer
 
@@ -373,6 +391,7 @@ type TimezoneProp struct {
 	Comment      string
 }
 
+// Output renders the value as an ICS content line.
 func (tz Timezone) Output() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("BEGIN:VTIMEZONE\n")
@@ -395,6 +414,7 @@ func (tz Timezone) Output() []byte {
 	return buf.Bytes()
 }
 
+// Output renders the value as an ICS content line.
 func (tp TimezoneProp) Output() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("BEGIN:")
@@ -448,6 +468,7 @@ type Alarm struct {
 	Attachments []Attachment
 }
 
+// Output renders the value as an ICS content line.
 func (a Alarm) Output() []byte {
 	var buf bytes.Buffer
 	buf.WriteString("BEGIN:VALARM\n")
@@ -521,6 +542,7 @@ type Todo struct {
 	alarms     []Alarm
 }
 
+// Output renders the value as an ICS content line.
 func (t Todo) Output() []byte {
 	var buf bytes.Buffer
 	buf.Write(t.header.Output())
@@ -636,6 +658,7 @@ type Journal struct {
 	attendees  []Attendee
 }
 
+// Output renders the value as an ICS content line.
 func (j Journal) Output() []byte {
 	var buf bytes.Buffer
 	buf.Write(j.header.Output())

@@ -42,6 +42,7 @@ type sizeWriter struct {
 	mu      sync.Mutex
 }
 
+// Write implements io.Writer.
 func (w *sizeWriter) Write(data []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -73,6 +74,7 @@ func (w *sizeWriter) openFile() error {
 	return nil
 }
 
+// Close implements io.Closer.
 func (w *sizeWriter) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()

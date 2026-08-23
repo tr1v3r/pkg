@@ -15,6 +15,7 @@ type Condition struct {
 	Sorts       []PropSortCondition `json:"sorts,omitempty"`
 }
 
+// QueryParams represents a URL query parameter.
 func (f *Condition) QueryParams() string {
 	return url.Values{"filter_properties": f.FilterProperties}.Encode()
 }
@@ -78,6 +79,7 @@ type FilterCondition struct {
 	CompoundConditions map[string][]FilterCondition
 }
 
+// MarshalJSON implements json.Marshaler.
 func (cond *FilterCondition) MarshalJSON() ([]byte, error) {
 	if cond.CompoundConditions != nil {
 		return json.Marshal(cond.CompoundConditions)
@@ -115,6 +117,7 @@ type SelectFilter struct {
 	IsNotEmpty   bool   `json:"is_not_empty,omitempty"`
 }
 
+// MultiSelectFilter defines the corresponding query clause.
 type MultiSelectFilter struct {
 	Contains       string `json:"contains,omitempty"`
 	DoesNotContain string `json:"does_not_contain,omitempty"`
@@ -227,6 +230,7 @@ type TimestampFilter struct {
 // https://developers.notion.com/reference/post-database-query-filter#id
 type IDFilter map[string][]NumberFilter
 
+// PropSortCondition defines the corresponding query clause.
 type PropSortCondition struct {
 	Property  string `json:"property"`
 	Direction string `json:"direction"` // "ascending" or "descending"
