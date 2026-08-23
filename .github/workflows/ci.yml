@@ -17,9 +17,10 @@ jobs:
           go-version-file: go.mod
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: latest
+          # exact pin: future 2.x releases may add checks that break the gate
+          version: v2.12.2
 
   test:
     name: Test
