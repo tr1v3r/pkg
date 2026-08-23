@@ -38,16 +38,29 @@ func (l *Logger) Debug(msg string, args ...any) { l.log(DebugLevel, msg, args) }
 func (l *Logger) Info(msg string, args ...any)  { l.log(InfoLevel, msg, args) }
 func (l *Logger) Warn(msg string, args ...any)  { l.log(WarnLevel, msg, args) }
 func (l *Logger) Error(msg string, args ...any) { l.log(ErrorLevel, msg, args) }
-func (l *Logger) Fatal(msg string, args ...any) { l.log(FatalLevel, msg, args); os.Exit(1) }
+func (l *Logger) Fatal(msg string, args ...any) { l.log(FatalLevel, msg, args); l.exit() }
 
 // --- Structured logging (with context, extracts logID) ---
 
-func (l *Logger) CtxTrace(ctx context.Context, msg string, args ...any) { l.logCtx(ctx, TraceLevel, msg, args) }
-func (l *Logger) CtxDebug(ctx context.Context, msg string, args ...any) { l.logCtx(ctx, DebugLevel, msg, args) }
-func (l *Logger) CtxInfo(ctx context.Context, msg string, args ...any)  { l.logCtx(ctx, InfoLevel, msg, args) }
-func (l *Logger) CtxWarn(ctx context.Context, msg string, args ...any)  { l.logCtx(ctx, WarnLevel, msg, args) }
-func (l *Logger) CtxError(ctx context.Context, msg string, args ...any) { l.logCtx(ctx, ErrorLevel, msg, args) }
-func (l *Logger) CtxFatal(ctx context.Context, msg string, args ...any) { l.logCtx(ctx, FatalLevel, msg, args); os.Exit(1) }
+func (l *Logger) CtxTrace(ctx context.Context, msg string, args ...any) {
+	l.logCtx(ctx, TraceLevel, msg, args)
+}
+func (l *Logger) CtxDebug(ctx context.Context, msg string, args ...any) {
+	l.logCtx(ctx, DebugLevel, msg, args)
+}
+func (l *Logger) CtxInfo(ctx context.Context, msg string, args ...any) {
+	l.logCtx(ctx, InfoLevel, msg, args)
+}
+func (l *Logger) CtxWarn(ctx context.Context, msg string, args ...any) {
+	l.logCtx(ctx, WarnLevel, msg, args)
+}
+func (l *Logger) CtxError(ctx context.Context, msg string, args ...any) {
+	l.logCtx(ctx, ErrorLevel, msg, args)
+}
+func (l *Logger) CtxFatal(ctx context.Context, msg string, args ...any) {
+	l.logCtx(ctx, FatalLevel, msg, args)
+	l.exit()
+}
 
 // --- Printf-style ---
 
@@ -56,16 +69,36 @@ func (l *Logger) Debugf(format string, args ...any) { l.logf(DebugLevel, format,
 func (l *Logger) Infof(format string, args ...any)  { l.logf(InfoLevel, format, args) }
 func (l *Logger) Warnf(format string, args ...any)  { l.logf(WarnLevel, format, args) }
 func (l *Logger) Errorf(format string, args ...any) { l.logf(ErrorLevel, format, args) }
-func (l *Logger) Fatalf(format string, args ...any) { l.logf(FatalLevel, format, args); os.Exit(1) }
+func (l *Logger) Fatalf(format string, args ...any) { l.logf(FatalLevel, format, args); l.exit() }
 
 // --- Printf-style with context (extracts logID) ---
 
-func (l *Logger) CtxTracef(ctx context.Context, format string, args ...any) { l.logCtxf(ctx, TraceLevel, format, args) }
-func (l *Logger) CtxDebugf(ctx context.Context, format string, args ...any) { l.logCtxf(ctx, DebugLevel, format, args) }
-func (l *Logger) CtxInfof(ctx context.Context, format string, args ...any)  { l.logCtxf(ctx, InfoLevel, format, args) }
-func (l *Logger) CtxWarnf(ctx context.Context, format string, args ...any)  { l.logCtxf(ctx, WarnLevel, format, args) }
-func (l *Logger) CtxErrorf(ctx context.Context, format string, args ...any) { l.logCtxf(ctx, ErrorLevel, format, args) }
-func (l *Logger) CtxFatalf(ctx context.Context, format string, args ...any) { l.logCtxf(ctx, FatalLevel, format, args); os.Exit(1) }
+func (l *Logger) CtxTracef(ctx context.Context, format string, args ...any) {
+	l.logCtxf(ctx, TraceLevel, format, args)
+}
+func (l *Logger) CtxDebugf(ctx context.Context, format string, args ...any) {
+	l.logCtxf(ctx, DebugLevel, format, args)
+}
+func (l *Logger) CtxInfof(ctx context.Context, format string, args ...any) {
+	l.logCtxf(ctx, InfoLevel, format, args)
+}
+func (l *Logger) CtxWarnf(ctx context.Context, format string, args ...any) {
+	l.logCtxf(ctx, WarnLevel, format, args)
+}
+func (l *Logger) CtxErrorf(ctx context.Context, format string, args ...any) {
+	l.logCtxf(ctx, ErrorLevel, format, args)
+}
+func (l *Logger) CtxFatalf(ctx context.Context, format string, args ...any) {
+	l.logCtxf(ctx, FatalLevel, format, args)
+	l.exit()
+}
+
+// exit flushes all sinks before terminating: os.Exit skips defers and async
+// sinks would otherwise lose the fatal record that is still buffered.
+func (l *Logger) exit() {
+	l.Sync()
+	os.Exit(1)
+}
 
 // --- Internal ---
 
@@ -208,12 +241,24 @@ func Fatalf(format string, args ...any) { globalLogger.Fatalf(format, args...) }
 
 // --- Printf-style with context (extracts logID from ctx) ---
 
-func CtxTracef(ctx context.Context, format string, args ...any) { globalLogger.CtxTracef(ctx, format, args...) }
-func CtxDebugf(ctx context.Context, format string, args ...any) { globalLogger.CtxDebugf(ctx, format, args...) }
-func CtxInfof(ctx context.Context, format string, args ...any)  { globalLogger.CtxInfof(ctx, format, args...) }
-func CtxWarnf(ctx context.Context, format string, args ...any)  { globalLogger.CtxWarnf(ctx, format, args...) }
-func CtxErrorf(ctx context.Context, format string, args ...any) { globalLogger.CtxErrorf(ctx, format, args...) }
-func CtxFatalf(ctx context.Context, format string, args ...any) { globalLogger.CtxFatalf(ctx, format, args...) }
+func CtxTracef(ctx context.Context, format string, args ...any) {
+	globalLogger.CtxTracef(ctx, format, args...)
+}
+func CtxDebugf(ctx context.Context, format string, args ...any) {
+	globalLogger.CtxDebugf(ctx, format, args...)
+}
+func CtxInfof(ctx context.Context, format string, args ...any) {
+	globalLogger.CtxInfof(ctx, format, args...)
+}
+func CtxWarnf(ctx context.Context, format string, args ...any) {
+	globalLogger.CtxWarnf(ctx, format, args...)
+}
+func CtxErrorf(ctx context.Context, format string, args ...any) {
+	globalLogger.CtxErrorf(ctx, format, args...)
+}
+func CtxFatalf(ctx context.Context, format string, args ...any) {
+	globalLogger.CtxFatalf(ctx, format, args...)
+}
 
 // Sync flushes all global sinks.
 func Sync() { globalLogger.Sync() }
