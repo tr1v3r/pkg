@@ -432,9 +432,7 @@ func (a Alarm) Output() []byte {
 		buf.WriteByte('\n')
 	}
 	if a.Repeat > 0 {
-		buf.WriteString("REPEAT:")
-		buf.WriteString(fmt.Sprint(a.Repeat))
-		buf.WriteByte('\n')
+		fmt.Fprintf(&buf, "REPEAT:%d\n", a.Repeat)
 	}
 	for _, att := range a.Attendees {
 		buf.Write(att.Output())
@@ -534,9 +532,7 @@ func (t Todo) Output() []byte {
 		buf.WriteByte('\n')
 	}
 	if t.percent > 0 {
-		buf.WriteString("PERCENT-COMPLETE:")
-		buf.WriteString(fmt.Sprint(t.percent))
-		buf.WriteByte('\n')
+		fmt.Fprintf(&buf, "PERCENT-COMPLETE:%d\n", t.percent)
 	}
 	if t.location != "" {
 		buf.Write(t.location.Output())

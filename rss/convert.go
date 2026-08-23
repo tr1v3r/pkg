@@ -64,7 +64,7 @@ func (f *Feed) ToJSONFeed() *JSONFeed {
 
 	for _, l := range f.Links {
 		switch l.Rel {
-		case "alternate", "":
+		case relAlternate, "":
 			jf.HomePageURL = l.Href
 		case "self":
 			jf.FeedURL = l.Href
@@ -95,13 +95,13 @@ func (f *Feed) ToJSONFeed() *JSONFeed {
 
 		for _, l := range entry.Links {
 			switch l.Rel {
-			case "alternate", "":
+			case relAlternate, "":
 				if ji.URL == "" {
 					ji.URL = l.Href
 				}
-			case "related":
+			case relRelated:
 				ji.ExternalURL = l.Href
-			case "enclosure":
+			case relEnclosure:
 				ji.Attachments = append(ji.Attachments, JSONFeedAttachment{
 					URL:      l.Href,
 					MimeType: l.Type,
@@ -174,7 +174,7 @@ func (jf *JSONFeed) ToAtom() *Feed {
 	feed := &Feed{Title: jf.Title}
 
 	if jf.HomePageURL != "" {
-		feed.Links = append(feed.Links, Link{Href: jf.HomePageURL, Rel: "alternate"})
+		feed.Links = append(feed.Links, Link{Href: jf.HomePageURL, Rel: relAlternate})
 	}
 	if jf.FeedURL != "" {
 		feed.Links = append(feed.Links, Link{Href: jf.FeedURL, Rel: "self"})
@@ -205,15 +205,15 @@ func (jf *JSONFeed) ToAtom() *Feed {
 		}
 
 		if item.URL != "" {
-			entry.Links = append(entry.Links, Link{Href: item.URL, Rel: "alternate"})
+			entry.Links = append(entry.Links, Link{Href: item.URL, Rel: relAlternate})
 		}
 		if item.ExternalURL != "" {
-			entry.Links = append(entry.Links, Link{Href: item.ExternalURL, Rel: "related"})
+			entry.Links = append(entry.Links, Link{Href: item.ExternalURL, Rel: relRelated})
 		}
 		for _, att := range item.Attachments {
 			entry.Links = append(entry.Links, Link{
 				Href: att.URL,
-				Rel:  "enclosure",
+				Rel:  relEnclosure,
 				Type: att.MimeType,
 			})
 		}

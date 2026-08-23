@@ -2,108 +2,151 @@ package websocket_test
 
 import (
 	"context"
-	"net/url"
 	"testing"
 	"time"
 
 	ws "github.com/tr1v3r/pkg/websocket"
 )
 
-const (
-	serverScheme = "ws"
-	serverAddr   = "localhost:" + serverPort
-	serverPath   = "/ws"
-	serverPort   = "7750"
-)
-
-var server = &url.URL{Scheme: serverScheme, Host: serverAddr, Path: serverPath}
-
 func TestConnectWebsocket(t *testing.T) {
-	c, _, err := ws.ConnectWebsocket(context.Background(), server.String(), nil)
+	srv := newTestServer(t)
+
+	c, _, err := ws.ConnectWebsocket(context.Background(), wsDefaultURL(srv), nil)
 	if err != nil {
-		t.Errorf("connect server websocket fail: %s", err)
-		return
+		t.Fatalf("connect fail: %s", err)
 	}
 	if c == nil {
-		t.Errorf("connect server websocket fail: got nil")
-		return
+		t.Fatal("connect got nil conn")
 	}
-	defer ws.Close(c)
+	defer c.Close()
 }
 
-func TestConnectWebsocket_timeout(t *testing.T) {
+func TestConnectWebsocketWithContextTimeout(t *testing.T) {
+	srv := newTestServer(t)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	c, _, err := ws.ConnectWebsocket(ctx, server.String(), nil)
+	c, _, err := ws.ConnectWebsocket(ctx, wsURL(srv), nil)
 	if err != nil {
-		t.Errorf("connect server websocket fail: %s", err)
-		return
+		t.Fatalf("connect fail: %s", err)
 	}
-	if c == nil {
-		t.Errorf("connect server websocket fail: got nil")
-		return
-	}
-	defer ws.Close(c)
+	defer c.Close()
 }
 
-func TestConnectAndCommunicate(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func TestConnectWebsocketCancelledContext(t *testing.T) {
+	srv := newTestServer(t)
 
-	c, _, err := ws.ConnectWebsocket(ctx, server.String(), nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, _, err := ws.ConnectWebsocket(ctx, wsURL(srv), nil); err == nil {
+		t.Error("cancelled context should fail to connect")
+	}
+}
+
+func TestConnectWebsocketRefused(t *testing.T) {
+	// nothing listens on this port range
+	if _, _, err := ws.ConnectWebsocket(context.Background(), "ws://127.0.0.1:1/ws", nil); err == nil {
+		t.Error("unreachable server should fail to connect")
+	}
+}
+
+func TestWriteReadRoundTrip(t *testing.T) {
+	srv := newTestServer(t)
+
+	c, _, err := ws.ConnectWebsocket(context.Background(), wsURL(srv), nil)
 	if err != nil {
-		t.Errorf("connect server websocket fail: %s", err)
-		return
+		t.Fatalf("connect fail: %s", err)
 	}
-	if c == nil {
-		t.Errorf("connect server websocket fail: got nil")
-		return
+	defer c.Close()
+
+	if err := ws.Write(c, []byte("ping")); err != nil {
+		t.Fatalf("write fail: %s", err)
 	}
-	defer ws.Close(c)
 
-	// Limit message count to prevent infinite loop
-	maxMessages := 5
-	messageCount := 0
-
-	go func() {
-		ticker := time.NewTicker(500 * time.Millisecond)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case ts := <-ticker.C:
-				if messageCount >= maxMessages {
-					return
-				}
-				err := ws.Write(c, []byte(ts.String()))
-				if err != nil {
-					t.Errorf("write msg fail: %s", err)
-					return
-				}
-			}
+	msgCh := ws.Read(c)
+	select {
+	case msg, ok := <-msgCh:
+		if !ok {
+			t.Fatal("read channel closed before message")
 		}
-	}()
-
-	// Read messages with timeout and limit
-	for {
-		select {
-		case <-ctx.Done():
-			t.Logf("Test completed by context timeout")
-			return
-		case msg, ok := <-ws.Read(c):
-			if !ok {
-				t.Logf("Read channel closed")
-				return
-			}
-			t.Logf("recv: %s", string(msg))
-			messageCount++
-			if messageCount >= maxMessages {
-				t.Logf("Received expected number of messages")
-				return
-			}
+		if string(msg) != "pong" {
+			t.Errorf("read = %q, want %q", msg, "pong")
 		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for echo")
+	}
+}
+
+func TestReadChannelClosesOnConnClose(t *testing.T) {
+	srv := newTestServer(t)
+
+	c, _, err := ws.ConnectWebsocket(context.Background(), wsURL(srv), nil)
+	if err != nil {
+		t.Fatalf("connect fail: %s", err)
+	}
+
+	msgCh := ws.Read(c)
+	_ = c.Close()
+
+	select {
+	case _, ok := <-msgCh:
+		if ok {
+			t.Fatal("channel should be closed, got message")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("read channel not closed after conn close")
+	}
+}
+
+func TestWriteAfterClose(t *testing.T) {
+	srv := newTestServer(t)
+
+	c, _, err := ws.ConnectWebsocket(context.Background(), wsURL(srv), nil)
+	if err != nil {
+		t.Fatalf("connect fail: %s", err)
+	}
+	_ = c.Close()
+
+	if err := ws.Write(c, []byte("x")); err == nil {
+		t.Error("write on closed conn should fail")
+	}
+}
+
+func TestClose(t *testing.T) {
+	srv := newTestServer(t)
+
+	c, _, err := ws.ConnectWebsocket(context.Background(), wsURL(srv), nil)
+	if err != nil {
+		t.Fatalf("connect fail: %s", err)
+	}
+
+	// Close sends a close frame and waits up to 1s for the server.
+	done := make(chan error, 1)
+	go func() { done <- ws.Close(c) }()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("Close fail: %s", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close did not return in time")
+	}
+	_ = c.Close()
+}
+
+func TestCloseAlreadyClosed(t *testing.T) {
+	srv := newTestServer(t)
+
+	c, _, err := ws.ConnectWebsocket(context.Background(), wsURL(srv), nil)
+	if err != nil {
+		t.Fatalf("connect fail: %s", err)
+	}
+	_ = c.Close()
+
+	if err := ws.Close(c); err == nil {
+		t.Error("Close on already-closed conn should fail")
 	}
 }

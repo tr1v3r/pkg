@@ -115,6 +115,9 @@ func (o RelationObject) JSON() json.RawMessage {
 	return data
 }
 
+// rollupTypeArray is the "array" rollup type value.
+const rollupTypeArray = "array"
+
 // RollupObject cannot be used when update
 type RollupObject struct {
 	Type     string `json:"type"`
@@ -128,11 +131,11 @@ type RollupObject struct {
 }
 
 func (o RollupObject) PlainStrings() (strs []string) {
-	if o.Type != "array" || len(o.Array) == 0 {
+	if o.Type != rollupTypeArray || len(o.Array) == 0 {
 		return nil
 	}
 	for _, item := range o.Array {
-		if item.Type != "rich_text" {
+		if item.Type != string(RichTextProp) {
 			continue
 		}
 		for _, text := range item.RichText {

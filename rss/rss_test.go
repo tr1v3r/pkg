@@ -221,10 +221,10 @@ func TestDeduplicateItems_EmptyKey(t *testing.T) {
 func TestDeduplicateItems_Mixed(t *testing.T) {
 	ch := &Channel{Items: []Item{
 		{Title: "A", GUID: "1"},
-		{Title: "B", GUID: "1"},   // duplicate GUID
-		{Title: "C", Link: "x"},   // no GUID, Link as key
-		{Title: "D", Link: "x"},   // duplicate Link
-		{Title: "E"},              // no key at all
+		{Title: "B", GUID: "1"}, // duplicate GUID
+		{Title: "C", Link: "x"}, // no GUID, Link as key
+		{Title: "D", Link: "x"}, // duplicate Link
+		{Title: "E"},            // no key at all
 		{Title: "F", GUID: "2"},
 	}}
 	ch.DeduplicateItems()

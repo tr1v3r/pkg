@@ -36,7 +36,7 @@ type Item struct {
 	Title       string     `xml:"title"`
 	Link        string     `xml:"link"`
 	Description string     `xml:"description"`
-	Content     string     `xml:"http://purl.org/rss/1.0/modules/content/ encoded"` //nolint:staticcheck // SA5008: valid RSS content namespace
+	Content     string     `xml:"http://purl.org/rss/1.0/modules/content/ encoded"` //nolint:staticcheck // SA5008
 	PubDate     string     `xml:"pubDate"`
 	GUID        string     `xml:"guid"`
 	Author      string     `xml:"author"`
@@ -107,11 +107,18 @@ type AtomCategory struct {
 	Term string `xml:"term,attr"`
 }
 
+// Link relation names used across RSS/Atom/JSON Feed conversions.
+const (
+	relAlternate = "alternate"
+	relRelated   = "related"
+	relEnclosure = "enclosure"
+)
+
 // AlternateLink returns the href of the first link with rel="alternate",
 // or the first link if none has that rel.
 func (e *Entry) AlternateLink() string {
 	for _, l := range e.Links {
-		if l.Rel == "alternate" {
+		if l.Rel == relAlternate {
 			return l.Href
 		}
 	}

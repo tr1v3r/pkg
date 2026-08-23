@@ -35,7 +35,8 @@
 //	)
 //
 //	// Use retry with custom function
-//	status, data, headers, err := fetch.WithRetry(context.Background(), config, func() (int, []byte, http.Header, error) {
+//	status, data, headers, err := fetch.WithRetry(context.Background(), config,
+//		func() (int, []byte, http.Header, error) {
 //	    return fetch.DoRequestWithOptions("GET", url, opts, nil)
 //	})
 //

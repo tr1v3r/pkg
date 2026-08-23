@@ -357,8 +357,8 @@ func TestBlockManager_Children_SinglePage(t *testing.T) {
 		blocks := []map[string]any{
 			{
 				"object": "block", "id": "child-1", "type": "paragraph",
-				"created_time": "2024-01-01T00:00:00Z",
-				"created_by":   map[string]any{"object": "user", "id": "u1"},
+				"created_time":     "2024-01-01T00:00:00Z",
+				"created_by":       map[string]any{"object": "user", "id": "u1"},
 				"last_edited_time": "2024-01-01T00:00:00Z",
 				"last_edited_by":   map[string]any{"object": "user", "id": "u1"},
 				"has_children":     false,

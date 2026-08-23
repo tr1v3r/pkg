@@ -14,13 +14,20 @@ func LookupIP(domain string) ([]net.IP, error) {
 	return net.LookupIP(domain)
 }
 
-// LookupWithServer ...
-func LookupWithServer(domain string, servers []string, maxRetry int) (a []string, cname []string, ns []string, lastErr error) {
+// LookupWithServer resolves domain via the given DNS servers.
+// Each server may be a bare host (defaults to port 53), a "host:port" pair,
+// or a bracketed IPv6 literal like "[::1]" or "[::1]:5353".
+func LookupWithServer(domain string, servers []string, maxRetry int) (a, cname, ns []string, lastErr error) {
 	for _, server := range servers {
+		addr := server
+		if _, _, err := net.SplitHostPort(server); err != nil {
+			// bare host or bare IPv6 literal: normalize with the default port
+			addr = net.JoinHostPort(server, "53")
+		}
 		for i := 0; i < maxRetry; i++ {
 			m := dns.Msg{}
 			m.SetQuestion(domain+".", dns.TypeA)
-			r, _, err := dnsClient.Exchange(&m, server+":53")
+			r, _, err := dnsClient.Exchange(&m, addr)
 			if err != nil {
 				lastErr = err
 				continue

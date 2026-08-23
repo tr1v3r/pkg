@@ -10,10 +10,20 @@ const (
 	defaultJobQueueLength    = 10000 // 默认任务队列长度
 )
 
-// Job ...
+// Job is a unit of work submitted to the pool.
 type Job struct {
 	Handler func(v ...interface{})
 	Params  []interface{}
+
+	// Timeout bounds this job's execution time. When the deadline passes,
+	// the worker is released and the pool moves on, even if Handler is still
+	// running. Zero (the default) means no timeout.
+	//
+	// Note: Go cannot kill goroutines. On timeout the abandoned Handler keeps
+	// running in the background until it returns by itself (its completion is
+	// discarded), so timeouts protect the pool's throughput, not the caller's
+	// resources.
+	Timeout time.Duration
 }
 
 // TimeoutPool ...
@@ -156,14 +166,38 @@ func (w *worker) start() {
 			var job Job
 			select {
 			case job = <-w.jobChannel:
-				job.Handler(job.Params...)
-				w.jobRet <- struct{}{}
+				w.execute(job)
 			case <-w.stop:
 				w.stop <- struct{}{}
 				return
 			}
 		}
 	}()
+}
+
+// execute runs the job, enforcing its deadline when one is set. jobRet is
+// signaled exactly once whether the job finished or timed out, so the pool's
+// completion accounting stays correct.
+func (w *worker) execute(job Job) {
+	if job.Timeout <= 0 {
+		job.Handler(job.Params...)
+		w.jobRet <- struct{}{}
+		return
+	}
+
+	// Buffered so a late-finishing handler never blocks on an abandoned send.
+	done := make(chan struct{}, 1)
+	go func() {
+		job.Handler(job.Params...)
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(job.Timeout):
+		// Timed out: abandon the handler goroutine, free this worker.
+	}
+	w.jobRet <- struct{}{}
 }
 
 func newWorker(workerQueue chan *worker, jobRet chan struct{}) *worker {

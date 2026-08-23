@@ -19,7 +19,7 @@ func WSHanlderWithUpgrader(upgrader *websocket.Upgrader, handle func(*websocket.
 		if err != nil {
 			return
 		}
-		defer ws.Close()
+		defer func() { _ = ws.Close() }()
 		for {
 			mt, msg, err := ws.ReadMessage()
 			if err != nil {

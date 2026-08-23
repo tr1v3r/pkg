@@ -161,3 +161,26 @@ func toIDSlice(tgt any) (ret []int) {
 	}
 	return ret
 }
+
+func TestReverseBy(t *testing.T) {
+	items := []*int{intPtr(3), intPtr(1), intPtr(2)}
+
+	asc := func(l, r *int) bool { return *l < *r }
+	sort.ReverseBy(asc).Sort(items)
+
+	got := deref(items)
+	want := []int{3, 2, 1}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ReverseBy sort = %v, want %v", got, want)
+	}
+}
+
+func intPtr(v int) *int { return &v }
+
+func deref(items []*int) []int {
+	out := make([]int, 0, len(items))
+	for _, it := range items {
+		out = append(out, *it)
+	}
+	return out
+}
