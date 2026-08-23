@@ -13,11 +13,21 @@ type OPML struct {
 	Body    Body     `xml:"body"`
 }
 
-// Head defines the header information of an OPML document.
+// Head defines the header information of an OPML 2.0 document (§2.1).
 type Head struct {
-	Title        string `xml:"title"`
-	DateCreated  string `xml:"dateCreated,omitempty"`
-	DateModified string `xml:"dateModified,omitempty"`
+	Title           string `xml:"title,omitempty"`
+	DateCreated     string `xml:"dateCreated,omitempty"`
+	DateModified    string `xml:"dateModified,omitempty"`
+	OwnerName       string `xml:"ownerName,omitempty"`
+	OwnerEmail      string `xml:"ownerEmail,omitempty"`
+	OwnerID         string `xml:"ownerId,omitempty"`
+	Docs            string `xml:"docs,omitempty"`
+	ExpansionState  []int  `xml:"expansionState>number"`
+	VertScrollState int    `xml:"vertScrollState,omitempty"`
+	WindowTop       int    `xml:"windowTop,omitempty"`
+	WindowLeft      int    `xml:"windowLeft,omitempty"`
+	WindowBottom    int    `xml:"windowBottom,omitempty"`
+	WindowRight     int    `xml:"windowRight,omitempty"`
 }
 
 // Body defines the body of an OPML document, containing multiple outlines.
@@ -50,12 +60,19 @@ func (a OutlineArray) AddOutline(groupText string, o *Outline) OutlineArray {
 
 // Outline defines the structure of an outline element in the OPML document.
 type Outline struct {
-	Type     string     `xml:"type,attr,omitempty"`
-	Text     string     `xml:"text,attr,omitempty"`
-	Title    string     `xml:"title,attr,omitempty"`
-	XMLUrl   string     `xml:"xmlUrl,attr,omitempty"`
-	HTMLUrl  string     `xml:"htmlUrl,attr,omitempty"`
-	Outlines []*Outline `xml:"outline,omitempty"`
+	Type         string     `xml:"type,attr,omitempty"`
+	Text         string     `xml:"text,attr,omitempty"`
+	IsComment    *bool      `xml:"isComment,attr,omitempty"`
+	IsBreakpoint *bool      `xml:"isBreakpoint,attr,omitempty"`
+	Title        string     `xml:"title,attr,omitempty"`
+	XMLUrl       string     `xml:"xmlUrl,attr,omitempty"`
+	HTMLUrl      string     `xml:"htmlUrl,attr,omitempty"`
+	Language     string     `xml:"language,attr,omitempty"`
+	Version      string     `xml:"version,attr,omitempty"`
+	Description  string     `xml:"description,attr,omitempty"`
+	Category     string     `xml:"category,attr,omitempty"`
+	Created      string     `xml:"created,attr,omitempty"`
+	Outlines     []*Outline `xml:"outline,omitempty"`
 }
 
 // ParseOPML parses XML data into an OPML document.

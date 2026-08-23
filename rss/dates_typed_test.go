@@ -68,7 +68,7 @@ func TestRSSPubDateConversionEndToEnd(t *testing.T) {
 
 func TestDeduplicateItemsDoesNotClobberAliases(t *testing.T) {
 	ch := &Channel{Items: []Item{
-		{GUID: "a"}, {GUID: "a"}, {GUID: "b"},
+		{GUID: &GUID{Value: "a"}}, {GUID: &GUID{Value: "a"}}, {GUID: &GUID{Value: "b"}},
 	}}
 
 	snapshot := make([]Item, len(ch.Items))
@@ -80,9 +80,10 @@ func TestDeduplicateItemsDoesNotClobberAliases(t *testing.T) {
 		t.Fatalf("dedup left %d items, want 2", len(ch.Items))
 	}
 	// The pre-call copy must be untouched even though Items was reassigned.
+	wants := []string{"a", "a", "b"}
 	for i, it := range snapshot {
-		if it.GUID != []string{"a", "a", "b"}[i] {
-			t.Errorf("snapshot[%d].GUID = %q, alias was clobbered", i, it.GUID)
+		if it.GUID.Value != wants[i] {
+			t.Errorf("snapshot[%d].GUID = %q, alias was clobbered", i, it.GUID.Value)
 		}
 	}
 }

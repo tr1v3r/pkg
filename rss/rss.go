@@ -15,13 +15,49 @@ type RSS struct {
 	Channel Channel  `xml:"channel"`
 }
 
-// Channel represents the channel element of an RSS feed.
+// Channel represents the channel element of an RSS feed (RSS 2.0 §5).
 type Channel struct {
+	// Required.
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	Description string `xml:"description"`
+
+	// Optional but common.
+	Language       string     `xml:"language,omitempty"`
+	Copyright      string     `xml:"copyright,omitempty"`
+	ManagingEditor string     `xml:"managingEditor,omitempty"`
+	WebMaster      string     `xml:"webMaster,omitempty"`
+	PubDate        string     `xml:"pubDate,omitempty"`
+	LastBuildDate  string     `xml:"lastBuildDate,omitempty"`
+	Category       []Category `xml:"category,omitempty"`
+	Generator      string     `xml:"generator,omitempty"`
+	Docs           string     `xml:"docs,omitempty"`
+	Cloud          *Cloud     `xml:"cloud,omitempty"`
+	TTL            int        `xml:"ttl,omitempty"`
+	Image          *Image     `xml:"image,omitempty"`
+	Rating         string     `xml:"rating,omitempty"`
+	TextInput      *TextInput `xml:"textInput,omitempty"`
+	SkipHours      []int      `xml:"skipHours>hour"`
+	SkipDays       []string   `xml:"skipDays>day"`
+
+	Items []Item `xml:"item"`
+}
+
+// Cloud represents the channel's cloud element (RSS 2.0 §5.6).
+type Cloud struct {
+	Domain            string `xml:"domain,attr"`
+	Port              int    `xml:"port,attr"`
+	Path              string `xml:"path,attr"`
+	RegisterProcedure string `xml:"registerProcedure,attr"`
+	Protocol          string `xml:"protocol,attr"`
+}
+
+// TextInput represents the channel's textInput element (RSS 2.0 §5.7).
+type TextInput struct {
 	Title       string `xml:"title"`
 	Description string `xml:"description"`
+	Name        string `xml:"name"`
 	Link        string `xml:"link"`
-	Image       *Image `xml:"image,omitempty"`
-	Items       []Item `xml:"item"`
 }
 
 // Image represents the image element of an RSS feed.
@@ -31,17 +67,32 @@ type Image struct {
 	Link  string `xml:"link,omitempty"`
 }
 
-// Item represents a single item in an RSS feed.
+// GUID represents an item's guid element (RSS 2.0 §4.2.10). isPermaLink
+// defaults to true per the spec; the attribute is emitted only when false.
+type GUID struct {
+	IsPermaLink bool   `xml:"isPermaLink,attr,omitempty"`
+	Value       string `xml:",chardata"`
+}
+
+// Source represents an item's source element (RSS 2.0 §4.2.11).
+type Source struct {
+	URL   string `xml:"url,attr"`
+	Value string `xml:",chardata"`
+}
+
+// Item represents a single item in an RSS feed (RSS 2.0 §4).
 type Item struct {
-	Title       string     `xml:"title"`
-	Link        string     `xml:"link"`
-	Description string     `xml:"description"`
+	Title       string     `xml:"title,omitempty"`
+	Link        string     `xml:"link,omitempty"`
+	Description string     `xml:"description,omitempty"`
 	Content     string     `xml:"http://purl.org/rss/1.0/modules/content/ encoded"` //nolint:staticcheck // SA5008
-	PubDate     string     `xml:"pubDate"`
-	GUID        string     `xml:"guid"`
-	Author      string     `xml:"author"`
+	Author      string     `xml:"author,omitempty"`
+	Category    []Category `xml:"category,omitempty"`
+	Comments    string     `xml:"comments,omitempty"`
 	Enclosure   *Enclosure `xml:"enclosure,omitempty"`
-	Categories  []Category `xml:"category,omitempty"`
+	GUID        *GUID      `xml:"guid,omitempty"`
+	PubDate     string     `xml:"pubDate,omitempty"`
+	Source      *Source    `xml:"source,omitempty"`
 }
 
 // Enclosure represents an RSS enclosure element.
@@ -66,7 +117,10 @@ func (ch *Channel) DeduplicateItems() {
 	// aliases the caller may still hold from before the call
 	filtered := make([]Item, 0, len(ch.Items))
 	for _, item := range ch.Items {
-		key := item.GUID
+		key := ""
+		if item.GUID != nil {
+			key = item.GUID.Value
+		}
 		if key == "" {
 			key = item.Link
 		}
@@ -83,31 +137,81 @@ func (ch *Channel) DeduplicateItems() {
 	ch.Items = filtered
 }
 
-// Feed represents an Atom feed document.
+// Feed represents an Atom feed document (RFC 4287).
 type Feed struct {
 	XMLName xml.Name `xml:"feed"`
-	Title   string   `xml:"title"`
-	Links   []Link   `xml:"link"`
-	Entries []Entry  `xml:"entry"`
+
+	// Required by RFC 4287 §4.1.1: id, title, updated.
+	ID      string `xml:"id"`
+	Title   string `xml:"title"`
+	Updated string `xml:"updated"`
+
+	// Required unless every entry carries an author.
+	Authors []Author `xml:"author"`
+
+	Links []Link `xml:"link"`
+
+	// Recommended.
+	Subtitle  string `xml:"subtitle,omitempty"` // aka tagline
+	Icon      string `xml:"icon,omitempty"`     // square, ~human-scale
+	Logo      string `xml:"logo,omitempty"`     // rectangle, ~2:1
+	Rights    string `xml:"rights,omitempty"`   // aka copyright
+	Generator *struct {
+		Name    string `xml:",chardata"`
+		URI     string `xml:"uri,attr,omitempty"`
+		Version string `xml:"version,attr,omitempty"`
+	} `xml:"generator,omitempty"`
+
+	// Optional.
+	Categories   []AtomCategory `xml:"category,omitempty"`
+	Contributors []Author       `xml:"contributor,omitempty"`
+	Language     string         `xml:"lang,attr,omitempty"` // xml:lang
+	Base         string         `xml:"base,attr,omitempty"` // xml:base
+	Entries      []Entry        `xml:"entry"`
 }
 
-// Entry represents a single entry in an Atom feed.
+// Entry represents a single entry in an Atom feed (RFC 4287 §4.1.2).
 type Entry struct {
-	Title      string         `xml:"title"`
-	ID         string         `xml:"id"`
-	Published  string         `xml:"published"`
-	Updated    string         `xml:"updated"`
-	Summary    string         `xml:"summary"`
-	Content    string         `xml:"content"`
-	Author     Author         `xml:"author"`
-	Links      []Link         `xml:"link"`
-	Categories []AtomCategory `xml:"category,omitempty"`
+	// Required: id, title, updated.
+	ID      string `xml:"id"`
+	Title   string `xml:"title"`
+	Updated string `xml:"updated"`
+
+	Authors []Author `xml:"author"`
+
+	Published string `xml:"published,omitempty"`
+	Rights    string `xml:"rights,omitempty"`
+	Source    *struct {
+		ID    string `xml:"id,omitempty"`
+		Title string `xml:"title,omitempty"`
+		Links []Link `xml:"link"`
+	} `xml:"source,omitempty"`
+
+	Summary AtomText `xml:"summary,omitempty"`
+	Content AtomText `xml:"content,omitempty"`
+
+	Links        []Link         `xml:"link"`
+	Categories   []AtomCategory `xml:"category,omitempty"`
+	Contributors []Author       `xml:"contributor,omitempty"`
 }
 
-// AtomCategory represents an Atom category element.
+// AtomCategory represents an Atom category element (RFC 4287 §3.4.2.2).
 type AtomCategory struct {
-	Term string `xml:"term,attr"`
+	Term   string `xml:"term,attr"`
+	Scheme string `xml:"scheme,attr,omitempty"`
+	Label  string `xml:"label,attr,omitempty"`
 }
+
+// AtomText models Text constructs (RFC 4287 §3.1): text, html or xhtml,
+// plus the optional src/type attributes of content (§4.1.3).
+type AtomText struct {
+	Type string `xml:"type,attr,omitempty"` // "text" (default), "html" or "xhtml"; for content also mime types
+	Src  string `xml:"src,attr,omitempty"`  // out-of-line content URI
+	Body string `xml:",chardata"`
+}
+
+// String returns the text body, satisfying fmt.Stringer.
+func (t AtomText) String() string { return t.Body }
 
 // Link relation names used across RSS/Atom/JSON Feed conversions.
 const (

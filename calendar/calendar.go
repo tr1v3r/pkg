@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -109,8 +110,52 @@ func (c *Calendar) Output() []byte {
 	}
 
 	buf.Write(c.tailer.Output())
+	buf.WriteByte('\n')
 
-	return buf.Bytes()
+	return foldLines(buf.Bytes())
+}
+
+// foldLines wraps content lines to the RFC 5545 §3.1 limit: lines longer
+// than 75 octets are continued on the next line beginning with a single
+// space. Continuations avoid splitting a UTF-8 rune.
+func foldLines(data []byte) []byte {
+	const limit = 75
+
+	var out bytes.Buffer
+	for len(data) > 0 {
+		line, rest, _ := bytes.Cut(data, []byte{'\n'})
+		data = rest
+
+		first := true
+		for len(line) > 0 {
+			// continuation lines start with one space (the fold marker), so
+			// their content budget is limit-1
+			budget := limit
+			if !first {
+				budget = limit - 1
+			}
+			if len(line) <= budget {
+				out.Write(line)
+				break
+			}
+			cut := budget
+			// do not split a UTF-8 rune: back up to a rune start
+			for cut > 0 && !utf8.RuneStart(line[cut]) {
+				cut--
+			}
+			out.Write(line[:cut])
+			out.WriteByte('\n')
+			out.WriteByte(' ')
+			line = line[cut:]
+			first = false
+		}
+		out.WriteByte('\n')
+	}
+
+	// trim the trailing newline added above; keep output identical in shape
+	// to the unfolded form (single trailing newline)
+	b := out.Bytes()
+	return bytes.TrimSuffix(b, []byte{'\n'})
 }
 
 // NewEvent build new calendar event

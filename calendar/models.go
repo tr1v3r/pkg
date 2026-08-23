@@ -106,27 +106,27 @@ func (h Header) Output() []byte        { return append([]byte("BEGIN:"), []byte(
 func (t Tailer) Output() []byte        { return append([]byte("END:"), []byte(t)...) }
 func (id ProdID) Output() []byte       { return append([]byte("PRODID:"), []byte(id)...) }
 func (v Version) Output() []byte       { return append([]byte("VERSION:"), []byte(v)...) }
-func (n CalName) Output() []byte       { return append([]byte("X-WR-CALNAME:"), []byte(n)...) }
-func (d CalDesc) Output() []byte       { return append([]byte("X-WR-CALDESC:"), []byte(d)...) }
+func (n CalName) Output() []byte       { return append([]byte("X-WR-CALNAME:"), EscapeText(string(n))...) }
+func (d CalDesc) Output() []byte       { return append([]byte("X-WR-CALDESC:"), EscapeText(string(d))...) }
 func (s Scale) Output() []byte         { return append([]byte("CALSCALE:"), []byte(s)...) }
 func (m Method) Output() []byte        { return append([]byte("METHOD:"), []byte(m)...) }
 func (tz TimeZone) Output() []byte     { return append([]byte("X-WR-TIMEZONE:"), []byte(tz)...) }
 func (s Status) Output() []byte        { return append([]byte("STATUS:"), []byte(s)...) }
-func (s Summary) Output() []byte       { return append([]byte("SUMMARY:"), []byte(s)...) }
+func (s Summary) Output() []byte       { return append([]byte("SUMMARY:"), EscapeText(string(s))...) }
 func (u UID) Output() []byte           { return append([]byte("UID:"), []byte(u)...) }
 func (c Class) Output() []byte         { return append([]byte("CLASS:"), []byte(c)...) }
 func (t Transparent) Output() []byte   { return append([]byte("TRANSP:"), []byte(t)...) }
-func (l Location) Output() []byte      { return append([]byte("LOCATION:"), []byte(l)...) }
+func (l Location) Output() []byte      { return append([]byte("LOCATION:"), EscapeText(string(l))...) }
 func (s Sequence) Output() []byte      { return append([]byte("SEQUENCE:"), fmt.Append(nil, s)...) }
-func (d Desc) Output() []byte          { return append([]byte("DESCRIPTION:"), []byte(d)...) }
+func (d Desc) Output() []byte          { return append([]byte("DESCRIPTION:"), EscapeText(string(d))...) }
 func (r RRULE) Output() []byte         { return append([]byte("RRULE:"), []byte(r)...) }
 func (d Duration) Output() []byte      { return append([]byte("DURATION:"), []byte(d)...) }
 func (p Priority) Output() []byte      { return append([]byte("PRIORITY:"), fmt.Append(nil, int(p))...) }
 func (u URL) Output() []byte           { return append([]byte("URL:"), []byte(u)...) }
-func (c Comment) Output() []byte       { return append([]byte("COMMENT:"), []byte(c)...) }
-func (c Contact) Output() []byte       { return append([]byte("CONTACT:"), []byte(c)...) }
+func (c Comment) Output() []byte       { return append([]byte("COMMENT:"), EscapeText(string(c))...) }
+func (c Contact) Output() []byte       { return append([]byte("CONTACT:"), EscapeText(string(c))...) }
 func (r RelatedTo) Output() []byte     { return append([]byte("RELATED-TO:"), []byte(r)...) }
-func (r Resources) Output() []byte     { return append([]byte("RESOURCES:"), []byte(r)...) }
+func (r Resources) Output() []byte     { return append([]byte("RESOURCES:"), EscapeText(string(r))...) }
 func (s TodoStatus) Output() []byte    { return append([]byte("STATUS:"), []byte(s)...) }
 func (s JournalStatus) Output() []byte { return append([]byte("STATUS:"), []byte(s)...) }
 
