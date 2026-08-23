@@ -24,12 +24,13 @@ func NewDatabaseManager(version, token string) *DatabaseManager {
 
 // Create creates a database.
 // POST /v1/databases
-func (dm *DatabaseManager) Create(ctx context.Context, parent ParentRef, title []TextObject, properties map[string]*Property) (*Database, error) {
+func (dm *DatabaseManager) Create(ctx context.Context, parent ParentRef, title []TextObject,
+	properties map[string]*Property) (*Database, error) {
 	log.CtxDebugf(ctx, "create database")
 
 	body := &struct {
-		Parent     ParentRef           `json:"parent"`
-		Title      []TextObject        `json:"title"`
+		Parent     ParentRef            `json:"parent"`
+		Title      []TextObject         `json:"title"`
 		Properties map[string]*Property `json:"properties"`
 	}{
 		Parent:     parent,

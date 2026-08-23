@@ -21,7 +21,8 @@ func NewSearchManager(version, token string) *SearchManager {
 
 // Search searches pages and databases in the workspace.
 // POST /v1/search
-func (sm *SearchManager) Search(ctx context.Context, query string, filter *SearchFilter) (*ListResponse[SearchResult], error) {
+func (sm *SearchManager) Search(ctx context.Context, query string,
+	filter *SearchFilter) (*ListResponse[SearchResult], error) {
 	log.CtxDebugf(ctx, "search: %s", query)
 
 	body := map[string]any{}

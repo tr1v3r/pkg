@@ -36,7 +36,7 @@ type Item struct {
 	Title       string     `xml:"title"`
 	Link        string     `xml:"link"`
 	Description string     `xml:"description"`
-	Content     string     `xml:"http://purl.org/rss/1.0/modules/content/ encoded"` //nolint:staticcheck // SA5008: valid RSS content namespace
+	Content     string     `xml:"http://purl.org/rss/1.0/modules/content/ encoded"` //nolint:staticcheck // SA5008
 	PubDate     string     `xml:"pubDate"`
 	GUID        string     `xml:"guid"`
 	Author      string     `xml:"author"`

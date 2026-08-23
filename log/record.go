@@ -47,14 +47,14 @@ type Field struct {
 // Typed Field constructors for use as log arguments.
 // Example: log.Info("hello", log.Int("count", 3), log.Err(err))
 
-func String(key, val string) Field { return Field{Key: key, Value: val} }
-func Int(key string, val int) Field     { return Field{Key: key, Value: val} }
-func Int64(key string, val int64) Field { return Field{Key: key, Value: val} }
-func Float64(key string, val float64) Field { return Field{Key: key, Value: val} }
-func Bool(key string, val bool) Field   { return Field{Key: key, Value: val} }
-func Err(err error) Field               { return Field{Key: "err", Value: err} }
+func String(key, val string) Field                 { return Field{Key: key, Value: val} }
+func Int(key string, val int) Field                { return Field{Key: key, Value: val} }
+func Int64(key string, val int64) Field            { return Field{Key: key, Value: val} }
+func Float64(key string, val float64) Field        { return Field{Key: key, Value: val} }
+func Bool(key string, val bool) Field              { return Field{Key: key, Value: val} }
+func Err(err error) Field                          { return Field{Key: "err", Value: err} }
 func Duration(key string, val time.Duration) Field { return Field{Key: key, Value: val} }
-func Any(key string, val any) Field     { return Field{Key: key, Value: val} }
+func Any(key string, val any) Field                { return Field{Key: key, Value: val} }
 
 // Record is the immutable data unit that flows through the logging pipeline.
 type Record struct {

@@ -123,7 +123,8 @@ func (c *notionClient) delete(ctx context.Context, path string, result any) erro
 }
 
 // paginateEach lazily iterates over a paginated endpoint, yielding one item at a time.
-func paginateEach[T any](ctx context.Context, c *notionClient, method, path string, bodyFn func(cursor string) any) iter.Seq2[T, error] {
+func paginateEach[T any](ctx context.Context, c *notionClient, method, path string,
+	bodyFn func(cursor string) any) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var nextCursor string
 		for {
@@ -149,7 +150,8 @@ func paginateEach[T any](ctx context.Context, c *notionClient, method, path stri
 }
 
 // paginateAll fetches all pages of a paginated endpoint.
-func paginateAll[T any](ctx context.Context, c *notionClient, method, path string, bodyFn func(cursor string) any) ([]T, error) {
+func paginateAll[T any](ctx context.Context, c *notionClient, method, path string,
+	bodyFn func(cursor string) any) ([]T, error) {
 	var all []T
 	for item, err := range paginateEach[T](ctx, c, method, path, bodyFn) {
 		if err != nil {

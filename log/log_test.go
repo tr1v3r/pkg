@@ -277,7 +277,7 @@ func TestGlobalFunctions(t *testing.T) {
 
 func TestFileSink(t *testing.T) {
 	tmpDir := t.TempDir()
-	sink, err := File(tmpDir + "/test.log", WithLevel(DebugLevel))
+	sink, err := File(tmpDir+"/test.log", WithLevel(DebugLevel))
 	if err != nil {
 		t.Fatal(err)
 	}

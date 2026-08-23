@@ -4,51 +4,51 @@ import "encoding/json"
 
 // Database represents a Notion database object.
 type Database struct {
-	Object         string             `json:"object"`
-	ID             string             `json:"id"`
-	CreatedTime    string             `json:"created_time"`
-	CreatedBy      UserRef            `json:"created_by"`
-	LastEditedTime string             `json:"last_edited_time"`
-	LastEditedBy   UserRef            `json:"last_edited_by"`
-	Title          []TextObject       `json:"title,omitempty"`
-	Description    []TextObject       `json:"description,omitempty"`
-	IsInline       bool               `json:"is_inline,omitempty"`
+	Object         string              `json:"object"`
+	ID             string              `json:"id"`
+	CreatedTime    string              `json:"created_time"`
+	CreatedBy      UserRef             `json:"created_by"`
+	LastEditedTime string              `json:"last_edited_time"`
+	LastEditedBy   UserRef             `json:"last_edited_by"`
+	Title          []TextObject        `json:"title,omitempty"`
+	Description    []TextObject        `json:"description,omitempty"`
+	IsInline       bool                `json:"is_inline,omitempty"`
 	Properties     map[string]Property `json:"properties,omitempty"`
-	Parent         ParentRef          `json:"parent,omitempty"`
-	URL            string             `json:"url,omitempty"`
-	Icon           *IconItem          `json:"icon,omitempty"`
-	Cover          *FileItem          `json:"cover,omitempty"`
+	Parent         ParentRef           `json:"parent,omitempty"`
+	URL            string              `json:"url,omitempty"`
+	Icon           *IconItem           `json:"icon,omitempty"`
+	Cover          *FileItem           `json:"cover,omitempty"`
 }
 
 // Page represents a Notion page object.
 type Page struct {
-	Object         string             `json:"object"`
-	ID             string             `json:"id"`
-	CreatedTime    string             `json:"created_time"`
-	CreatedBy      UserRef            `json:"created_by"`
-	LastEditedTime string             `json:"last_edited_time"`
-	LastEditedBy   UserRef            `json:"last_edited_by"`
-	Parent         ParentRef          `json:"parent,omitempty"`
+	Object         string              `json:"object"`
+	ID             string              `json:"id"`
+	CreatedTime    string              `json:"created_time"`
+	CreatedBy      UserRef             `json:"created_by"`
+	LastEditedTime string              `json:"last_edited_time"`
+	LastEditedBy   UserRef             `json:"last_edited_by"`
+	Parent         ParentRef           `json:"parent,omitempty"`
 	Properties     map[string]Property `json:"properties,omitempty"`
-	URL            string             `json:"url,omitempty"`
-	Archived       bool               `json:"archived,omitempty"`
-	InTrash        bool               `json:"in_trash,omitempty"`
-	Icon           *IconItem          `json:"icon,omitempty"`
-	Cover          *FileItem          `json:"cover,omitempty"`
+	URL            string              `json:"url,omitempty"`
+	Archived       bool                `json:"archived,omitempty"`
+	InTrash        bool                `json:"in_trash,omitempty"`
+	Icon           *IconItem           `json:"icon,omitempty"`
+	Cover          *FileItem           `json:"cover,omitempty"`
 }
 
 // Block represents a Notion block object.
 type Block struct {
-	Object         string          `json:"object"`
-	ID             string          `json:"id"`
-	Parent         ParentRef       `json:"parent,omitempty"`
-	Type           string          `json:"type"`
-	CreatedTime    string          `json:"created_time"`
-	CreatedBy      UserRef         `json:"created_by"`
-	LastEditedTime string          `json:"last_edited_time"`
-	LastEditedBy   UserRef         `json:"last_edited_by"`
-	HasChildren    bool            `json:"has_children"`
-	InTrash        bool            `json:"in_trash,omitempty"`
+	Object         string    `json:"object"`
+	ID             string    `json:"id"`
+	Parent         ParentRef `json:"parent,omitempty"`
+	Type           string    `json:"type"`
+	CreatedTime    string    `json:"created_time"`
+	CreatedBy      UserRef   `json:"created_by"`
+	LastEditedTime string    `json:"last_edited_time"`
+	LastEditedBy   UserRef   `json:"last_edited_by"`
+	HasChildren    bool      `json:"has_children"`
+	InTrash        bool      `json:"in_trash,omitempty"`
 
 	Paragraph        *RichTextBlock `json:"paragraph,omitempty"`
 	Heading1         *RichTextBlock `json:"heading_1,omitempty"`
@@ -69,15 +69,15 @@ type Block struct {
 	TableOfContents  *struct {
 		Color string `json:"color,omitempty"`
 	} `json:"table_of_contents,omitempty"`
-	ChildPage      *ChildPageBlock `json:"child_page,omitempty"`
-	ChildDatabase  *ChildDBBlock   `json:"child_database,omitempty"`
+	ChildPage     *ChildPageBlock `json:"child_page,omitempty"`
+	ChildDatabase *ChildDBBlock   `json:"child_database,omitempty"`
 }
 
 // RichTextBlock is a block that contains rich text content.
 type RichTextBlock struct {
-	RichText []TextObject `json:"rich_text"`
-	Color    string       `json:"color,omitempty"`
-	IsToggleable bool     `json:"is_toggleable,omitempty"`
+	RichText     []TextObject `json:"rich_text"`
+	Color        string       `json:"color,omitempty"`
+	IsToggleable bool         `json:"is_toggleable,omitempty"`
 }
 
 // ToDoBlock is a checkbox block.

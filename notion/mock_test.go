@@ -205,9 +205,9 @@ func sampleCommentJSON() string {
 // paginatedResponse wraps results in a paginated response envelope.
 func paginatedResponse(results any, hasMore bool, nextCursor string) map[string]any {
 	return map[string]any{
-		"object":     "list",
-		"results":    results,
-		"has_more":   hasMore,
+		"object":      "list",
+		"results":     results,
+		"has_more":    hasMore,
 		"next_cursor": nextCursor,
 	}
 }

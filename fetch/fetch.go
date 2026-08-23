@@ -52,7 +52,7 @@ func NewInsecureClient() *http.Client {
 			MaxIdleConnsPerHost: 5,
 			MaxConnsPerHost:     10,
 			Proxy:               http.ProxyFromEnvironment,
-			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // InsecureSkipVerify is intentional for testing/development
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // opt-in insecure client
 		},
 	}
 }
@@ -65,7 +65,8 @@ func Get(url string, opts ...RequestOption) ([]byte, error) {
 
 // CtxGet sends a GET request with context and returns the response body.
 func CtxGet(ctx context.Context, url string, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions(http.MethodGet, url, append([]RequestOption{WithContext(ctx)}, opts...), nil)
+	opts = append([]RequestOption{WithContext(ctx)}, opts...)
+	_, content, _, err := DoRequestWithOptions(http.MethodGet, url, opts, nil)
 	return content, err
 }
 
@@ -77,7 +78,8 @@ func Post(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 
 // CtxPost sends a POST request with context and returns the response body.
 func CtxPost(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions(http.MethodPost, url, append([]RequestOption{WithContext(ctx)}, opts...), body)
+	opts = append([]RequestOption{WithContext(ctx)}, opts...)
+	_, content, _, err := DoRequestWithOptions(http.MethodPost, url, opts, body)
 	return content, err
 }
 
@@ -89,7 +91,8 @@ func Patch(url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
 
 // CtxPatch sends a PATCH request with context and returns the response body.
 func CtxPatch(ctx context.Context, url string, body io.Reader, opts ...RequestOption) ([]byte, error) {
-	_, content, _, err := DoRequestWithOptions(http.MethodPatch, url, append([]RequestOption{WithContext(ctx)}, opts...), body)
+	opts = append([]RequestOption{WithContext(ctx)}, opts...)
+	_, content, _, err := DoRequestWithOptions(http.MethodPatch, url, opts, body)
 	return content, err
 }
 

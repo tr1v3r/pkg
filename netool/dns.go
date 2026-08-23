@@ -17,7 +17,7 @@ func LookupIP(domain string) ([]net.IP, error) {
 // LookupWithServer resolves domain via the given DNS servers.
 // Each server may be a bare host (defaults to port 53), a "host:port" pair,
 // or a bracketed IPv6 literal like "[::1]" or "[::1]:5353".
-func LookupWithServer(domain string, servers []string, maxRetry int) (a []string, cname []string, ns []string, lastErr error) {
+func LookupWithServer(domain string, servers []string, maxRetry int) (a, cname, ns []string, lastErr error) {
 	for _, server := range servers {
 		addr := server
 		if _, _, err := net.SplitHostPort(server); err != nil {
