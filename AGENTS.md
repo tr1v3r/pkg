@@ -60,13 +60,15 @@ Run a single test: `go test -v -run TestName ./packagename`.
 
 ## Code Quality
 
-### Linting (.golangci.yml, golangci-lint v2)
-- Max line length: 120 (`lll`)
-- Enabled: errcheck, govet (enable-all analyzers), staticcheck, unused, ineffassign, gocyclo (min 20), dupl (threshold 120), goconst, gocritic, gosec, misspell, prealloc, bodyclose, dogsled, nakedret, unconvert
+### Linting (.golangci.yml, golangci-lint v2, pinned v2.12.2 in CI)
+- Max line length: 120 (`lll`; test files relaxed — fixtures embed long XML/JSON/ICS literals)
+- Enabled: bodyclose, dogsled, dupl (threshold 120), errcheck, gocritic, gocyclo (min 20), goconst, gosec, govet (all analyzers except fieldalignment/inline), ineffassign, lll, misspell, nakedret, prealloc, staticcheck, unconvert, unused
+- Formatting is enforced by the config itself: `gofmt -s` + `goimports` (local-prefix `github.com/tr1v3r/pkg`) — `golangci-lint fmt` auto-fixes, so `make format` and CI stay consistent
 - gosec excludes G115, G204, G104, G304 (SDK flexibility)
-- `_test.go` files are excluded from gocyclo, dupl, goconst, gosec, errcheck, prealloc, ineffassign, dogsled, nakedret, gocritic
+- Generated code, vendor/, testdata/, examples/ are excluded
+- `_test.go` files are excluded from gocyclo, dupl, goconst, gosec, errcheck, prealloc, ineffassign, dogsled, nakedret, gocritic, bodyclose, lll
 - govet printf checker knows the `log.Logger` printf-style methods (`Infof`, `Warnf`, ...)
-- goimports local-prefixes: `github.com/tr1v3r/pkg`
+- Opinionated gocritic checks (hugeParam, rangeValCopy, docStub, ...) are disabled — they fight the value-semantics design; `CANCELLED`/`Cancelled` spellings are intentional (RFC 5545 literal + exported API)
 
 ### Patterns
 - **Functional options**: config (log, calendar, fetch)
