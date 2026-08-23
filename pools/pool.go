@@ -77,6 +77,9 @@ func (p *pool) Size() int {
 	return 0
 }
 
+// WaitAll blocks until every issued token has been returned.
+// Like sync.WaitGroup, all Wait() calls that begin while the pool is idle
+// must happen before WaitAll is called, or WaitAll may return early.
 func (p *pool) WaitAll() {
 	if p != nil {
 		p.wg.Wait()

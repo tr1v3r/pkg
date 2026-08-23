@@ -44,12 +44,12 @@ func TestParseRSS(t *testing.T) {
 	item1 := feed.Channel.Items[0]
 	assertEqual(t, "item[0].Title", item1.Title, "First Post")
 	assertEqual(t, "item[0].Link", item1.Link, "https://example.com/1")
-	assertEqual(t, "item[0].GUID", item1.GUID, "https://example.com/1")
+	assertEqual(t, "item[0].GUID", item1.GUID.Value, "https://example.com/1")
 	assertEqual(t, "item[0].Author", item1.Author, "john@example.com")
 
 	item2 := feed.Channel.Items[1]
 	assertEqual(t, "item[1].Title", item2.Title, "Second Post")
-	assertEqual(t, "item[1].GUID", item2.GUID, "")
+	assertEqual(t, "item[1].GUID nil", item2.GUID == nil, true)
 	assertEqual(t, "item[1].Author", item2.Author, "")
 }
 
@@ -96,10 +96,10 @@ func TestParseAtom(t *testing.T) {
 	e1 := feed.Entries[0]
 	assertEqual(t, "entry[0].Title", e1.Title, "Atom Entry One")
 	assertEqual(t, "entry[0].ID", e1.ID, "urn:uuid:1")
-	assertEqual(t, "entry[0].Summary", e1.Summary, "A brief summary")
-	assertEqual(t, "entry[0].Content", e1.Content, "Full entry content here")
-	assertEqual(t, "entry[0].Author.Name", e1.Author.Name, "Jane")
-	assertEqual(t, "entry[0].Author.Email", e1.Author.Email, "jane@example.com")
+	assertEqual(t, "entry[0].Summary", e1.Summary.String(), "A brief summary")
+	assertEqual(t, "entry[0].Content", e1.Content.String(), "Full entry content here")
+	assertEqual(t, "entry[0].Author.Name", e1.Authors[0].Name, "Jane")
+	assertEqual(t, "entry[0].Author.Email", e1.Authors[0].Email, "jane@example.com")
 	assertEqual(t, "entry[0] links", len(e1.Links), 2)
 	assertEqual(t, "entry[0].AlternateLink()", e1.AlternateLink(), "https://example.com/atom/1")
 
@@ -179,8 +179,8 @@ func TestParse_AutoDetect(t *testing.T) {
 
 func TestDeduplicateItems_NoDuplicates(t *testing.T) {
 	ch := &Channel{Items: []Item{
-		{Title: "A", GUID: "1"},
-		{Title: "B", GUID: "2"},
+		{Title: "A", GUID: &GUID{Value: "1"}},
+		{Title: "B", GUID: &GUID{Value: "2"}},
 	}}
 	ch.DeduplicateItems()
 	assertEqual(t, "item count", len(ch.Items), 2)
@@ -188,9 +188,9 @@ func TestDeduplicateItems_NoDuplicates(t *testing.T) {
 
 func TestDeduplicateItems_DuplicateGUIDs(t *testing.T) {
 	ch := &Channel{Items: []Item{
-		{Title: "A", GUID: "1"},
-		{Title: "B", GUID: "1"},
-		{Title: "C", GUID: "2"},
+		{Title: "A", GUID: &GUID{Value: "1"}},
+		{Title: "B", GUID: &GUID{Value: "1"}},
+		{Title: "C", GUID: &GUID{Value: "2"}},
 	}}
 	ch.DeduplicateItems()
 	assertEqual(t, "item count", len(ch.Items), 2)
@@ -220,12 +220,12 @@ func TestDeduplicateItems_EmptyKey(t *testing.T) {
 
 func TestDeduplicateItems_Mixed(t *testing.T) {
 	ch := &Channel{Items: []Item{
-		{Title: "A", GUID: "1"},
-		{Title: "B", GUID: "1"}, // duplicate GUID
-		{Title: "C", Link: "x"}, // no GUID, Link as key
-		{Title: "D", Link: "x"}, // duplicate Link
-		{Title: "E"},            // no key at all
-		{Title: "F", GUID: "2"},
+		{Title: "A", GUID: &GUID{Value: "1"}},
+		{Title: "B", GUID: &GUID{Value: "1"}}, // duplicate GUID
+		{Title: "C", Link: "x"},               // no GUID, Link as key
+		{Title: "D", Link: "x"},               // duplicate Link
+		{Title: "E"},                          // no key at all
+		{Title: "F", GUID: &GUID{Value: "2"}},
 	}}
 	ch.DeduplicateItems()
 	assertEqual(t, "item count", len(ch.Items), 4)

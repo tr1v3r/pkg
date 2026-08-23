@@ -77,6 +77,10 @@ func TestPoolConcurrent(t *testing.T) {
 	}
 
 	assert.Equal(t, size, count)
+
+	// Receiving from done does not mean Done() has run yet (it fires after the
+	// send). WaitAll is the pool's own synchronization barrier for token return.
+	pool.WaitAll()
 	assert.Equal(t, 0, pool.Num())
 }
 
@@ -84,13 +88,20 @@ func TestPoolWaitAll(t *testing.T) {
 	size := 3
 	pool := NewPool(size)
 
-	// Start goroutines that take tokens
+	// Ensure every Wait() (and its wg.Add) happens before WaitAll: sync.WaitGroup
+	// requires Add-before-Wait when the counter starts at zero, otherwise
+	// WaitAll can observe a zero counter and return immediately.
+	started := make(chan struct{}, size)
 	for i := 0; i < size; i++ {
 		go func(index int) {
 			pool.Wait()
+			started <- struct{}{}
 			time.Sleep(50 * time.Millisecond) // Simulate work
 			pool.Done()
 		}(i)
+	}
+	for i := 0; i < size; i++ {
+		<-started
 	}
 
 	// Wait for all tokens to be released

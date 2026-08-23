@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	LayoutTime = "20060102T150405Z"
-	LayoutDate = "20060102"
+	LayoutTimeUTC = "20060102T150405Z" // UTC time (Z suffix)
+	LayoutTime    = "20060102T150405"  // local (floating) time
+	LayoutDate    = "20060102"
 
 	DateFormat = "VALUE=DATE"
 )
@@ -105,33 +106,33 @@ func (h Header) Output() []byte        { return append([]byte("BEGIN:"), []byte(
 func (t Tailer) Output() []byte        { return append([]byte("END:"), []byte(t)...) }
 func (id ProdID) Output() []byte       { return append([]byte("PRODID:"), []byte(id)...) }
 func (v Version) Output() []byte       { return append([]byte("VERSION:"), []byte(v)...) }
-func (n CalName) Output() []byte       { return append([]byte("X-WR-CALNAME:"), []byte(n)...) }
-func (d CalDesc) Output() []byte       { return append([]byte("X-WR-CALDESC:"), []byte(d)...) }
+func (n CalName) Output() []byte       { return append([]byte("X-WR-CALNAME:"), EscapeText(string(n))...) }
+func (d CalDesc) Output() []byte       { return append([]byte("X-WR-CALDESC:"), EscapeText(string(d))...) }
 func (s Scale) Output() []byte         { return append([]byte("CALSCALE:"), []byte(s)...) }
 func (m Method) Output() []byte        { return append([]byte("METHOD:"), []byte(m)...) }
 func (tz TimeZone) Output() []byte     { return append([]byte("X-WR-TIMEZONE:"), []byte(tz)...) }
 func (s Status) Output() []byte        { return append([]byte("STATUS:"), []byte(s)...) }
-func (s Summary) Output() []byte       { return append([]byte("SUMMARY:"), []byte(s)...) }
+func (s Summary) Output() []byte       { return append([]byte("SUMMARY:"), EscapeText(string(s))...) }
 func (u UID) Output() []byte           { return append([]byte("UID:"), []byte(u)...) }
 func (c Class) Output() []byte         { return append([]byte("CLASS:"), []byte(c)...) }
 func (t Transparent) Output() []byte   { return append([]byte("TRANSP:"), []byte(t)...) }
-func (l Location) Output() []byte      { return append([]byte("LOCATION:"), []byte(l)...) }
+func (l Location) Output() []byte      { return append([]byte("LOCATION:"), EscapeText(string(l))...) }
 func (s Sequence) Output() []byte      { return append([]byte("SEQUENCE:"), fmt.Append(nil, s)...) }
-func (d Desc) Output() []byte          { return append([]byte("DESCRIPTION:"), []byte(d)...) }
+func (d Desc) Output() []byte          { return append([]byte("DESCRIPTION:"), EscapeText(string(d))...) }
 func (r RRULE) Output() []byte         { return append([]byte("RRULE:"), []byte(r)...) }
 func (d Duration) Output() []byte      { return append([]byte("DURATION:"), []byte(d)...) }
 func (p Priority) Output() []byte      { return append([]byte("PRIORITY:"), fmt.Append(nil, int(p))...) }
 func (u URL) Output() []byte           { return append([]byte("URL:"), []byte(u)...) }
-func (c Comment) Output() []byte       { return append([]byte("COMMENT:"), []byte(c)...) }
-func (c Contact) Output() []byte       { return append([]byte("CONTACT:"), []byte(c)...) }
+func (c Comment) Output() []byte       { return append([]byte("COMMENT:"), EscapeText(string(c))...) }
+func (c Contact) Output() []byte       { return append([]byte("CONTACT:"), EscapeText(string(c))...) }
 func (r RelatedTo) Output() []byte     { return append([]byte("RELATED-TO:"), []byte(r)...) }
-func (r Resources) Output() []byte     { return append([]byte("RESOURCES:"), []byte(r)...) }
+func (r Resources) Output() []byte     { return append([]byte("RESOURCES:"), EscapeText(string(r))...) }
 func (s TodoStatus) Output() []byte    { return append([]byte("STATUS:"), []byte(s)...) }
 func (s JournalStatus) Output() []byte { return append([]byte("STATUS:"), []byte(s)...) }
 
 // ============== Date ==============
 
-func NewDate(key string, t time.Time) Date { return Date{key: key, layout: LayoutTime, Time: t} }
+func NewDate(key string, t time.Time) Date { return Date{key: key, layout: LayoutTimeUTC, Time: t} }
 
 // Date
 // DTSTART:19980313T141711Z
@@ -141,6 +142,7 @@ type Date struct {
 	key     string
 	configs []string
 	layout  string
+	tzid    string // TZID param value; empty means the time carries its own offset (Z) or is a DATE
 
 	time.Time
 }
@@ -156,9 +158,96 @@ func (d Date) Output() []byte {
 	}
 
 	buf.WriteByte(':')
-	buf.WriteString(d.UTC().Format(d.layout))
+
+	// Preserve the time semantics instead of forcing UTC:
+	//   - DATE values are calendar dates, offset-free by definition;
+	//   - floating times (no offset, no TZID) must stay wall-clock;
+	//   - offset-carrying times print in their own zone.
+	t := d.Time
+	if t.Location() != time.Local || d.hasExplicitZone() {
+		t = d.In(d.wireLocation())
+	}
+	buf.WriteString(t.Format(d.layout))
 
 	return buf.Bytes()
+}
+
+// hasExplicitZone reports whether the value carries a UTC designator or offset.
+func (d Date) hasExplicitZone() bool {
+	if d.tzid != "" {
+		return true
+	}
+	_, off := d.Zone()
+	if off == 0 {
+		// zero offset is indistinguishable from a parsed local time at UTC;
+		// trust the layout: LayoutTimeUTC means the wire form had a Z.
+		return d.layout == LayoutTimeUTC
+	}
+	return true
+}
+
+// wireLocation returns the location the value should be printed in.
+func (d Date) wireLocation() *time.Location {
+	if loc, err := time.LoadLocation(d.tzid); d.tzid != "" && err == nil {
+		return loc
+	}
+	return d.Location()
+}
+
+// ============== RFC 5545 Text Escaping ==============
+
+// EscapeText escapes a property value per RFC 5545 §3.3.11: backslash,
+// semicolon, comma and newlines must not appear raw in TEXT values.
+func EscapeText(s string) string {
+	if !strings.ContainsAny(s, "\\;,\r\n") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 8)
+	for _, r := range s {
+		switch r {
+		case '\\':
+			b.WriteString("\\\\")
+		case ';':
+			b.WriteString("\\;")
+		case ',':
+			b.WriteString("\\,")
+		case '\r':
+			// skip: real newlines become \n below
+		case '\n':
+			b.WriteString("\\n")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// UnescapeText reverses EscapeText for values read from the wire.
+func UnescapeText(s string) string {
+	if !strings.ContainsRune(s, '\\') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 >= len(s) {
+			b.WriteByte(s[i])
+			continue
+		}
+		i++
+		switch s[i] {
+		case 'n', 'N':
+			b.WriteByte('\n')
+		case '\\', ';', ',':
+			b.WriteByte(s[i])
+		default:
+			// not a recognized escape: keep both bytes verbatim
+			b.WriteByte('\\')
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
 }
 
 // ============== RFC 5545 Struct Types ==============
@@ -241,7 +330,7 @@ type DateList struct {
 }
 
 func NewDateList(key string, dates []time.Time) DateList {
-	return DateList{key: key, layout: LayoutTime, Dates: dates}
+	return DateList{key: key, layout: LayoutTimeUTC, Dates: dates}
 }
 
 func (dl DateList) Output() []byte {

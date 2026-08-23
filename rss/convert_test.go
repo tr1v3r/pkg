@@ -70,7 +70,7 @@ func TestRSS_ToJSONFeed(t *testing.T) {
 
 	// Item 2: no author, no guid, no content:encoded → uses description
 	item2 := jf.Items[1]
-	assertEqual(t, "item[1].ID", item2.ID, "")
+	assertEqual(t, "item[1].ID", item2.ID, "https://example.com/2") // falls back to link when guid absent
 	assertEqual(t, "item[1].Title", item2.Title, "Second Post")
 	assertEqual(t, "item[1].ContentHTML", item2.ContentHTML, "Another summary") // fallback to description
 	assertEqual(t, "item[1].DatePublished", item2.DatePublished, "2025-01-07T00:00:00Z")
@@ -125,21 +125,21 @@ func TestJSONFeed_ToRSS(t *testing.T) {
 	item1 := rss.Channel.Items[0]
 	assertEqual(t, "item[0].Title", item1.Title, "First Post")
 	assertEqual(t, "item[0].Link", item1.Link, "https://example.org/post/1")
-	assertEqual(t, "item[0].GUID", item1.GUID, "1")
+	assertEqual(t, "item[0].GUID", item1.GUID.Value, "1")
 	assertEqual(t, "item[0].Content", item1.Content, "<p>Hello, world!</p>") // content_html → content:encoded
 	assertEqual(t, "item[0].Author", item1.Author, "Jane Doe")
 	assertEqual(t, "item[0].PubDate", item1.PubDate, "Mon, 06 Jan 2025 00:00:00 +0000")
 	assertEqual(t, "item[0].enclosure url", item1.Enclosure.URL, "https://example.org/audio/1.mp3")
 	assertEqual(t, "item[0].enclosure type", item1.Enclosure.Type, "audio/mpeg")
 	assertEqual(t, "item[0].enclosure size", item1.Enclosure.Length, int64(12345678))
-	assertEqual(t, "item[0].categories count", len(item1.Categories), 2)
-	assertEqual(t, "item[0].category[0]", item1.Categories[0].Value, "tech")
-	assertEqual(t, "item[0].category[1]", item1.Categories[1].Value, "go")
+	assertEqual(t, "item[0].categories count", len(item1.Category), 2)
+	assertEqual(t, "item[0].category[0]", item1.Category[0].Value, "tech")
+	assertEqual(t, "item[0].category[1]", item1.Category[1].Value, "go")
 
 	// Item 2: has content_text only
 	item2 := rss.Channel.Items[1]
 	assertEqual(t, "item[1].Title", item2.Title, "")
-	assertEqual(t, "item[1].GUID", item2.GUID, "2")
+	assertEqual(t, "item[1].GUID", item2.GUID.Value, "2")
 	assertEqual(t, "item[1].Description", item2.Description, "Plain text content.") // content_text → description
 }
 
@@ -169,11 +169,11 @@ func TestJSONFeed_ToAtom(t *testing.T) {
 	e1 := feed.Entries[0]
 	assertEqual(t, "entry[0].Title", e1.Title, "First Post")
 	assertEqual(t, "entry[0].ID", e1.ID, "1")
-	assertEqual(t, "entry[0].Content", e1.Content, "<p>Hello, world!</p>")
-	assertEqual(t, "entry[0].Summary", e1.Summary, "A short summary")
+	assertEqual(t, "entry[0].Content", e1.Content.String(), "<p>Hello, world!</p>")
+	assertEqual(t, "entry[0].Summary", e1.Summary.String(), "A short summary")
 	assertEqual(t, "entry[0].Published", e1.Published, "2025-01-06T00:00:00Z")
 	assertEqual(t, "entry[0].Updated", e1.Updated, "2025-01-06T12:00:00Z")
-	assertEqual(t, "entry[0].Author.Name", e1.Author.Name, "Jane Doe")
+	assertEqual(t, "entry[0].Author.Name", e1.Authors[0].Name, "Jane Doe")
 
 	// Entry 1 links: alternate + enclosure
 	var alternateCount, enclosureCount int
@@ -199,7 +199,7 @@ func TestJSONFeed_ToAtom(t *testing.T) {
 	// Entry 2: minimal, content_text → content
 	e2 := feed.Entries[1]
 	assertEqual(t, "entry[1].ID", e2.ID, "2")
-	assertEqual(t, "entry[1].Content", e2.Content, "Plain text content.") // content_text fallback
+	assertEqual(t, "entry[1].Content", e2.Content.String(), "Plain text content.") // content_text fallback
 	assertEqual(t, "entry[1].Published", e2.Published, "2025-01-07T00:00:00Z")
 }
 
@@ -223,7 +223,9 @@ func TestRoundTrip_RSS(t *testing.T) {
 		got := rss2.Channel.Items[i]
 		assertEqual(t, "item title", got.Title, orig.Title)
 		assertEqual(t, "item link", got.Link, orig.Link)
-		assertEqual(t, "item guid", got.GUID, orig.GUID)
+		if orig.GUID != nil {
+			assertEqual(t, "item guid", got.GUID.Value, orig.GUID.Value)
+		}
 		assertEqual(t, "item author", got.Author, orig.Author)
 	}
 }
@@ -245,8 +247,8 @@ func TestRoundTrip_Atom(t *testing.T) {
 		got := feed2.Entries[i]
 		assertEqual(t, "entry title", got.Title, orig.Title)
 		assertEqual(t, "entry id", got.ID, orig.ID)
-		assertEqual(t, "entry content", got.Content, orig.Content)
-		assertEqual(t, "entry summary", got.Summary, orig.Summary)
+		assertEqual(t, "entry content", got.Content.String(), orig.Content.String())
+		assertEqual(t, "entry summary", got.Summary.String(), orig.Summary.String())
 	}
 }
 
