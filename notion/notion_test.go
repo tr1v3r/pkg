@@ -19,7 +19,19 @@ func init() {
 	log.Setup(log.ConsoleTo(os.Stdout, log.WithLevel(log.DebugLevel)))
 }
 
+// requireLiveAPI skips tests that hit the real Notion API when credentials
+// are not provided via environment variables.
+func requireLiveAPI(t *testing.T) {
+	t.Helper()
+
+	if version == "" || token == "" || databaseID == "" {
+		t.Skip("skipping live Notion API test: set NOTION_VERSION, NOTION_TOKEN and NOTION_DATABASE_ID")
+	}
+}
+
 func TestRetrieve_Database(t *testing.T) {
+	requireLiveAPI(t)
+
 	mgr := NewClient(version, token)
 	db, err := mgr.Database.Retrieve(context.Background(), databaseID)
 	if err != nil {
@@ -31,6 +43,8 @@ func TestRetrieve_Database(t *testing.T) {
 }
 
 func TestQuery_Database_all(t *testing.T) {
+	requireLiveAPI(t)
+
 	mgr := NewClient(version, token)
 
 	results, err := mgr.Database.Query(context.Background(), databaseID, &Condition{
@@ -46,6 +60,8 @@ func TestQuery_Database_all(t *testing.T) {
 }
 
 func TestCreate_Page(t *testing.T) {
+	requireLiveAPI(t)
+
 	mgr := NewClient(version, token)
 
 	data, _ := json.Marshal([]TextObject{{

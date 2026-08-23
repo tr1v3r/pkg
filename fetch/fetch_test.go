@@ -1,34 +1,44 @@
 package fetch
 
 import (
+	"net/http"
+	"strings"
 	"testing"
 )
 
 func TestGet(t *testing.T) {
-	data, err := Get("https://httpbin.org/json", WithContentTypeJSON())
+	srv := newTestBackend(t)
+
+	data, err := Get(srv.URL+"/json", WithContentTypeJSON())
 	if err != nil {
-		t.Logf("get httpbin.org fail (this might be expected if offline): %s", err)
-	} else {
-		t.Logf("got data: %v", string(data))
+		t.Fatalf("Get fail: %s", err)
+	}
+	if !strings.Contains(string(data), "sample") {
+		t.Errorf("Get body = %s, want it to contain %q", data, "sample")
 	}
 }
 
 func TestGetWithRetry(t *testing.T) {
+	srv := newTestBackend(t)
+
 	statusCode, _, _, err := DoRequestWithRetry(
 		"GET",
-		"https://httpbin.org/status/500",
+		srv.URL+"/status/500",
 		[]RequestOption{WithContentTypeJSON()},
 		nil,
 		WithMaxAttempts(2),
 	)
 
-	if err != nil {
-		t.Logf("request failed (expected for status 500): %v", err)
+	// After retries are exhausted the helper reports a retryable error.
+	if err == nil {
+		t.Fatal("expected retry error for persistent 500, got nil")
 	}
-	if statusCode != 500 {
-		t.Logf("expected status 500, got %d", statusCode)
+	if !strings.Contains(err.Error(), "HTTP 500") {
+		t.Errorf("error = %v, want it to mention HTTP 500", err)
 	}
-	t.Logf("retry test completed with status: %d", statusCode)
+	if statusCode != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", statusCode, http.StatusInternalServerError)
+	}
 }
 
 func TestRequestOptions(t *testing.T) {

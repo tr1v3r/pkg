@@ -1,8 +1,9 @@
 package websocket_test
 
 import (
-	"context"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,59 +13,90 @@ import (
 	ws "github.com/tr1v3r/pkg/websocket"
 )
 
-const testServerPort = "7750"
-
-func TestServer(t *testing.T) {
-	// Set Gin to test mode
+// newTestServer spins up an in-process echo server around WSHanlder.
+func newTestServer(t *testing.T) *httptest.Server {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	r := gin.Default()
-	r.GET("/ws", ws.WSHanlder(handle))
+	r := gin.New()
+	r.GET("/ws", ws.WSHanlder(echoHandle))
+	r.GET("/ws-default", ws.WSHanlder(echoHandle))
 
-	// Create a server that can be shut down
-	server := &http.Server{
-		Addr:    ":" + testServerPort,
-		Handler: r,
-	}
-
-	// Start server in a goroutine
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			t.Errorf("Server error: %v", err)
-		}
-	}()
-
-	// Wait for server to start
-	time.Sleep(100 * time.Millisecond)
-
-	// Test basic server functionality
-	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get("http://localhost:" + testServerPort + "/ws")
-	if err != nil {
-		t.Errorf("Failed to connect to server: %v", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Verify it's a WebSocket upgrade request
-	if resp.StatusCode != http.StatusSwitchingProtocols {
-		t.Errorf("Expected WebSocket upgrade, got status: %d", resp.StatusCode)
-	}
-
-	// Gracefully shutdown the server
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		t.Errorf("Failed to shutdown server: %v", err)
-	}
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+	return srv
 }
 
-func handle(_ *websocket.Conn, msg []byte) []byte {
+func echoHandle(_ *websocket.Conn, msg []byte) []byte {
 	switch string(msg) {
 	case "ping":
 		return []byte("pong")
 	default:
 		return msg
 	}
+}
+
+func wsURL(srv *httptest.Server) string {
+	return "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+}
+
+func wsDefaultURL(srv *httptest.Server) string {
+	return "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws-default"
+}
+
+func TestServer_PlainGETIsRejected(t *testing.T) {
+	srv := newTestServer(t)
+
+	// A plain GET without upgrade headers cannot be upgraded; the handler
+	// returns and gorilla replies 400.
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Get(srv.URL + "/ws")
+	if err != nil {
+		t.Fatalf("plain GET fail: %s", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("plain GET status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+	}
+}
+
+func TestServer_Echo(t *testing.T) {
+	srv := newTestServer(t)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(srv), nil)
+	if err != nil {
+		t.Fatalf("dial fail: %s", err)
+	}
+	defer conn.Close()
+
+	for _, msg := range []string{"ping", "hello"} {
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			t.Fatalf("write %q fail: %s", msg, err)
+		}
+		_, got, err := conn.ReadMessage()
+		if err != nil {
+			t.Fatalf("read after %q fail: %s", msg, err)
+		}
+		want := msg
+		if msg == "ping" {
+			want = "pong"
+		}
+		if string(got) != want {
+			t.Errorf("echo = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestServer_ClientDisconnect(t *testing.T) {
+	srv := newTestServer(t)
+
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(srv), nil)
+	if err != nil {
+		t.Fatalf("dial fail: %s", err)
+	}
+
+	// Abruptly close the client; the server read loop must break, not hang.
+	_ = conn.Close()
+	time.Sleep(100 * time.Millisecond)
 }

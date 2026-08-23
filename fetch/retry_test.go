@@ -3,7 +3,9 @@ package fetch
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -149,5 +151,92 @@ func TestRetryNetworkError(t *testing.T) {
 	}
 	if attempts != 3 {
 		t.Errorf("expected 3 attempts, got %d", attempts)
+	}
+}
+
+func TestParseRetryAfter(t *testing.T) {
+	cases := []struct {
+		name  string
+		value string
+		check func(time.Duration) bool
+		desc  string
+	}{
+		{"empty", "", func(d time.Duration) bool { return d == 0 }, "0"},
+		{"seconds", "3", func(d time.Duration) bool { return d == 3*time.Second }, "3s"},
+		{"http-date future", time.Now().Add(2 * time.Hour).UTC().Format(http.TimeFormat), func(d time.Duration) bool { return d > time.Hour }, ">1h"},
+		{"http-date past", time.Now().Add(-2 * time.Hour).UTC().Format(http.TimeFormat), func(d time.Duration) bool { return d == 0 }, "0"},
+		{"garbage", "not-a-date", func(d time.Duration) bool { return d == 0 }, "0"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseRetryAfter(tc.value)
+			if !tc.check(got) {
+				t.Errorf("parseRetryAfter(%q) = %v, want %s", tc.value, got, tc.desc)
+			}
+		})
+	}
+}
+
+func TestRetryAfterHeaderRespected(t *testing.T) {
+	attempts := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts++
+		if attempts < 2 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		_, _ = io.WriteString(w, "recovered")
+	}))
+	defer srv.Close()
+
+	status, content, _, err := DoRequestWithRetry("GET", srv.URL, nil, nil,
+		WithMaxAttempts(3),
+		WithBaseDelay(time.Millisecond),
+		WithMaxDelay(5*time.Millisecond),
+	)
+	if err != nil {
+		t.Fatalf("retry with Retry-After fail: %v", err)
+	}
+	if status != http.StatusOK {
+		t.Errorf("status = %d, want %d", status, http.StatusOK)
+	}
+	if string(content) != "recovered" {
+		t.Errorf("content = %q, want %q", content, "recovered")
+	}
+	if attempts != 2 {
+		t.Errorf("attempts = %d, want 2", attempts)
+	}
+}
+
+func TestCalculateBackoff(t *testing.T) {
+	config := NewRetryConfig(
+		WithBaseDelay(10*time.Millisecond),
+		WithMaxDelay(50*time.Millisecond),
+		WithJitter(0.1),
+	)
+
+	if d := calculateBackoff(config, 0); d != 10*time.Millisecond {
+		t.Errorf("attempt 0 backoff = %v, want base delay 10ms", d)
+	}
+
+	// exponential growth must be capped at MaxDelay
+	for attempt := 1; attempt < 10; attempt++ {
+		if d := calculateBackoff(config, attempt); d > 50*time.Millisecond {
+			t.Errorf("attempt %d backoff = %v, exceeds max 50ms", attempt, d)
+		}
+	}
+}
+
+func TestRetryableErrorUnwrap(t *testing.T) {
+	inner := errors.New("boom")
+	re := &RetryableError{Err: inner, Attempts: 3}
+
+	if re.Error() == "" {
+		t.Error("Error() should not be empty")
+	}
+	if !errors.Is(re, inner) {
+		t.Error("errors.Is should unwrap to inner error")
 	}
 }
