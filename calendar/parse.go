@@ -225,13 +225,30 @@ func parseCalendar(lines []string) (*Calendar, error) {
 
 // parseProperty splits an ICS content line into property name, parameters, and value.
 // e.g. "DTSTART;VALUE=DATE:20240101" → ("DTSTART", ["VALUE=DATE"], "20240101")
+// Parameter values may be quoted (RFC 5545 §3.1); semicolons inside double
+// quotes do not split parameters.
 func parseProperty(line string) (name string, params []string, value string) {
 	keyPart, value, found := strings.Cut(line, ":")
 	if !found {
 		return line, nil, ""
 	}
 
-	parts := strings.Split(keyPart, ";")
+	var parts []string
+	inQuote := false
+	start := 0
+	for i := 0; i < len(keyPart); i++ {
+		switch keyPart[i] {
+		case '"':
+			inQuote = !inQuote
+		case ';':
+			if !inQuote {
+				parts = append(parts, keyPart[start:i])
+				start = i + 1
+			}
+		}
+	}
+	parts = append(parts, keyPart[start:])
+
 	name = parts[0]
 	if len(parts) > 1 {
 		params = parts[1:]
@@ -276,9 +293,9 @@ func setEventField(event *Event, propName string, params []string, value string)
 	case propCLASS:
 		event.class = Class(value)
 	case propDESC:
-		event.desc = Desc(value)
+		event.desc = Desc(UnescapeText(value))
 	case propLOCATION:
-		event.location = Location(value)
+		event.location = Location(UnescapeText(value))
 	case propSEQUENCE:
 		if n, err := strconv.Atoi(value); err == nil {
 			event.sequence = Sequence(n)
@@ -286,7 +303,7 @@ func setEventField(event *Event, propName string, params []string, value string)
 	case propSTATUS:
 		event.status = Status(value)
 	case propSUMMARY:
-		event.summary = Summary(value)
+		event.summary = Summary(UnescapeText(value))
 	case propTRANSP:
 		event.transparent = Transparent(value)
 	case propRRULE:
@@ -321,9 +338,9 @@ func setEventFieldExt(event *Event, propName string, params []string, value stri
 	case propGEO:
 		event.geo = parseGeo(value)
 	case propCOMMENT:
-		event.comment = Comment(value)
+		event.comment = Comment(UnescapeText(value))
 	case propCONTACT:
-		event.contact = Contact(value)
+		event.contact = Contact(UnescapeText(value))
 	case propRELATEDTO:
 		event.relatedTo = RelatedTo(value)
 	case propRESOURCES:
@@ -340,9 +357,9 @@ func setAlarmField(alarm *Alarm, propName string, params []string, value string)
 	case propTRIGGER:
 		alarm.Trigger = value
 	case propDESC:
-		alarm.Desc = value
+		alarm.Desc = UnescapeText(value)
 	case propSUMMARY:
-		alarm.Summary = value
+		alarm.Summary = UnescapeText(value)
 	case propDURATION:
 		alarm.Duration = value
 	case propREPEAT:
@@ -395,9 +412,9 @@ func setTodoField(todo *Todo, propName string, params []string, value string) {
 	case propDURATION:
 		todo.duration = Duration(value)
 	case propSUMMARY:
-		todo.summary = Summary(value)
+		todo.summary = Summary(UnescapeText(value))
 	case propDESC:
-		todo.desc = Desc(value)
+		todo.desc = Desc(UnescapeText(value))
 	case propPRIORITY:
 		if n, err := strconv.Atoi(value); err == nil {
 			todo.priority = Priority(n)
@@ -444,9 +461,9 @@ func setJournalField(journal *Journal, propName string, params []string, value s
 	case propDTSTART:
 		journal.start = parseDate(propDTSTART, params, value)
 	case propSUMMARY:
-		journal.summary = Summary(value)
+		journal.summary = Summary(UnescapeText(value))
 	case propDESC:
-		journal.desc = Desc(value)
+		journal.desc = Desc(UnescapeText(value))
 	case propCLASS:
 		journal.class = Class(value)
 	case propCATEGORIES:
@@ -466,20 +483,38 @@ func setJournalField(journal *Journal, propName string, params []string, value s
 func parseDate(key string, params []string, value string) Date {
 	layout := LayoutTime
 	configs := params
+	var tzid string
 
 	if slices.Contains(params, DateFormat) {
 		layout = LayoutDate
-	}
-	if layout == LayoutTime && len(value) == len(LayoutDate) {
-		layout = LayoutDate
+	} else {
+		for _, p := range params {
+			if v, ok := strings.CutPrefix(p, "TZID="); ok {
+				tzid = v
+			}
+		}
+		switch {
+		case strings.HasSuffix(value, "Z"):
+			layout = LayoutTimeUTC
+		case len(value) == len(LayoutDate):
+			layout = LayoutDate
+		}
 	}
 
 	t, err := time.Parse(layout, value)
 	if err != nil {
-		return Date{key: key, layout: layout, configs: configs}
+		return Date{key: key, layout: layout, configs: configs, tzid: tzid}
 	}
 
-	return Date{key: key, layout: layout, configs: configs, Time: t}
+	// A TZID param qualifies a floating time value; attach the zone so the
+	// parsed instant is correct while Output re-renders it in that zone.
+	if tzid != "" && layout == LayoutTime {
+		if loc, lerr := time.LoadLocation(tzid); lerr == nil {
+			t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), loc)
+		}
+	}
+
+	return Date{key: key, layout: layout, configs: configs, tzid: tzid, Time: t}
 }
 
 // parseDateList parses a list of dates for EXDATE or RDATE.
@@ -490,7 +525,10 @@ func parseDateList(key string, params []string, value string) DateList {
 	}
 
 	dateStrs := strings.Split(value, ",")
-	if layout == LayoutTime && len(dateStrs) > 0 && len(dateStrs[0]) == len(LayoutDate) {
+	switch {
+	case layout == LayoutTime && strings.HasSuffix(dateStrs[0], "Z"):
+		layout = LayoutTimeUTC
+	case layout == LayoutTime && len(dateStrs[0]) == len(LayoutDate):
 		layout = LayoutDate
 	}
 

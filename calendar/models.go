@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	LayoutTime = "20060102T150405Z"
-	LayoutDate = "20060102"
+	LayoutTimeUTC = "20060102T150405Z" // UTC time (Z suffix)
+	LayoutTime    = "20060102T150405"  // local (floating) time
+	LayoutDate    = "20060102"
 
 	DateFormat = "VALUE=DATE"
 )
@@ -131,7 +132,7 @@ func (s JournalStatus) Output() []byte { return append([]byte("STATUS:"), []byte
 
 // ============== Date ==============
 
-func NewDate(key string, t time.Time) Date { return Date{key: key, layout: LayoutTime, Time: t} }
+func NewDate(key string, t time.Time) Date { return Date{key: key, layout: LayoutTimeUTC, Time: t} }
 
 // Date
 // DTSTART:19980313T141711Z
@@ -141,6 +142,7 @@ type Date struct {
 	key     string
 	configs []string
 	layout  string
+	tzid    string // TZID param value; empty means the time carries its own offset (Z) or is a DATE
 
 	time.Time
 }
@@ -156,9 +158,96 @@ func (d Date) Output() []byte {
 	}
 
 	buf.WriteByte(':')
-	buf.WriteString(d.UTC().Format(d.layout))
+
+	// Preserve the time semantics instead of forcing UTC:
+	//   - DATE values are calendar dates, offset-free by definition;
+	//   - floating times (no offset, no TZID) must stay wall-clock;
+	//   - offset-carrying times print in their own zone.
+	t := d.Time
+	if t.Location() != time.Local || d.hasExplicitZone() {
+		t = d.In(d.wireLocation())
+	}
+	buf.WriteString(t.Format(d.layout))
 
 	return buf.Bytes()
+}
+
+// hasExplicitZone reports whether the value carries a UTC designator or offset.
+func (d Date) hasExplicitZone() bool {
+	if d.tzid != "" {
+		return true
+	}
+	_, off := d.Zone()
+	if off == 0 {
+		// zero offset is indistinguishable from a parsed local time at UTC;
+		// trust the layout: LayoutTimeUTC means the wire form had a Z.
+		return d.layout == LayoutTimeUTC
+	}
+	return true
+}
+
+// wireLocation returns the location the value should be printed in.
+func (d Date) wireLocation() *time.Location {
+	if loc, err := time.LoadLocation(d.tzid); d.tzid != "" && err == nil {
+		return loc
+	}
+	return d.Location()
+}
+
+// ============== RFC 5545 Text Escaping ==============
+
+// EscapeText escapes a property value per RFC 5545 §3.3.11: backslash,
+// semicolon, comma and newlines must not appear raw in TEXT values.
+func EscapeText(s string) string {
+	if !strings.ContainsAny(s, "\\;,\r\n") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 8)
+	for _, r := range s {
+		switch r {
+		case '\\':
+			b.WriteString("\\\\")
+		case ';':
+			b.WriteString("\\;")
+		case ',':
+			b.WriteString("\\,")
+		case '\r':
+			// skip: real newlines become \n below
+		case '\n':
+			b.WriteString("\\n")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// UnescapeText reverses EscapeText for values read from the wire.
+func UnescapeText(s string) string {
+	if !strings.ContainsRune(s, '\\') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 >= len(s) {
+			b.WriteByte(s[i])
+			continue
+		}
+		i++
+		switch s[i] {
+		case 'n', 'N':
+			b.WriteByte('\n')
+		case '\\', ';', ',':
+			b.WriteByte(s[i])
+		default:
+			// not a recognized escape: keep both bytes verbatim
+			b.WriteByte('\\')
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
 }
 
 // ============== RFC 5545 Struct Types ==============
@@ -241,7 +330,7 @@ type DateList struct {
 }
 
 func NewDateList(key string, dates []time.Time) DateList {
-	return DateList{key: key, layout: LayoutTime, Dates: dates}
+	return DateList{key: key, layout: LayoutTimeUTC, Dates: dates}
 }
 
 func (dl DateList) Output() []byte {
