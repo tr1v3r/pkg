@@ -2,21 +2,41 @@ version: "2"
 
 run:
   timeout: 10m
-  tests: true
   modules-download-mode: readonly
   build-tags:
     - integration
     - demo
 
 linters:
+  # Alphabetical; one quality concern per linter.
+  enable:
+    - bodyclose      # HTTP response bodies always closed
+    - dogsled        # too many blank identifiers
+    - dupl           # duplicated code (threshold below)
+    - errcheck       # unchecked errors
+    - gocritic       # curated perf/style checks (see disabled-checks)
+    - gocyclo        # cyclomatic complexity
+    - goconst        # repeated string literals
+    - gosec          # security
+    - govet          # standard vet, all analyzers
+    - ineffassign    # ineffectual assignments
+    - lll            # line length
+    - misspell       # typos
+    - nakedret       # naked returns
+    - prealloc       # slice preallocation
+    - staticcheck    # staticcheck + stylecheck
+    - unconvert      # redundant conversions
+    - unused         # unused code
+
   settings:
     gocritic:
       enabled-tags:
         - performance
         - style
       disabled-checks:
-        # These opinionated checks fight the library's deliberate value-semantics
-        # design (log.Record passed by value) and existing doc-comment style.
+        # Opinionated checks that fight this library's deliberate
+        # value-semantics design (log.Record passed by value) and its
+        # doc-comment style.
         - hugeParam
         - rangeValCopy
         - docStub
@@ -29,10 +49,18 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 3
+    gosec:
+      severity: medium
+      confidence: medium
+      excludes:
+        - G104 # errors unhandled (errcheck owns that signal)
+        - G115 # integer overflow conversion (common in SDK)
+        - G204 # subprocess launching with tainted input (SDK flexibility)
+        - G304 # file path from taint source (SDK flexibility)
     govet:
       enable-all: true
-      # fieldalignment/inline are officially "opinionated" analyzers: reordering
-      # dozens of struct fields buys nothing in a utility library.
+      # fieldalignment/inline are officially "opinionated" analyzers:
+      # reordering dozens of struct fields buys nothing in a utility library.
       disable:
         - fieldalignment
         - inline
@@ -52,50 +80,32 @@ linters:
     prealloc:
       simple: true
       range-loops: true
-    gosec:
-      severity: medium
-      confidence: medium
-      excludes:
-        - G104 # errors unhandled (errcheck covers it)
-        - G115 # integer overflow conversion (common in SDK)
-        - G204 # subprocess launching with tainted input (SDK flexibility)
-        - G304 # file path from taint source (SDK flexibility)
-
-  enable:
-    - errcheck
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
-    - gocyclo
-    - dupl
-    - goconst
-    - gocritic
-    - gosec
-    - misspell
-    - prealloc
-    - bodyclose
-    - dogsled
-    - nakedret
-    - unconvert
 
   exclusions:
+    # Generated code is excluded except for compile errors.
+    generated: lax
+    paths:
+      - vendor$
+      - third_party$
+      - testdata$
+      - examples$
     rules:
-      # Relaxed rules for test files
+      # Test files: relaxed — they verify behavior, not style.
       - path: _test\.go
         linters:
-          - gocyclo
+          - bodyclose
+          - dogsled
           - dupl
+          - errcheck
+          - gocritic
+          - gocyclo
           - goconst
           - gosec
-          - errcheck
-          - prealloc
           - ineffassign
-          - dogsled
+          - lll
           - nakedret
-          - gocritic
-          - bodyclose
-      # calendar serialization/parsing is legitimately branchy
+          - prealloc
+      # calendar serialization/parsing is legitimately branchy.
       - path: calendar/
         linters:
           - gocyclo
@@ -104,17 +114,38 @@ linters:
       - linters:
           - misspell
         text: '(?i)cancelled'
-      # Relaxed rules for example/demo files
+      # Example/demo code is illustrative, not production.
       - path: (.*demo/.*\.go|.*example/.*\.go)
         linters:
-          - gocyclo
           - dupl
+          - errcheck
+          - gocyclo
           - goconst
           - gosec
-          - errcheck
-          - prealloc
           - ineffassign
+          - prealloc
+
+# Formatting is checked by 'run' and auto-fixed by 'golangci-lint fmt'.
+# Mirrors the project's goimports-reviser setup (make format): stdlib and
+# third-party groups, then github.com/tr1v3r/pkg last.
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes: github.com/tr1v3r/pkg
+  exclusions:
+    generated: lax
+    paths:
+      - vendor$
+      - third_party$
+      - testdata$
+      - examples$
 
 issues:
+  # Do not cap reported findings; the gate is zero issues.
   max-issues-per-linter: 0
   max-same-issues: 0
