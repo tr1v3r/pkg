@@ -39,6 +39,24 @@ func TestICMPDelayInvalidIP(t *testing.T) {
 	}
 }
 
+func TestSingleICMPDelayInvalidIP(t *testing.T) {
+	_, err := SingleICMPDelay("999.999.999.999")
+	if err == nil {
+		t.Error("invalid IP should return error")
+	}
+	if !strings.Contains(err.Error(), "send icmp fail") {
+		t.Errorf("error should wrap dial failure, got: %v", err)
+	}
+}
+
+func TestICMPDelayUnresolvableHost(t *testing.T) {
+	// dial error path with a hostname that cannot resolve
+	_, err := ICMPDelay("no-such-host.invalid.example", 1)
+	if err == nil {
+		t.Error("unresolvable host should return error")
+	}
+}
+
 func TestCheckSum(t *testing.T) {
 	// RFC 1071 example-ish: checksum of known bytes
 	data := []byte{0x00, 0x01, 0xf2, 0x03, 0xf4, 0xf5, 0xf6, 0xf7}
