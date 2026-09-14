@@ -17,9 +17,9 @@ func TestCatchStack(t *testing.T) {
 	}
 }
 
-// TestGuardLifecycle walks the whole shutdown flow in order, because the
-// package keeps a single shared context whose cancelled state cannot be
-// reset (re-registering derives from the previous context).
+// TestGuardLifecycle walks the whole shutdown flow in order. The package keeps a
+// single shared context: Stop() or a delivered signal cancels it for the rest of
+// the process, while re-registering a signal set installs a fresh live watcher.
 func TestGuardLifecycle(t *testing.T) {
 	// 1. initially live
 	if Cancelled() {
@@ -36,6 +36,17 @@ func TestGuardLifecycle(t *testing.T) {
 
 	// 3. re-register with SIGUSR1 only, then deliver SIGUSR1 to ourselves.
 	InspectShutSignal(syscall.SIGUSR1)
+
+	// The replacement watcher must be live: deriving it from the context that
+	// stop() had just cancelled used to make it born cancelled (bug H3).
+	if Cancelled() {
+		t.Fatal("re-registering with a custom signal set must not be born cancelled")
+	}
+	select {
+	case <-Cancel():
+		t.Fatal("context should not be done after re-registering, before any signal")
+	default:
+	}
 
 	if err := syscall.Kill(syscall.Getpid(), syscall.SIGUSR1); err != nil {
 		t.Fatalf("send SIGUSR1 fail: %s", err)
