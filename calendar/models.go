@@ -263,8 +263,16 @@ func (d Date) Output() []byte {
 	//   - DATE values are calendar dates, offset-free by definition;
 	//   - floating times (no offset, no TZID) must stay wall-clock;
 	//   - offset-carrying times print in their own zone.
+	//
+	// A layout that itself carries the UTC designator is the exception: the rendered
+	// value claims to be UTC, so the instant must be converted first. Formatting a
+	// non-UTC wall clock with the literal "Z" of LayoutTimeUTC produced a timestamp
+	// off by the zone offset (09:00+08:00 was written as 090000Z instead of 010000Z).
 	t := d.Time
-	if t.Location() != time.Local || d.hasExplicitZone() {
+	switch {
+	case d.layout == LayoutTimeUTC:
+		t = t.In(time.UTC)
+	case t.Location() != time.Local || d.hasExplicitZone():
 		t = d.In(d.wireLocation())
 	}
 	buf.WriteString(t.Format(d.layout))
