@@ -8,6 +8,8 @@ import (
 	"io"
 	"iter"
 	"net/http"
+	"net/url"
+	"strconv"
 
 	"golang.org/x/time/rate"
 
@@ -50,7 +52,7 @@ func (c *notionClient) do(ctx context.Context, method, path string, body, result
 		return fmt.Errorf("rate limiter: %w", err)
 	}
 
-	url := notionAPI() + path
+	endpoint := notionAPI() + path
 
 	var bodyReader io.Reader
 	if body != nil {
@@ -61,7 +63,7 @@ func (c *notionClient) do(ctx context.Context, method, path string, body, result
 		bodyReader = bytes.NewReader(payload)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, bodyReader)
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
 	}
@@ -123,14 +125,31 @@ func (c *notionClient) delete(ctx context.Context, path string, result any) erro
 }
 
 // paginateEach lazily iterates over a paginated endpoint, yielding one item at a time.
+//
+// Pagination parameters travel per HTTP method, mirroring the Notion API contract:
+// POST endpoints (e.g. database query) read them from the JSON body, while GET
+// endpoints (users, block children, comments) read them exclusively from URL query
+// parameters and ignore request bodies. Sending ListOptions as a GET body therefore
+// left the cursor stuck on the first page, looping forever over duplicate items, so
+// GET requests are converted to query parameters before dispatch.
 func paginateEach[T any](ctx context.Context, c *notionClient, method, path string,
 	bodyFn func(cursor string) any) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var nextCursor string
 		for {
 			body := bodyFn(nextCursor)
+			reqPath, reqBody := path, body
+			if method == http.MethodGet {
+				opts, ok := body.(*ListOptions)
+				if !ok {
+					var zero T
+					yield(zero, fmt.Errorf("paginate %s %s: GET pagination requires ListOptions, got %T", method, path, body))
+					return
+				}
+				reqPath, reqBody = withListQuery(path, opts), nil
+			}
 			var resp ListResponse[T]
-			if err := c.do(ctx, method, path, body, &resp); err != nil {
+			if err := c.do(ctx, method, reqPath, reqBody, &resp); err != nil {
 				var zero T
 				yield(zero, err)
 				return
@@ -160,4 +179,22 @@ func paginateAll[T any](ctx context.Context, c *notionClient, method, path strin
 		all = append(all, item)
 	}
 	return all, nil
+}
+
+// withListQuery merges pagination options into the query string of path, preserving
+// any parameters already present (e.g. block_id when listing comments).
+func withListQuery(path string, opts *ListOptions) string {
+	u, err := url.Parse(path)
+	if err != nil {
+		return path
+	}
+	q := u.Query()
+	if opts.PageSize > 0 {
+		q.Set("page_size", strconv.Itoa(opts.PageSize))
+	}
+	if opts.Cursor != "" {
+		q.Set("start_cursor", opts.Cursor)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
 }

@@ -89,6 +89,9 @@ func TestDatabaseManager_Query_MultiplePages(t *testing.T) {
 	_, client := mockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		assert.Equal(t, http.MethodPost, r.Method)
+		// POST pagination travels in the JSON body; it must not leak into the query.
+		assert.NotContains(t, r.URL.RawQuery, "start_cursor")
+		assert.NotContains(t, r.URL.RawQuery, "page_size")
 
 		body := readBody(t, r)
 		var pages []map[string]any
@@ -379,6 +382,11 @@ func TestBlockManager_Children_Pagination(t *testing.T) {
 	callCount := 0
 	_, client := mockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		callCount++
+		// Spec-faithful: the real API reads GET pagination from query parameters only.
+		if callCount > 2 {
+			errorRespond(w, http.StatusBadRequest, "validation_error", "pagination did not advance")
+			return
+		}
 
 		blocks := []map[string]any{
 			{
@@ -392,10 +400,13 @@ func TestBlockManager_Children_Pagination(t *testing.T) {
 			},
 		}
 
-		if callCount == 1 {
+		switch cursor := r.URL.Query().Get("start_cursor"); cursor {
+		case "":
 			jsonRespond(w, http.StatusOK, paginatedResponse(blocks, true, "next-cursor"))
-		} else {
+		case "next-cursor":
 			jsonRespond(w, http.StatusOK, paginatedResponse(blocks, false, ""))
+		default:
+			errorRespond(w, http.StatusBadRequest, "validation_error", "unexpected start_cursor "+cursor)
 		}
 	})
 
@@ -403,6 +414,8 @@ func TestBlockManager_Children_Pagination(t *testing.T) {
 	blocks, err := bm.Children(testContext(), "block-parent", nil)
 	require.NoError(t, err)
 	assert.Len(t, blocks, 2)
+	assert.Equal(t, "child-1", blocks[0].ID)
+	assert.Equal(t, "child-2", blocks[1].ID)
 	assert.Equal(t, 2, callCount)
 }
 
@@ -538,14 +551,24 @@ func TestUserManager_List(t *testing.T) {
 		assert.Equal(t, "/v1/users", r.URL.Path)
 
 		callCount++
-		users := []map[string]any{
-			{"object": "user", "id": fmt.Sprintf("user-%d", callCount), "name": "User"},
+		// Spec-faithful: the real API reads GET pagination from query parameters only.
+		if callCount > 2 {
+			errorRespond(w, http.StatusBadRequest, "validation_error", "pagination did not advance")
+			return
 		}
-
-		if callCount == 1 {
+		switch cursor := r.URL.Query().Get("start_cursor"); cursor {
+		case "":
+			users := []map[string]any{
+				{"object": "user", "id": "user-1", "name": "User"},
+			}
 			jsonRespond(w, http.StatusOK, paginatedResponse(users, true, "cursor-next"))
-		} else {
+		case "cursor-next":
+			users := []map[string]any{
+				{"object": "user", "id": "user-2", "name": "User"},
+			}
 			jsonRespond(w, http.StatusOK, paginatedResponse(users, false, ""))
+		default:
+			errorRespond(w, http.StatusBadRequest, "validation_error", "unexpected start_cursor "+cursor)
 		}
 	})
 
@@ -553,6 +576,8 @@ func TestUserManager_List(t *testing.T) {
 	users, err := um.List(testContext())
 	require.NoError(t, err)
 	assert.Len(t, users, 2)
+	assert.Equal(t, "user-1", users[0].ID)
+	assert.Equal(t, "user-2", users[1].ID)
 	assert.Equal(t, 2, callCount)
 }
 
@@ -914,6 +939,9 @@ func TestDatabaseManager_QueryIter_MultiplePages(t *testing.T) {
 	_, client := mockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		callCount++
 		body := readBody(t, r)
+		// POST pagination travels in the JSON body; it must not leak into the query.
+		assert.NotContains(t, r.URL.RawQuery, "start_cursor")
+		assert.NotContains(t, r.URL.RawQuery, "page_size")
 
 		if callCount == 1 {
 			_, hasCursor := body["start_cursor"]
