@@ -103,9 +103,13 @@ func DoRequest(method string, url string, body io.Reader) (statusCode int, conte
 }
 
 // DoRequestWithContext sends an HTTP request with context and options, returning the status code and response body.
+// The context option is applied before opts, mirroring CtxGet/CtxPost/CtxPatch: options that store
+// state in the request context (WithTimeout, WithMaxResponseBodySize, WithMiddleware) derive from ctx
+// instead of being silently wiped by a later full context replacement.
 func DoRequestWithContext(ctx context.Context, method string, url string, opts []RequestOption, body io.Reader) (
 	statusCode int, content []byte, err error) {
-	statusCode, content, _, err = DoRequestWithOptions(method, url, append(opts, WithContext(ctx)), body)
+	opts = append([]RequestOption{WithContext(ctx)}, opts...)
+	statusCode, content, _, err = DoRequestWithOptions(method, url, opts, body)
 	return
 }
 
