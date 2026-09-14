@@ -154,41 +154,63 @@ func parseCalendar(lines []string) (*Calendar, error) {
 			continue
 
 		case tokenEND:
+			// A component END without its matching BEGIN (truncated, hand-edited or
+			// otherwise untrusted ICS) must be skipped: dereferencing the component
+			// pointer it did not create panicked with a nil dereference. Each branch
+			// therefore acts only when the component is actually open.
 			switch value {
 			case CompVCALENDAR:
 				cal.tailer = Tailer(value)
 			case CompVEVENT:
-				cal.events = append(cal.events, *event)
-				inEvent = false
-				event = nil
-			case CompVTODO:
-				cal.todos = append(cal.todos, *todo)
-				inTodo = false
-				todo = nil
-			case CompVJOURNAL:
-				cal.journals = append(cal.journals, *journal)
-				inJournal = false
-				journal = nil
-			case CompVTIMEZONE:
-				cal.timezones = append(cal.timezones, *tz)
-				inTZ = false
-				tz = nil
-			case CompVALARM:
 				if inEvent {
-					event.alarms = append(event.alarms, *alarm)
-				} else if inTodo {
-					todo.alarms = append(todo.alarms, *alarm)
+					cal.events = append(cal.events, *event)
+					inEvent = false
+					event = nil
 				}
-				inAlarm = false
-				alarm = nil
+			case CompVTODO:
+				if inTodo {
+					cal.todos = append(cal.todos, *todo)
+					inTodo = false
+					todo = nil
+				}
+			case CompVJOURNAL:
+				if inJournal {
+					cal.journals = append(cal.journals, *journal)
+					inJournal = false
+					journal = nil
+				}
+			case CompVTIMEZONE:
+				if inTZ {
+					cal.timezones = append(cal.timezones, *tz)
+					inTZ = false
+					tz = nil
+				}
+			case CompVALARM:
+				// Gated on inAlarm too: a stray END:VALARM inside an event used to fall
+				// through to the append below and dereference a nil alarm.
+				if inAlarm {
+					if inEvent {
+						event.alarms = append(event.alarms, *alarm)
+					} else if inTodo {
+						todo.alarms = append(todo.alarms, *alarm)
+					}
+					inAlarm = false
+					alarm = nil
+				}
 			case CompSTANDARD:
-				tz.Standard = append(tz.Standard, *tzProp)
-				inTZProp = false
-				tzProp = nil
+				// Requires both the enclosing VTIMEZONE and the open STANDARD property:
+				// either pointer alone may be nil for malformed input.
+				if inTZProp && tz != nil {
+					tz.Standard = append(tz.Standard, *tzProp)
+					inTZProp = false
+					tzProp = nil
+				}
 			case CompDAYLIGHT:
-				tz.Daylight = append(tz.Daylight, *tzProp)
-				inTZProp = false
-				tzProp = nil
+				if inTZProp && tz != nil {
+					tz.Daylight = append(tz.Daylight, *tzProp)
+					inTZProp = false
+					tzProp = nil
+				}
 			default:
 				if skipDepth > 0 {
 					skipDepth--
