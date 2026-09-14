@@ -24,10 +24,22 @@ func New(sinks ...*Sink) *Logger {
 }
 
 // With returns a child Logger that carries preset fields.
+//
+// The child owns its field storage: the parent's fields plus args are copied into a
+// freshly allocated, exactly sized slice. Appending to the parent's slice instead let
+// two children of the same parent write into the same spare slot, so the later child
+// silently overwrote the earlier child's field.
 func (l *Logger) With(args ...any) *Logger {
+	extra := toFields(args...)
+	var fields []Field
+	if n := len(l.fields) + len(extra); n > 0 {
+		fields = make([]Field, 0, n)
+		fields = append(fields, l.fields...)
+		fields = append(fields, extra...)
+	}
 	return &Logger{
 		sinks:  l.sinks,
-		fields: append(l.fields, toFields(args...)...),
+		fields: fields,
 	}
 }
 
