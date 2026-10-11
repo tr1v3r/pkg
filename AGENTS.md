@@ -7,6 +7,16 @@ Guidance for AI coding agents (Claude Code, etc.) working in this repository.
 
 Go utility package collection (`github.com/tr1v3r/pkg`), Go 1.24+. Single module at the repo root; packages are independent and imported individually (`go get github.com/tr1v3r/pkg` + `import "github.com/tr1v3r/pkg/<pkg>"`).
 
+## Component Knowledge Base
+
+Complex packages carry a `knowledge/` directory beside their code with the
+intent, active constraints, failure history, and acceptance scenarios that the
+source alone cannot express. Start from the root `knowledge/INDEX.md` map.
+Before changing a package's control flow, contracts, or error semantics, read
+its FLOW/DECISIONS; after changes, verify against its SCENARIOS and update
+only the affected parts. TODO entries are background, not an authorization
+list.
+
 ## Common Commands
 
 ```bash
