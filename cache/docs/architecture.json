@@ -8,7 +8,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:tr1v3r/pkg.git",
-      "revision": "b1b262200d6c490c1d0f55736060860494311a37",
+      "revision": "454118f0adb27f41660dcaa5bef252a20d36f3aa",
       "link_mode": "local-only"
     }
   },
@@ -58,8 +58,8 @@
       "pos": [600, 440],
       "size": [340, 110],
       "sources": [
-        {"path": "cache/cache.go", "line": 139, "end_line": 165},
-        {"path": "cache/cache.go", "line": 167, "end_line": 181}
+        {"path": "cache/cache.go", "line": 139, "end_line": 161},
+        {"path": "cache/cache.go", "line": 163, "end_line": 177}
       ]
     }
   ],
@@ -84,7 +84,7 @@
       "title": "调度与内存",
       "items": [
         "nextDelay 批量删除已到期堆顶，再返回最早剩余 deadline 的等待时间。",
-        "wake 或 tick 后停表并排空旧 tick，再回到 nextDelay；空堆只等 wake / stop。",
+        "wake / tick 后重算；有 deadline 直接 Reset，依赖 Go 1.24 新语义；空堆 Stop 且只等 wake / stop。",
         "每个 key 只有一个堆节点；heap.Pop 清空移除槽位，容量仍可能保留历史峰值。"
       ]
     },

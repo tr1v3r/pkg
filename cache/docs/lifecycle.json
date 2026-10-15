@@ -8,7 +8,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:tr1v3r/pkg.git",
-      "revision": "b1b262200d6c490c1d0f55736060860494311a37",
+      "revision": "454118f0adb27f41660dcaa5bef252a20d36f3aa",
       "link_mode": "local-only"
     }
   },
@@ -34,7 +34,7 @@
       "step": "02",
       "sources": [
         {"path": "cache/cache.go", "line": 62, "end_line": 113},
-        {"path": "cache/cache.go", "line": 139, "end_line": 165}
+        {"path": "cache/cache.go", "line": 139, "end_line": 161}
       ]
     },
     {
@@ -57,7 +57,7 @@
       "step": "04",
       "sources": [
         {"path": "cache/cache.go", "line": 126, "end_line": 128},
-        {"path": "cache/cache.go", "line": 139, "end_line": 164}
+        {"path": "cache/cache.go", "line": 139, "end_line": 161}
       ]
     },
     {
@@ -70,7 +70,7 @@
       "step": "05",
       "sources": [
         {"path": "cache/cache.go", "line": 115, "end_line": 128},
-        {"path": "cache/cache.go", "line": 139, "end_line": 154}
+        {"path": "cache/cache.go", "line": 139, "end_line": 156}
       ]
     }
   ],
@@ -85,9 +85,9 @@
       "dot": "cyan",
       "title": "运行中的 worker",
       "items": [
-        "nextDelay 持写锁清理到期项；有剩余项则 timer.Reset 到最早 deadline。",
-        "堆为空时 tick 为 nil，不做固定间隔轮询；select 等待 wake、tick 或 stop。",
-        "wake / tick 到来后停表并排空旧 tick，再重算；stop 就绪后退出 run。"
+        "nextDelay 持写锁清理到期项；有剩余项则直接 timer.Reset 到最早 deadline。",
+        "堆为空时 timer.Stop 且 tick 为 nil；select 等待 wake、tick 或 stop，不轮询。",
+        "wake / tick 后重算；Go 1.24 Reset 保证不再收到旧 tick，无需 drain；stop 就绪后退出。"
       ]
     },
     {
