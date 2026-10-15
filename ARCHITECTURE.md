@@ -4,7 +4,7 @@
 > 为 skr（智能机器人）、ivy（内容构建引擎）等兄弟项目提供从日志、HTTP、
 > 并发原语到 Notion/RSS/日历等领域客户端的统一底座。
 >
-> module path: `github.com/tr1v3r/pkg`，Go 1.24，16 个子包 / 111 个 go files。
+> module path: `github.com/tr1v3r/pkg`，Go 1.24，17 个子包。
 
 ---
 
@@ -22,6 +22,7 @@
 | `config` | 配置加载：文件/URL/env → struct，JSON/YAML 可换 parser | `Configure` `NewConfigure` `Parser` `LoadTo` `LoadFromTo` | skr、pkg 内部（依赖 fetch） |
 | `calendar` | iCalendar(.ics) 解析与生成（事件/时区/告警/RRULE） | `Parse` `ParseReader` `Calendar` `Event` `NewDate` `EscapeText` | skr |
 | `circuitbreaker` | 经典三态熔断器（Closed→Open→HalfOpen） | `CircuitBreaker` `New` `Config` `DefaultConfig` `Execute` `State` `ErrOpen` | 独立使用（与 fetch 在调用点组合） |
+| `cache` | 泛型本地 TTL 缓存，严格过期读取、索引最小堆与可关闭的后台清理 | `Cache` `New` `Set` `Get` `Delete` `Close` `ErrClosed` `ErrInvalidTTL` `ErrInvalidKey` | 独立使用 |
 | `netool` | 网络诊断：自定义 DNS 解析 + ICMP 延迟探测 | `LookupIP` `LookupWithServer` `ICMPDelay` `SingleICMPDelay` | — |
 | `hash` | 常用摘要算法一键计算（MD5/SHA1/SHA2/SHA3 全系） | `CalcMD5` `CalcSHA256` `CalcSHA3_512` … | — |
 | `brute` | 泛型回溯搜索引擎（BFS/DFS 框架） | `Bruter` `NewBruter` `Step` `State` `Queue` | — |
@@ -38,7 +39,7 @@
 三层划分（按依赖方向与抽象级别）：
 
 - **基础层**（无内部依赖，只依赖标准库/少数第三方）：
-  `log`、`hash`、`pools`、`sort`、`thread`、`guard`、`brute`、`circuitbreaker`、`netool`
+  `log`、`hash`、`pools`、`sort`、`thread`、`guard`、`brute`、`circuitbreaker`、`netool`、`cache`
 - **领域层**（面向具体协议/服务）：
   `fetch`、`notion`、`rss`、`calendar`、`alfred`、`websocket`
 - **组合层**（把基础/领域能力拼装成更高层抽象）：
@@ -67,6 +68,7 @@ graph TD
         brute
         circuitbreaker
         netool
+        cache
     end
 
     config --> fetch

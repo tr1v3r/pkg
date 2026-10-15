@@ -4,6 +4,15 @@ A collection of utility Go packages providing commonly needed functionality for 
 
 ## Packages
 
+### [cache](./cache) - In-Memory TTL Cache
+Generic, concurrent local caching with per-entry expiration and no external dependencies.
+
+**Features:**
+- Strict expiration on reads, independent of background cleanup
+- Indexed min-heap with one expiration record per key
+- Deadline-driven cleanup that reschedules on writes and deletes
+- Explicit, idempotent shutdown via `Close`
+
 ### [log](./log) - Structured Logging System
 Advanced structured logging with multiple output handlers, async processing, and context-aware logging. Compatible with Go's `slog` package for JSON/text output.
 

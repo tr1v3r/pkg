@@ -39,6 +39,7 @@ Run a single test: `go test -v -run TestName ./packagename`.
 - **notion/** — Notion API client, interface-driven: `NewClient(version, token)` exposes `Database`, `Page`, `Block`, `User`, `Search`, `Comment` APIs. Built-in rate limiting, automatic pagination, `QueryIter` lazy iterator.
 
 ### Utility Packages
+- **cache/** — Generic, standard-library-only local TTL cache: `New[K, V]`, `Set` (positive TTL only), `Get`, `Delete`, `Close`. Strict expiry on reads; indexed min-heap and deadline-driven cleanup. Always `Close` to stop the worker; zero value is unsupported.
 - **hash/** — Crypto hashes (MD5, SHA family, SHA3) with hex-string results; MD5/SHA1 carry deprecation notices for security contexts.
 - **netool/** — DNS resolution (multiple servers, A/CNAME/NS, retries) and ICMP ping.
 - **pools/** — Goroutine pool with token-based Wait/Done patterns.
