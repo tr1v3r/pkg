@@ -89,9 +89,11 @@ deadlines. Each stored key has one heap node. Overwrites update that node with
 do not accumulate stale expiration nodes.
 
 The background worker schedules a timer for the earliest deadline rather than
-polling at a fixed interval. `Set` and `Delete` wake it to reconsider the next
-deadline. The worker uses Go 1.24's synchronous timer semantics: `Reset` directly
-replaces the previous deadline without a stop-and-drain sequence. When the heap
+polling at a fixed interval. `Set` and `Delete` wake it only when the earliest
+deadline changes, including transitions to or from an empty heap. Changes at the
+same deadline need no notification. The worker uses Go 1.24's synchronous timer
+semantics: `Reset` directly replaces the previous deadline without a
+stop-and-drain sequence. When the heap
 is empty, it stops the timer and waits only for a change or shutdown. The timer
 is also stopped when the worker exits.
 
@@ -113,6 +115,13 @@ heap backing arrays can retain capacity from earlier peaks until `Close`;
 allocated capacity need not shrink with the current number of entries.
 
 ## Concurrency and limits
+
+The heap and map use separate locks, always acquired in heap-then-map order.
+`Get` takes only the map read lock. Heap adjustments run outside the map lock;
+cleanup briefly takes the map write lock for each deletion, allowing reads
+between deletions. Shared entry deadlines are updated under both locks.
+Writers still serialize on the heap lock, including during batch cleanup;
+this separation does not bound write latency or guarantee a fixed read latency.
 
 - Methods are safe to call concurrently on the same cache pointer.
 - Synchronization protects the container, not mutable data stored in values.
@@ -153,3 +162,6 @@ count; the Set/Delete benchmark measures one pair per iteration. Long TTLs keep
 ordinary benchmark runs focused on these operations rather than expiration.
 Results depend on the machine, Go version, and workload; no performance numbers
 are claimed here.
+
+See [expiration contention measurements](docs/performance.md) for the local
+read-latency/write-cost tradeoff and an opt-in, reproducible cleanup-window harness.

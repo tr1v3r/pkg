@@ -31,7 +31,12 @@ var (
 // A Cache must be created with New and must not be copied. Its zero value is
 // not usable. There is no capacity limit or eviction policy other than TTL.
 type Cache[K comparable, V any] struct {
-	mu          sync.RWMutex
+	// Writers always acquire heapMu before mapMu. Get only needs mapMu.
+	// heapMu protects expirations, entry indexes, and closed; mapMu protects
+	// items and entry values. Deadline writes require both locks because
+	// Get reads them under mapMu and heap operations read them under heapMu.
+	heapMu      sync.Mutex
+	mapMu       sync.RWMutex
 	items       map[K]*entry[K, V]
 	expirations expiryHeap[K, V]
 	closed      bool
@@ -60,8 +65,8 @@ func New[K comparable, V any]() *Cache[K, V] {
 // A closed cache always returns ErrClosed. Updating a key does not create
 // another expiration record.
 func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.heapMu.Lock()
+	defer c.heapMu.Unlock()
 	if c.closed {
 		return ErrClosed
 	}
@@ -72,18 +77,30 @@ func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
 		return ErrInvalidKey
 	}
 
-	deadline := time.Now().Add(ttl)
+	before, scheduled := c.earliest()
+	item, exists := c.store(key, value, time.Now().Add(ttl))
+	if exists {
+		heap.Fix(&c.expirations, item.index)
+	} else {
+		heap.Push(&c.expirations, item)
+	}
+	c.notifyIfChanged(before, scheduled)
+	return nil
+}
+
+// store publishes a value and deadline while heapMu is held. The map lock is
+// released before heap maintenance, so readers do not wait for heap adjustments.
+func (c *Cache[K, V]) store(key K, value V, deadline time.Time) (*entry[K, V], bool) {
+	c.mapMu.Lock()
+	defer c.mapMu.Unlock()
 	if item, ok := c.items[key]; ok {
 		item.value = value
 		item.deadline = deadline
-		heap.Fix(&c.expirations, item.index)
-	} else {
-		item := &entry[K, V]{key: key, value: value, deadline: deadline}
-		c.items[key] = item
-		heap.Push(&c.expirations, item)
+		return item, true
 	}
-	c.notify()
-	return nil
+	item := &entry[K, V]{key: key, value: value, deadline: deadline}
+	c.items[key] = item
+	return item, false
 }
 
 // Get returns the value for key if it exists and has not expired. At or after
@@ -91,8 +108,8 @@ func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
 // Get does not refresh the deadline. A miss or closed cache returns V's zero
 // value and false.
 func (c *Cache[K, V]) Get(key K) (V, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mapMu.RLock()
+	defer c.mapMu.RUnlock()
 	if item, ok := c.items[key]; ok && time.Now().Before(item.deadline) {
 		return item.value, true
 	}
@@ -103,33 +120,58 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
 // Delete removes key and its expiration record. It is a no-op if the key is
 // missing or the cache is closed.
 func (c *Cache[K, V]) Delete(key K) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if item, ok := c.items[key]; ok {
+	c.heapMu.Lock()
+	defer c.heapMu.Unlock()
+	before, scheduled := c.earliest()
+	if item := c.remove(key); item != nil {
 		heap.Remove(&c.expirations, item.index)
-		delete(c.items, key)
-		c.notify()
+		c.notifyIfChanged(before, scheduled)
 	}
+}
+
+// remove deletes a map entry while heapMu is held. Heap maintenance is kept
+// outside mapMu; heapMu prevents refreshes or reinserts during either step.
+func (c *Cache[K, V]) remove(key K) *entry[K, V] {
+	c.mapMu.Lock()
+	defer c.mapMu.Unlock()
+	item := c.items[key]
+	delete(c.items, key)
+	return item
 }
 
 // Close clears the cache and waits for its cleaner to stop. It is safe to call
 // repeatedly or concurrently. Once closed, Get always misses, Set returns
 // ErrClosed, and Delete is a no-op.
 func (c *Cache[K, V]) Close() {
-	c.mu.Lock()
+	c.heapMu.Lock()
 	if !c.closed {
 		c.closed = true
+		c.mapMu.Lock()
 		c.items = nil
+		c.mapMu.Unlock()
 		c.expirations = nil
 		close(c.stop)
 	}
-	c.mu.Unlock()
+	c.heapMu.Unlock()
 	<-c.done
 }
 
-// notify coalesces scheduler changes. Callers hold mu while updating state;
-// the cleaner always rechecks the heap under that same lock after a wake-up.
-func (c *Cache[K, V]) notify() {
+// earliest returns the next deadline while heapMu is held.
+func (c *Cache[K, V]) earliest() (time.Time, bool) {
+	if len(c.expirations) == 0 {
+		return time.Time{}, false
+	}
+	return c.expirations[0].deadline, true
+}
+
+// notifyIfChanged coalesces changes to the earliest deadline, including a
+// transition to or from an empty heap. Callers hold heapMu throughout mutation
+// and comparison; the cleaner rechecks the heap under that lock after waking.
+func (c *Cache[K, V]) notifyIfChanged(before time.Time, scheduled bool) {
+	after, nowScheduled := c.earliest()
+	if scheduled == nowScheduled && (!scheduled || before.Equal(after)) {
+		return
+	}
 	select {
 	case c.wake <- struct{}{}:
 	default:
@@ -161,15 +203,15 @@ func (c *Cache[K, V]) run() {
 // nextDelay removes due entries and returns the wait for the earliest remaining
 // deadline. No key has more than one heap node, including after refreshes.
 func (c *Cache[K, V]) nextDelay() (time.Duration, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.heapMu.Lock()
+	defer c.heapMu.Unlock()
 	for len(c.expirations) > 0 {
 		item := c.expirations[0]
 		if delay := time.Until(item.deadline); delay > 0 {
 			return delay, true
 		}
 		heap.Pop(&c.expirations)
-		delete(c.items, item.key)
+		c.remove(item.key)
 	}
 	return 0, false
 }

@@ -338,8 +338,8 @@ func TestConcurrentOperationsAndClose(t *testing.T) {
 	if value, ok := c.Get(1); value != 0 || ok {
 		t.Fatal("closed cache returned a value")
 	}
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.heapMu.Lock()
+	defer c.heapMu.Unlock()
 	if c.items != nil || c.expirations != nil {
 		t.Fatal("Close retained stored entries")
 	}
@@ -347,5 +347,147 @@ func TestConcurrentOperationsAndClose(t *testing.T) {
 	case <-c.done:
 	default:
 		t.Fatal("Close returned before cleaner stopped")
+	}
+}
+
+func TestNotificationsFollowEarliestDeadline(t *testing.T) {
+	c := manualCache[string, int](t)
+	steps := []struct {
+		name     string
+		key      string
+		ttl      time.Duration
+		remove   bool
+		wantWake bool
+	}{
+		{name: "empty to scheduled", key: "first", ttl: time.Hour, wantWake: true},
+		{name: "insert later", key: "later", ttl: 2 * time.Hour},
+		{name: "refresh later", key: "later", ttl: 3 * time.Hour},
+		{name: "shorten to earliest", key: "later", ttl: time.Minute, wantWake: true},
+		{name: "extend past earliest", key: "later", ttl: 3 * time.Hour, wantWake: true},
+		{name: "delete later", key: "later", remove: true},
+		{name: "delete missing", key: "missing", remove: true},
+		{name: "insert earlier", key: "earlier", ttl: time.Minute, wantWake: true},
+		{name: "delete earliest", key: "earlier", remove: true, wantWake: true},
+		{name: "scheduled to empty", key: "first", remove: true, wantWake: true},
+	}
+	for _, step := range steps {
+		t.Run(step.name, func(t *testing.T) {
+			if step.remove {
+				c.Delete(step.key)
+			} else if err := c.Set(step.key, 1, step.ttl); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case <-c.wake:
+				if !step.wantWake {
+					t.Fatal("unchanged earliest deadline notified worker")
+				}
+			default:
+				if step.wantWake {
+					t.Fatal("changed earliest deadline did not notify worker")
+				}
+			}
+		})
+	}
+}
+
+func TestEqualDeadlineRootChangeDoesNotNotify(t *testing.T) {
+	c := manualCache[string, int](t)
+	deadline := time.Now().Add(time.Hour)
+	for index, key := range []string{"first", "second"} {
+		item := &entry[string, int]{key: key, deadline: deadline, index: index}
+		c.items[key] = item
+		c.expirations = append(c.expirations, item)
+	}
+	c.Delete("first")
+	select {
+	case <-c.wake:
+		t.Fatal("equal deadline needs no timer reschedule")
+	default:
+	}
+	c.Delete("second")
+	select {
+	case <-c.wake:
+	default:
+		t.Fatal("empty heap must stop the timer")
+	}
+}
+
+func TestDeadlineNotificationsCoalesce(t *testing.T) {
+	c := manualCache[int, int](t)
+	for i := 10; i > 0; i-- {
+		if err := c.Set(i, i, time.Duration(i)*time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(c.wake) != 1 {
+		t.Fatal("deadline changes did not coalesce into one pending wake")
+	}
+}
+
+func TestGetDoesNotWaitForHeapLock(t *testing.T) {
+	c := manualCache[string, int](t)
+	if err := c.Set("live", 42, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Set("expired", 7, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	c.items["expired"].deadline = time.Now().Add(-time.Hour)
+	c.heapMu.Lock()
+	defer c.heapMu.Unlock()
+	result := make(chan bool, 1)
+	go func() {
+		value, live := c.Get("live")
+		_, expired := c.Get("expired")
+		_, missing := c.Get("missing")
+		result <- value == 42 && live && !expired && !missing
+	}()
+	select {
+	case ok := <-result:
+		if !ok {
+			t.Fatal("Get returned incorrect visibility while heap was locked")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Get waited for the heap lock")
+	}
+}
+
+func TestConcurrentRefreshAndCleanup(t *testing.T) {
+	c := manualCache[int, int](t)
+	var wg sync.WaitGroup
+	for worker := 0; worker < 8; worker++ {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			for i := 0; i < 500; i++ {
+				key := (worker + i) % 64
+				ttl := time.Nanosecond
+				if i%2 == 0 {
+					ttl = time.Hour
+				}
+				if err := c.Set(key, i, ttl); err != nil {
+					t.Error(err)
+					return
+				}
+				c.Get(key)
+				if i%3 == 0 {
+					c.Delete((key + 1) % 64)
+				}
+				c.nextDelay()
+			}
+		}(worker)
+	}
+	wg.Wait()
+	if len(c.items) != len(c.expirations) {
+		t.Fatal("concurrent cleanup lost map/heap correspondence")
+	}
+	for index, item := range c.expirations {
+		if item.index != index || c.items[item.key] != item {
+			t.Fatal("concurrent refresh corrupted the entry index")
+		}
+		if index > 0 && c.expirations.Less(index, (index-1)/2) {
+			t.Fatal("concurrent refresh corrupted heap ordering")
+		}
 	}
 }

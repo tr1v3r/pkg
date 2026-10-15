@@ -178,10 +178,10 @@ func TestSchedulerGetMissesExactlyAtDeadline(t *testing.T) {
 		// Seed without notifying the idle worker: Get must enforce the exact
 		// deadline even when the expired entry has not been physically removed.
 		item := &entry[string, int]{key: "boundary", value: 7, deadline: time.Now().Add(time.Minute)}
-		c.mu.Lock()
+		c.heapMu.Lock()
 		c.items[item.key] = item
 		c.expirations = append(c.expirations, item)
-		c.mu.Unlock()
+		c.heapMu.Unlock()
 
 		time.Sleep(time.Minute - time.Nanosecond)
 		schedulerAssertGet(t, c, "boundary", 7, true)
@@ -189,10 +189,10 @@ func TestSchedulerGetMissesExactlyAtDeadline(t *testing.T) {
 		schedulerAssertKeys(t, c, "boundary")
 		schedulerAssertGet(t, c, "boundary", 0, false)
 
-		// An ordinary Set wakes the worker and must physically clean the fixture.
-		schedulerSet(t, c, "wake", 8, time.Hour)
+		// Deleting the earliest entry changes the schedule and wakes the worker.
+		c.Delete("boundary")
 		synctest.Wait()
-		schedulerAssertKeys(t, c, "wake")
+		schedulerAssertKeys(t, c)
 	})
 }
 
@@ -258,18 +258,18 @@ func TestSchedulerBatchWithIdenticalDeadlines(t *testing.T) {
 		synctest.Wait()
 		time.Sleep(time.Minute - time.Nanosecond)
 		synctest.Wait()
-		c.mu.RLock()
+		c.heapMu.Lock()
 		items, expirations := len(c.items), len(c.expirations)
-		c.mu.RUnlock()
+		c.heapMu.Unlock()
 		if items != count || expirations != count {
 			t.Fatalf("before deadline: items = %d, expirations = %d, want %d each", items, expirations, count)
 		}
 
 		time.Sleep(time.Nanosecond)
 		synctest.Wait()
-		c.mu.RLock()
+		c.heapMu.Lock()
 		items, expirations = len(c.items), len(c.expirations)
-		c.mu.RUnlock()
+		c.heapMu.Unlock()
 		if items != 0 || expirations != 0 {
 			t.Fatalf("at deadline: items = %d, expirations = %d, want 0 each", items, expirations)
 		}
@@ -352,8 +352,8 @@ func schedulerAssertGet(t *testing.T, c *Cache[string, int], key string, want in
 
 func schedulerAssertKeys(t *testing.T, c *Cache[string, int], keys ...string) {
 	t.Helper()
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.heapMu.Lock()
+	defer c.heapMu.Unlock()
 	if len(c.items) != len(keys) || len(c.expirations) != len(keys) {
 		t.Fatalf("items = %d, expirations = %d, want keys %v", len(c.items), len(c.expirations), keys)
 	}
@@ -386,4 +386,29 @@ func schedulerAssertClosed(t *testing.T, c *Cache[string, int]) {
 	c.Delete("key")
 	c.Delete("missing")
 	schedulerAssertKeys(t, c)
+}
+
+func TestSchedulerEqualDeadlineUpdatesNeedNoWake(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := manualCache[string, int](t)
+		schedulerSet(t, c, "first", 1, time.Minute)
+		<-c.wake
+		// Virtual time does not advance: both inserts and the overwrite keep
+		// the exact same deadline, even though heap-root identity may change.
+		schedulerSet(t, c, "second", 2, time.Minute)
+		schedulerSet(t, c, "first", 3, time.Minute)
+		c.Delete("first")
+		select {
+		case <-c.wake:
+			t.Fatal("same deadline unexpectedly rescheduled timer")
+		default:
+		}
+		schedulerAssertGet(t, c, "second", 2, true)
+		c.Delete("second")
+		select {
+		case <-c.wake:
+		default:
+			t.Fatal("empty heap did not notify timer shutdown")
+		}
+	})
 }
