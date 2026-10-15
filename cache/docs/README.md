@@ -1,6 +1,6 @@
 # cache 架构与生命周期
 
-图表基于 `454118f0adb27f41660dcaa5bef252a20d36f3aa` 的实现；每个关键节点
+图表基于 `c8f09d179a1f831ad0cbf2c5a70b31fef99b9d26` 的实现；每个关键节点
 附有仓库相对路径和源码行号。图中涉及的状态是阅读模型，不是新增的导出 API 或枚举。
 
 | 图表 | 内容 | 可维护源文件 |
@@ -28,7 +28,7 @@ Set → deadline = now + TTL
                        └─ worker 获得写锁后物理删除，不要求恰好同时发生
 
 【实例所有权】
-New → 一个 worker → nextDelay → 等 wake / tick / stop
+New → 一个 worker → nextDelay → 等 wake / timer.C / stop
 Close
   ├─ 持写锁：closed = true → 清空 map / heap → close(stop)
   └─ 释放锁 → 等 done → Close 返回时 worker 已退出

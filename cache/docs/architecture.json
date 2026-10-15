@@ -8,7 +8,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:tr1v3r/pkg.git",
-      "revision": "454118f0adb27f41660dcaa5bef252a20d36f3aa",
+      "revision": "c8f09d179a1f831ad0cbf2c5a70b31fef99b9d26",
       "link_mode": "local-only"
     }
   },
@@ -54,12 +54,12 @@
       "type": "backend",
       "label": "唯一清理 worker",
       "sublabel": "nextDelay + 可重置 timer + select",
-      "tag": "空堆禁用 tick，不轮询",
+      "tag": "空堆停表，不轮询",
       "pos": [600, 440],
       "size": [340, 110],
       "sources": [
-        {"path": "cache/cache.go", "line": 139, "end_line": 161},
-        {"path": "cache/cache.go", "line": 163, "end_line": 177}
+        {"path": "cache/cache.go", "line": 139, "end_line": 159},
+        {"path": "cache/cache.go", "line": 161, "end_line": 175}
       ]
     }
   ],
