@@ -1,0 +1,31 @@
+{
+  "source_commit": "6168a828463241acc28db1e500fcc8676dea5016",
+  "client_go": "go1.25.7 darwin/arm64",
+  "client_gomaxprocs": 12,
+  "redis_version": "7.4.11",
+  "redis_image_id": "sha256:ec4f171e9ff071bb2a1c936057d3be00206069b028b6c0d61df2477e1dd02c42",
+  "redis_cpu_limit": 2,
+  "redis_memory_limit_bytes": 536870912,
+  "redis_persistence": false,
+  "redis_endpoint": "127.0.0.1:32771",
+  "transport": "macOS to Linux OrbStack Docker via loopback published port",
+  "client_count": 4,
+  "pool_total_limit": [
+    64,
+    256
+  ],
+  "max_retries": -1,
+  "operation_timeout_s": 2,
+  "retry_interval_ms": 10,
+  "critical_section_us": 100,
+  "performance_repeats": 3,
+  "auto_ttl_s": 3,
+  "auto_hold_after_acquisition_s": 7,
+  "throughput_mode": "closed-loop, fixed operation count per worker, synchronized burst start",
+  "client_cpu": "Apple M3 Pro",
+  "client_hw_threads": 12,
+  "client_memory_bytes": 38654705664,
+  "redis_repo_digest": "redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499",
+  "redis_final_dbsize": 0,
+  "test_container_removed": true
+}

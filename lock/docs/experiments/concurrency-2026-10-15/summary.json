@@ -1,0 +1,795 @@
+[
+  {
+    "scenario": "auto",
+    "workers": 1000,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 140.665823846377,
+    "ops_s_range": [
+      136.5370469592525,
+      141.72397866260468
+    ],
+    "op_p99_ms": 31.742917,
+    "op_p99_ms_range": [
+      30.701917,
+      314.783625
+    ],
+    "op_max_ms": 33.059708,
+    "op_max_ms_range": [
+      30.78125,
+      315.065375
+    ],
+    "acquire_p99_ms": 31.711208,
+    "acquire_p99_ms_range": [
+      30.684,
+      314.757833
+    ],
+    "renew_p99_ms": 221.609125,
+    "renew_p99_ms_range": [
+      136.723917,
+      333.166708
+    ],
+    "attempts": 1000,
+    "attempts_range": [
+      1000,
+      1000
+    ],
+    "renew_count": 7000,
+    "renew_count_range": [
+      7000,
+      7000
+    ],
+    "peak_g": 2002,
+    "peak_g_range": [
+      2002,
+      2002
+    ],
+    "heap_mb": 16.213672,
+    "heap_mb_range": [
+      15.34392,
+      18.26244
+    ],
+    "pool_wait": 8425,
+    "pool_wait_range": [
+      8424,
+      8425
+    ],
+    "aggregate_wait_ms": 465098.368,
+    "aggregate_wait_ms_range": [
+      368416.92199999996,
+      694778.5850000001
+    ]
+  },
+  {
+    "scenario": "auto",
+    "workers": 5000,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 674.9399834322537,
+    "ops_s_range": [
+      668.720903008106,
+      698.2560659400563
+    ],
+    "op_p99_ms": 139.845,
+    "op_p99_ms_range": [
+      129.320458,
+      152.473791
+    ],
+    "op_max_ms": 224.089917,
+    "op_max_ms_range": [
+      150.935875,
+      330.27825
+    ],
+    "acquire_p99_ms": 139.8425,
+    "acquire_p99_ms_range": [
+      129.294125,
+      152.471833
+    ],
+    "renew_p99_ms": 380.085667,
+    "renew_p99_ms_range": [
+      155.567125,
+      428.199916
+    ],
+    "attempts": 5000,
+    "attempts_range": [
+      5000,
+      5000
+    ],
+    "renew_count": 35000,
+    "renew_count_range": [
+      35000,
+      35000
+    ],
+    "peak_g": 10002,
+    "peak_g_range": [
+      10002,
+      14423
+    ],
+    "heap_mb": 58.424688,
+    "heap_mb_range": [
+      53.4608,
+      58.561664
+    ],
+    "pool_wait": 44424,
+    "pool_wait_range": [
+      44424,
+      44425
+    ],
+    "aggregate_wait_ms": 5646499.444000001,
+    "aggregate_wait_ms_range": [
+      3555834.731,
+      5747434.65
+    ]
+  },
+  {
+    "scenario": "auto",
+    "workers": 5000,
+    "pool": 256,
+    "repeats": 3,
+    "ops_s": 693.3749617170349,
+    "ops_s_range": [
+      675.6671157037706,
+      696.9501253429953
+    ],
+    "op_p99_ms": 156.670708,
+    "op_p99_ms_range": [
+      148.745292,
+      160.248292
+    ],
+    "op_max_ms": 203.838666,
+    "op_max_ms_range": [
+      157.267375,
+      354.888667
+    ],
+    "acquire_p99_ms": 156.66125,
+    "acquire_p99_ms_range": [
+      148.740959,
+      160.115334
+    ],
+    "renew_p99_ms": 359.612542,
+    "renew_p99_ms_range": [
+      310.195167,
+      473.910333
+    ],
+    "attempts": 5000,
+    "attempts_range": [
+      5000,
+      5000
+    ],
+    "renew_count": 35000,
+    "renew_count_range": [
+      35000,
+      35000
+    ],
+    "peak_g": 10002,
+    "peak_g_range": [
+      10002,
+      10096
+    ],
+    "heap_mb": 71.523856,
+    "heap_mb_range": [
+      66.854008,
+      71.609464
+    ],
+    "pool_wait": 42672,
+    "pool_wait_range": [
+      42652,
+      42699
+    ],
+    "aggregate_wait_ms": 4582463.326,
+    "aggregate_wait_ms_range": [
+      4436791.552,
+      6499523.285
+    ]
+  },
+  {
+    "scenario": "gate-hot",
+    "workers": 100,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 19587.30718989326,
+    "ops_s_range": [
+      19097.383798467094,
+      22105.82604203364
+    ],
+    "op_p99_ms": 8.027083,
+    "op_p99_ms_range": [
+      6.323042,
+      8.067125
+    ],
+    "op_max_ms": 8.160084,
+    "op_max_ms_range": [
+      7.209292,
+      8.2495
+    ],
+    "acquire_p99_ms": 8.025417,
+    "acquire_p99_ms_range": [
+      6.320542,
+      8.063458
+    ],
+    "renew_p99_ms": 0,
+    "renew_p99_ms_range": [
+      0,
+      0
+    ],
+    "attempts": 300,
+    "attempts_range": [
+      300,
+      300
+    ],
+    "renew_count": 0,
+    "renew_count_range": [
+      0,
+      0
+    ],
+    "peak_g": 2,
+    "peak_g_range": [
+      2,
+      2
+    ],
+    "heap_mb": 5.263944,
+    "heap_mb_range": [
+      5.238792,
+      5.264024
+    ],
+    "pool_wait": 236,
+    "pool_wait_range": [
+      236,
+      236
+    ],
+    "aggregate_wait_ms": 446.976,
+    "aggregate_wait_ms_range": [
+      384.359,
+      449.386
+    ]
+  },
+  {
+    "scenario": "gate-hot",
+    "workers": 1000,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 14376.999675918467,
+    "ops_s_range": [
+      10456.38943723841,
+      33022.11530688641
+    ],
+    "op_p99_ms": 35.72525,
+    "op_p99_ms_range": [
+      33.094458,
+      205.907333
+    ],
+    "op_max_ms": 207.521083,
+    "op_max_ms_range": [
+      37.1755,
+      236.970708
+    ],
+    "acquire_p99_ms": 35.678,
+    "acquire_p99_ms_range": [
+      33.051208,
+      205.905833
+    ],
+    "renew_p99_ms": 0,
+    "renew_p99_ms_range": [
+      0,
+      0
+    ],
+    "attempts": 3000,
+    "attempts_range": [
+      3000,
+      3000
+    ],
+    "renew_count": 0,
+    "renew_count_range": [
+      0,
+      0
+    ],
+    "peak_g": 1002,
+    "peak_g_range": [
+      1002,
+      1002
+    ],
+    "heap_mb": 9.134552,
+    "heap_mb_range": [
+      9.130064,
+      9.236792
+    ],
+    "pool_wait": 2934,
+    "pool_wait_range": [
+      2889,
+      2936
+    ],
+    "aggregate_wait_ms": 70844.06,
+    "aggregate_wait_ms_range": [
+      66312.81599999999,
+      107514.679
+    ]
+  },
+  {
+    "scenario": "gate-many",
+    "workers": 100,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 32645.244132017364,
+    "ops_s_range": [
+      32104.70414177437,
+      36308.76963171301
+    ],
+    "op_p99_ms": 8.019,
+    "op_p99_ms_range": [
+      3.8965,
+      8.867792
+    ],
+    "op_max_ms": 9.340417,
+    "op_max_ms_range": [
+      4.053417,
+      10.798333
+    ],
+    "acquire_p99_ms": 8.017875,
+    "acquire_p99_ms_range": [
+      3.895209,
+      8.865542
+    ],
+    "renew_p99_ms": 0,
+    "renew_p99_ms_range": [
+      0,
+      0
+    ],
+    "attempts": 3000,
+    "attempts_range": [
+      3000,
+      3000
+    ],
+    "renew_count": 0,
+    "renew_count_range": [
+      0,
+      0
+    ],
+    "peak_g": 102,
+    "peak_g_range": [
+      102,
+      102
+    ],
+    "heap_mb": 6.491352,
+    "heap_mb_range": [
+      6.208784,
+      7.602368
+    ],
+    "pool_wait": 2929,
+    "pool_wait_range": [
+      2921,
+      2936
+    ],
+    "aggregate_wait_ms": 3201.392,
+    "aggregate_wait_ms_range": [
+      2897.5550000000003,
+      3271.001
+    ]
+  },
+  {
+    "scenario": "gate-many",
+    "workers": 1000,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 27450.70245469159,
+    "ops_s_range": [
+      23330.32478944592,
+      34299.5599008606
+    ],
+    "op_p99_ms": 304.286167,
+    "op_p99_ms_range": [
+      107.19,
+      371.160708
+    ],
+    "op_max_ms": 308.386541,
+    "op_max_ms_range": [
+      233.293125,
+      572.567708
+    ],
+    "acquire_p99_ms": 304.284167,
+    "acquire_p99_ms_range": [
+      107.188666,
+      371.158916
+    ],
+    "renew_p99_ms": 0,
+    "renew_p99_ms_range": [
+      0,
+      0
+    ],
+    "attempts": 30000,
+    "attempts_range": [
+      30000,
+      30000
+    ],
+    "renew_count": 0,
+    "renew_count_range": [
+      0,
+      0
+    ],
+    "peak_g": 1002,
+    "peak_g_range": [
+      1002,
+      1002
+    ],
+    "heap_mb": 13.726056,
+    "heap_mb_range": [
+      13.55556,
+      14.239872
+    ],
+    "pool_wait": 29817,
+    "pool_wait_range": [
+      29798,
+      29936
+    ],
+    "aggregate_wait_ms": 960595.926,
+    "aggregate_wait_ms_range": [
+      788997.0810000001,
+      1017912.692
+    ]
+  },
+  {
+    "scenario": "gate-many",
+    "workers": 1000,
+    "pool": 256,
+    "repeats": 3,
+    "ops_s": 24625.038479085128,
+    "ops_s_range": [
+      23469.47409642343,
+      34410.16274885209
+    ],
+    "op_p99_ms": 297.087792,
+    "op_p99_ms_range": [
+      42.692625,
+      298.04525
+    ],
+    "op_max_ms": 305.057292,
+    "op_max_ms_range": [
+      238.426125,
+      496.839041
+    ],
+    "acquire_p99_ms": 297.08625,
+    "acquire_p99_ms_range": [
+      42.690625,
+      298.04325
+    ],
+    "renew_p99_ms": 0,
+    "renew_p99_ms_range": [
+      0,
+      0
+    ],
+    "attempts": 30000,
+    "attempts_range": [
+      30000,
+      30000
+    ],
+    "renew_count": 0,
+    "renew_count_range": [
+      0,
+      0
+    ],
+    "peak_g": 1002,
+    "peak_g_range": [
+      1002,
+      1002
+    ],
+    "heap_mb": 35.30444,
+    "heap_mb_range": [
+      34.330424,
+      35.421712
+    ],
+    "pool_wait": 28923,
+    "pool_wait_range": [
+      28159,
+      29652
+    ],
+    "aggregate_wait_ms": 802479.06,
+    "aggregate_wait_ms_range": [
+      571407.5449999999,
+      822610.944
+    ]
+  },
+  {
+    "scenario": "lease-hot",
+    "workers": 100,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 180.84948620660967,
+    "ops_s_range": [
+      166.30400862375424,
+      248.46371777503225
+    ],
+    "op_p99_ms": 532.931792,
+    "op_p99_ms_range": [
+      391.629583,
+      588.784417
+    ],
+    "op_max_ms": 552.824834,
+    "op_max_ms_range": [
+      402.265416,
+      601.102833
+    ],
+    "acquire_p99_ms": 4.205541,
+    "acquire_p99_ms_range": [
+      3.599083,
+      9.303792
+    ],
+    "renew_p99_ms": 0,
+    "renew_p99_ms_range": [
+      0,
+      0
+    ],
+    "attempts": 1809,
+    "attempts_range": [
+      1466,
+      2006
+    ],
+    "renew_count": 0,
+    "renew_count_range": [
+      0,
+      0
+    ],
+    "peak_g": 98,
+    "peak_g_range": [
+      97,
+      98
+    ],
+    "heap_mb": 7.165352,
+    "heap_mb_range": [
+      6.816664,
+      7.221264
+    ],
+    "pool_wait": 43,
+    "pool_wait_range": [
+      37,
+      158
+    ],
+    "aggregate_wait_ms": 126.694,
+    "aggregate_wait_ms_range": [
+      58.29899999999999,
+      145.76100000000002
+    ]
+  },
+  {
+    "scenario": "lease-hot",
+    "workers": 1000,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 153.1675812136499,
+    "ops_s_range": [
+      146.99331781636005,
+      166.61889100456577
+    ],
+    "op_p99_ms": 6471.764958,
+    "op_p99_ms_range": [
+      5885.498958,
+      6689.136375
+    ],
+    "op_max_ms": 6528.020417,
+    "op_max_ms_range": [
+      5999.425041,
+      6800.571459
+    ],
+    "acquire_p99_ms": 166.09125,
+    "acquire_p99_ms_range": [
+      141.967083,
+      357.172625
+    ],
+    "renew_p99_ms": 0,
+    "renew_p99_ms_range": [
+      0,
+      0
+    ],
+    "attempts": 193617,
+    "attempts_range": [
+      185751,
+      195807
+    ],
+    "renew_count": 0,
+    "renew_count_range": [
+      0,
+      0
+    ],
+    "peak_g": 1002,
+    "peak_g_range": [
+      1002,
+      1002
+    ],
+    "heap_mb": 17.396792,
+    "heap_mb_range": [
+      16.756672,
+      18.206312
+    ],
+    "pool_wait": 184757,
+    "pool_wait_range": [
+      178619,
+      186587
+    ],
+    "aggregate_wait_ms": 2245048.114,
+    "aggregate_wait_ms_range": [
+      2102689.9860000005,
+      2802022.9370000004
+    ]
+  },
+  {
+    "scenario": "lease-many",
+    "workers": 100,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 11891.902652456778,
+    "ops_s_range": [
+      11177.977149420212,
+      12195.92137899283
+    ],
+    "op_p99_ms": 11.233041,
+    "op_p99_ms_range": [
+      10.807334,
+      16.930083
+    ],
+    "op_max_ms": 11.391416,
+    "op_max_ms_range": [
+      11.135875,
+      19.299375
+    ],
+    "acquire_p99_ms": 4.15625,
+    "acquire_p99_ms_range": [
+      3.957708,
+      7.5665
+    ],
+    "renew_p99_ms": 4.139917,
+    "renew_p99_ms_range": [
+      4.020458,
+      5.535417
+    ],
+    "attempts": 1000,
+    "attempts_range": [
+      1000,
+      1000
+    ],
+    "renew_count": 1000,
+    "renew_count_range": [
+      1000,
+      1000
+    ],
+    "peak_g": 184,
+    "peak_g_range": [
+      165,
+      191
+    ],
+    "heap_mb": 7.559536,
+    "heap_mb_range": [
+      7.099664,
+      7.90864
+    ],
+    "pool_wait": 2935,
+    "pool_wait_range": [
+      2932,
+      2936
+    ],
+    "aggregate_wait_ms": 2946.5059999999994,
+    "aggregate_wait_ms_range": [
+      2874.356,
+      3127.2430000000004
+    ]
+  },
+  {
+    "scenario": "lease-many",
+    "workers": 1000,
+    "pool": 64,
+    "repeats": 3,
+    "ops_s": 9872.078836447174,
+    "ops_s_range": [
+      8225.087474031478,
+      10210.57177422233
+    ],
+    "op_p99_ms": 316.937791,
+    "op_p99_ms_range": [
+      282.249417,
+      427.865417
+    ],
+    "op_max_ms": 352.473166,
+    "op_max_ms_range": [
+      318.5415,
+      429.552667
+    ],
+    "acquire_p99_ms": 32.204709,
+    "acquire_p99_ms_range": [
+      30.437167,
+      228.224125
+    ],
+    "renew_p99_ms": 34.28625,
+    "renew_p99_ms_range": [
+      31.587667,
+      362.935875
+    ],
+    "attempts": 10000,
+    "attempts_range": [
+      10000,
+      10000
+    ],
+    "renew_count": 10000,
+    "renew_count_range": [
+      10000,
+      10000
+    ],
+    "peak_g": 1909,
+    "peak_g_range": [
+      1903,
+      1988
+    ],
+    "heap_mb": 19.287032,
+    "heap_mb_range": [
+      18.725152,
+      19.525656
+    ],
+    "pool_wait": 29934,
+    "pool_wait_range": [
+      29867,
+      29936
+    ],
+    "aggregate_wait_ms": 902927.49,
+    "aggregate_wait_ms_range": [
+      860233.2799999999,
+      1044913.885
+    ]
+  },
+  {
+    "scenario": "lease-many",
+    "workers": 1000,
+    "pool": 256,
+    "repeats": 3,
+    "ops_s": 8077.796449828655,
+    "ops_s_range": [
+      7249.308494987041,
+      8340.451971644521
+    ],
+    "op_p99_ms": 362.900917,
+    "op_p99_ms_range": [
+      360.901,
+      426.272875
+    ],
+    "op_max_ms": 560.126666,
+    "op_max_ms_range": [
+      470.573208,
+      626.06675
+    ],
+    "acquire_p99_ms": 288.146708,
+    "acquire_p99_ms_range": [
+      130.428458,
+      369.969292
+    ],
+    "renew_p99_ms": 222.381416,
+    "renew_p99_ms_range": [
+      53.935333,
+      359.788625
+    ],
+    "attempts": 10000,
+    "attempts_range": [
+      10000,
+      10000
+    ],
+    "renew_count": 10000,
+    "renew_count_range": [
+      10000,
+      10000
+    ],
+    "peak_g": 1993,
+    "peak_g_range": [
+      1949,
+      1998
+    ],
+    "heap_mb": 38.144256,
+    "heap_mb_range": [
+      38.072104,
+      39.629472
+    ],
+    "pool_wait": 28362,
+    "pool_wait_range": [
+      28087,
+      28600
+    ],
+    "aggregate_wait_ms": 782015.96,
+    "aggregate_wait_ms_range": [
+      751680.007,
+      834171.283
+    ]
+  }
+]
