@@ -1,9 +1,9 @@
 # lock
 
 Backend-independent fixed-TTL execution gates and owner-checked lease locks for
-Go 1.24+. The core uses only standard-library packages. Redis is the first driver,
-not part of the public abstraction. A file or database driver can implement the
-same atomic contract; neither is included in this version.
+Go 1.24+. The core uses only standard-library packages. Redis and PostgreSQL are
+provided as independent drivers, not part of the public abstraction. A file or
+another database driver can implement the same atomic contract.
 
 ## Choose the behavior
 
@@ -221,6 +221,16 @@ or owner-check-plus-`DEL`. Sub-millisecond TTLs round up, never down. Prefixes a
 concatenated literally; reserve a namespace and avoid collisions with unrelated
 keys. It accepts go-redis's normal/cluster clients through a small Do/Eval interface.
 
+The [PostgreSQL 12+ driver](driver/postgres/README.md) accepts an application-owned
+`*sql.DB`: `postgresdriver.New(db, prefix, postgresdriver.WithTable("public.pkg_lock_leases"))`.
+Provision its table via migrations or explicit `driver.EnsureSchema(ctx)`; `New`
+does not run DDL. Atomic UPSERT acquisition and materialized, row-locked owner/
+expiry checks use the database clock. TTLs round up to microseconds without float
+arithmetic. Expired rows are logically absent; arrange periodic physical cleanup
+for unique keys. SQL providers/configuration must honor contexts and network
+deadlines; the adapter itself has no provider dependency. See its guide for schema,
+privileges, exact expiry/lock-wait boundaries, cleanup, and runnable examples.
+
 ## Safety boundaries
 
 Neither execution gates nor leases provide fencing, exactly-once execution, or a
@@ -240,8 +250,10 @@ provided. Core abstractions do not strengthen a backend's actual guarantees.
 execution and lease entry points, renewal/release, and lease state/context queries.
 Examples also distinguish skipped execution from callback failure and show how to
 cancel a wait. The test-only setup uses miniredis rather than an external server;
-replace it with your configured client in an application. The Redis adapter has
-its own [driver examples](driver/redis/example_test.go).
+replace it with your configured client in an application. Both adapters have their
+own executable examples: [Redis](driver/redis/example_test.go) and
+[PostgreSQL](driver/postgres/example_test.go). PostgreSQL example mocks are test
+plumbing; actual SQL semantics are verified by the real-database suite.
 
 ```sh
 go test -run '^Example' ./lock/...
@@ -253,6 +265,9 @@ go test -run '^Example' ./lock/...
 go test -race ./lock/...
 # Optional real Redis tests; unique namespace, no FLUSHDB:
 PKG_LOCK_REDIS_ADDR=127.0.0.1:6379 go test -race -tags=integration ./lock/...
+# Optional real PostgreSQL tests; each fixture owns its temporary table:
+PKG_LOCK_POSTGRES_DSN='postgres://user:password@127.0.0.1:5432/testdb?sslmode=disable' \
+  go test -race -tags=integration ./lock/...
 ```
 
 Default Redis tests use miniredis and exercise owner checks, expiry, Lua,

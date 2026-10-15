@@ -68,3 +68,35 @@ jobs:
         env:
           PKG_LOCK_REDIS_ADDR: 127.0.0.1:6379
         run: go test -race -count=1 -tags=integration ./lock/...
+
+  postgres:
+    name: PostgreSQL ${{ matrix.postgres }} integration
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        postgres: ['12', '16']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}-alpine
+        env:
+          POSTGRES_USER: pkglock
+          POSTGRES_PASSWORD: pkglock-test-only
+          POSTGRES_DB: pkglock
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pkglock -d pkglock"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run real PostgreSQL lock tests with race detector
+        env:
+          PKG_LOCK_POSTGRES_DSN: postgres://pkglock:pkglock-test-only@127.0.0.1:5432/pkglock?sslmode=disable
+        run: go test -race -count=1 -tags=integration ./lock/...

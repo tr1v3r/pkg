@@ -5,14 +5,14 @@ A collection of utility Go packages providing commonly needed functionality for 
 ## Packages
 
 ### [lock](./lock) - Pluggable Execution Gates and Lease Locks
-Backend-independent fixed-TTL execution suppression and lease ownership, with Redis as the first driver.
+Backend-independent fixed-TTL execution suppression and lease ownership, with Redis and PostgreSQL drivers.
 
 **Features:**
 - `TryRun`/`Run`: execute once per TTL reservation; keep the marker after work finishes, even on error
 - Owner-checked acquisition, renewal and release through an atomic driver contract
 - Explicit renewal plus opt-in automatic renewal (off by default)
 - Independent expiry/cancellation notification and bounded backend operations
-- Standard-library-only core; Redis client types stay in `lock/driver/redis`
+- Standard-library-only core; Redis and PostgreSQL adapters stay in `lock/driver/redis` and `lock/driver/postgres`
 - Lease safety limits documented explicitly; no fencing or exactly-once guarantees
 
 ### [cache](./cache) - In-Memory TTL Cache

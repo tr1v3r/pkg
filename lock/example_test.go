@@ -140,6 +140,7 @@ func ExampleLocker_TryRun() {
 	executed, err = locker.TryRun(context.Background(), "event:123", time.Hour, process)
 	fmt.Println("duplicate:", executed, err)
 	// There is no Release: the marker remains until the original TTL expires.
+
 	// Output:
 	// process event:123
 	// first: true <nil>

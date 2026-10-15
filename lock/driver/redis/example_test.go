@@ -51,6 +51,7 @@ func ExampleNew() {
 	}
 	fmt.Println("driver ready:", driver != nil)
 	// New neither connects to Redis nor takes ownership of client resources.
+
 	// Output:
 	// driver ready: true
 }
