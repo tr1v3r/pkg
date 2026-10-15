@@ -23,14 +23,17 @@ jobs:
           version: v2.12.2
 
   test:
-    name: Test
+    name: Test (Go ${{ matrix.go }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.24.x', 'stable']
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: ${{ matrix.go }}
 
       - name: Run tests with race detector
         run: go test -race -count=1 ./...

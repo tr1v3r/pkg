@@ -1,0 +1,103 @@
+{
+  "schema_version": 2,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "cache 条目生命周期：可见性与物理回收",
+    "locale": "zh-CN",
+    "output": "cache/docs/entry-lifecycle.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:tr1v3r/pkg.git",
+      "revision": "6099f9809a5ef6a39350645cef54507efc492fae",
+      "link_mode": "local-only"
+    }
+  },
+  "lanes": [
+    {"id": "main", "label": "单个 key 的一段生命周期；所在实例仍然开放"}
+  ],
+  "states": [
+    {
+      "id": "absent",
+      "type": "start",
+      "label": "尚未存储",
+      "sublabel": "Get 返回零值与 false",
+      "lane": "main",
+      "col": 0,
+      "sources": [{"path": "cache/cache.go", "line": 99, "end_line": 108}]
+    },
+    {
+      "id": "live",
+      "type": "active",
+      "label": "存活且可读",
+      "sublabel": "now < deadline",
+      "lane": "main",
+      "col": 1,
+      "sources": [
+        {"path": "cache/cache.go", "line": 76, "end_line": 93},
+        {"path": "cache/cache.go", "line": 95, "end_line": 108}
+      ]
+    },
+    {
+      "id": "expired",
+      "type": "waiting",
+      "label": "逻辑过期",
+      "sublabel": "Get 未命中；可能尚未回收",
+      "lane": "main",
+      "col": 2,
+      "sources": [
+        {"path": "cache/cache.go", "line": 95, "end_line": 108},
+        {"path": "cache/scheduler_test.go", "line": 172, "end_line": 196}
+      ]
+    },
+    {
+      "id": "removed",
+      "type": "neutral",
+      "label": "物理移除",
+      "sublabel": "索引与 heap 均无此 key",
+      "lane": "main",
+      "col": 3,
+      "sources": [
+        {"path": "cache/cache.go", "line": 110, "end_line": 121},
+        {"path": "cache/cache.go", "line": 184, "end_line": 196},
+        {"path": "cache/heap.go", "line": 35, "end_line": 43}
+      ]
+    }
+  ],
+  "transitions": [
+    {"id": "insert", "from": "absent", "to": "live", "label": "Set 校验通过", "variant": "emphasis"},
+    {"id": "reach-deadline", "from": "live", "to": "expired", "label": "到达 deadline"},
+    {"id": "background-remove", "from": "expired", "to": "removed", "label": "worker 清理"},
+    {"id": "explicit-delete", "from": "live", "to": "removed", "label": "Delete", "route": "bottom-channel"},
+    {"id": "revive-before-cleanup", "from": "expired", "to": "live", "label": "Set 重置 TTL", "route": "top-channel"}
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "读取不改变状态",
+      "items": [
+        "Get 加载快照核对不可变 deadline；恰好到期即未命中，不依赖 worker 调度。",
+        "Get 不续期，也不会物理移除条目；逻辑过期可能只存在很短时间。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "覆盖、复活与再次插入",
+      "items": [
+        "存活时 Set 新建快照，替换旧堆节点并 heap.Fix，随后 Store 发布。",
+        "过期但尚未清理时，Set 同样替换旧节点，开始新的 TTL；旧快照不变。",
+        "物理移除后可再次 Set，按新插入走 heap.Push；原 deadline 不会误删新条目。",
+        "所有 Set 都先检查 closed、正 TTL 和 key 自反性；拒绝的写入不改变条目。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "删除和实例关闭",
+      "items": [
+        "Delete 移除 map 与堆节点；只有最早 deadline 改变时才通知 worker。",
+        "worker 持堆锁弹出到期项并从 sync.Map 删除；Get 不获取该锁。",
+        "任意阶段均可 Close：清空 sync.Map 与堆，之后不能重新 Set。",
+        "本图描述单个 key；完整的 stop / done 同步边界见实例生命周期图。"
+      ]
+    }
+  ]
+}

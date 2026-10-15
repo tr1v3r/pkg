@@ -1,0 +1,7 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/Overwrite65536/SyncMap-12 	 2461254	       488.3 ns/op	         9.751 GC/Mop	     103 B/op	       2 allocs/op
+PASS
+ok  	github.com/tr1v3r/pkg/cache	2.241s

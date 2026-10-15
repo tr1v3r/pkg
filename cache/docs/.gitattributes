@@ -1,0 +1,2 @@
+# Keep validated generator output byte-for-byte; collapse it in GitHub diffs.
+*.html linguist-generated=true -whitespace
