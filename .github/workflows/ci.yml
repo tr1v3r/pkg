@@ -43,3 +43,28 @@ jobs:
 
       - name: Report total coverage
         run: go tool cover -func=coverage.out | tail -1
+
+  redis:
+    name: Redis integration
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run real Redis lease tests with race detector
+        env:
+          PKG_LOCK_REDIS_ADDR: 127.0.0.1:6379
+        run: go test -race -count=1 -tags=integration ./lock/...

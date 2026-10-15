@@ -39,6 +39,7 @@ Run a single test: `go test -v -run TestName ./packagename`.
 - **notion/** — Notion API client, interface-driven: `NewClient(version, token)` exposes `Database`, `Page`, `Block`, `User`, `Search`, `Comment` APIs. Built-in rate limiting, automatic pagination, `QueryIter` lazy iterator.
 
 ### Utility Packages
+- **lock/** — Backend-independent lease locks: `New(Driver, options...)`, `TryLock`/`Lock`, and `Lease.Renew`/`Release`/`Done`/`Err`/`Context`. Explicit renewal plus opt-in automatic renewal; deadline-bounded requests and independent expiry watcher. Standard-library-only core; first adapter is `lock/driver/redis` (go-redis v9). No fencing or exactly-once guarantee.
 - **cache/** — Generic, standard-library-only local TTL cache: `New[K, V]`, `Set` (positive TTL only), `Get`, `Delete`, `Close`. Strict expiry on reads; sync.Map snapshots, indexed min-heap and deadline-driven cleanup. Set publishes a new node; only indexes mutate under the heap lock. Always `Close` to stop the worker; zero value is unsupported.
 - **hash/** — Crypto hashes (MD5, SHA family, SHA3) with hex-string results; MD5/SHA1 carry deprecation notices for security contexts.
 - **netool/** — DNS resolution (multiple servers, A/CNAME/NS, retries) and ICMP ping.

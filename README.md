@@ -4,6 +4,16 @@ A collection of utility Go packages providing commonly needed functionality for 
 
 ## Packages
 
+### [lock](./lock) - Pluggable Lease Locks
+Backend-independent lease ownership with Redis as the first driver.
+
+**Features:**
+- Owner-checked acquisition, renewal and release through an atomic driver contract
+- Explicit renewal plus opt-in automatic renewal (off by default)
+- Independent expiry/cancellation notification and bounded backend operations
+- Standard-library-only core; Redis client types stay in `lock/driver/redis`
+- Lease safety limits documented explicitly; no fencing or exactly-once guarantees
+
 ### [cache](./cache) - In-Memory TTL Cache
 Generic, concurrent local caching with per-entry expiration and no external dependencies.
 
