@@ -1,0 +1,192 @@
+ROUND 1 VARIANT DoubleLock
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/DoubleLock-12         	 4462352	        39.34 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/DoubleLock-12        	24382948	         7.408 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/DoubleLock-12  	 1751163	       125.1 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/DoubleLock-12         	 1811973	        95.49 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1024/DoubleLock-12      	  735819	       260.5 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite65536/DoubleLock-12     	  464526	       364.7 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/SetDelete1024/DoubleLock-12      	 1546156	       116.0 ns/op	        12.94 GC/Mop	      48 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95Read65536/DoubleLock-12   	 1532378	       119.1 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/DoubleLock-12   	  889639	       182.2 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/DoubleLock-12   	 1995152	        89.40 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+PASS
+ROUND 1 VARIANT SyncMap
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/SyncMap-12 	 4499769	        40.24 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/SyncMap-12         	28103272	         6.246 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/SyncMap-12   	17029594	        25.27 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/SyncMap-12          	 1000000	       157.4 ns/op	        26.00 GC/Mop	      96 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite1024/SyncMap-12       	  549150	       343.4 ns/op	        29.14 GC/Mop	     102 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite65536/SyncMap-12      	  322922	       489.3 ns/op	        12.39 GC/Mop	     104 B/op	       2 allocs/op
+BenchmarkExperiment/SetDelete1024/SyncMap-12       	 1259004	       145.2 ns/op	        29.39 GC/Mop	     104 B/op	       3 allocs/op
+BenchmarkExperiment/Mixed95Read65536/SyncMap-12    	 3761476	        48.27 ns/op	         0.5317 GC/Mop	       5 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/SyncMap-12    	  598768	       311.0 ns/op	         5.010 GC/Mop	      51 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/SyncMap-12    	 5535501	        32.50 ns/op	         1.265 GC/Mop	       4 B/op	       0 allocs/op
+PASS
+ROUND 2 VARIANT SyncMap
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/SyncMap-12 	 4541368	        39.85 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/SyncMap-12         	27122558	         6.344 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/SyncMap-12   	13538626	        18.00 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/SyncMap-12          	 1000000	       157.2 ns/op	        26.00 GC/Mop	      96 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite1024/SyncMap-12       	  550093	       346.8 ns/op	        29.09 GC/Mop	     102 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite65536/SyncMap-12      	  332350	       481.3 ns/op	        12.04 GC/Mop	     103 B/op	       2 allocs/op
+BenchmarkExperiment/SetDelete1024/SyncMap-12       	 1271943	       144.0 ns/op	        29.88 GC/Mop	     104 B/op	       3 allocs/op
+BenchmarkExperiment/Mixed95Read65536/SyncMap-12    	 3772526	        52.14 ns/op	         0.5301 GC/Mop	       5 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/SyncMap-12    	  505510	       337.1 ns/op	         5.935 GC/Mop	      51 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/SyncMap-12    	 5676546	        31.73 ns/op	         1.233 GC/Mop	       4 B/op	       0 allocs/op
+PASS
+ROUND 2 VARIANT DoubleLock
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/DoubleLock-12         	 4639020	        38.87 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/DoubleLock-12        	24530820	         7.414 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/DoubleLock-12  	 1671184	       102.2 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/DoubleLock-12         	 1776655	       103.7 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1024/DoubleLock-12      	  636106	       274.1 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite65536/DoubleLock-12     	  399955	       380.5 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/SetDelete1024/DoubleLock-12      	 1603152	       112.3 ns/op	        13.10 GC/Mop	      48 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95Read65536/DoubleLock-12   	 1567994	       137.0 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/DoubleLock-12   	  856138	       180.6 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/DoubleLock-12   	 1992972	        90.97 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+PASS
+ROUND 3 VARIANT DoubleLock
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/DoubleLock-12         	 4493180	        39.59 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/DoubleLock-12        	24062832	         7.553 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/DoubleLock-12  	 1737742	       107.7 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/DoubleLock-12         	 1795008	        92.93 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1024/DoubleLock-12      	  753465	       251.2 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite65536/DoubleLock-12     	  412812	       371.7 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/SetDelete1024/DoubleLock-12      	 1548684	       117.1 ns/op	        13.56 GC/Mop	      48 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95Read65536/DoubleLock-12   	 1429248	       129.0 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/DoubleLock-12   	  983852	       188.0 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/DoubleLock-12   	 2113812	        89.69 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+PASS
+ROUND 3 VARIANT SyncMap
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/SyncMap-12 	 4440177	        40.65 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/SyncMap-12         	28561041	         8.609 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/SyncMap-12   	10154384	        34.30 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/SyncMap-12          	 1000000	       157.4 ns/op	        26.00 GC/Mop	      96 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite1024/SyncMap-12       	  583885	       343.5 ns/op	        29.12 GC/Mop	     102 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite65536/SyncMap-12      	  374058	       449.3 ns/op	        10.69 GC/Mop	     104 B/op	       2 allocs/op
+BenchmarkExperiment/SetDelete1024/SyncMap-12       	 1276500	       141.9 ns/op	        29.77 GC/Mop	     104 B/op	       3 allocs/op
+BenchmarkExperiment/Mixed95Read65536/SyncMap-12    	 4129671	        45.38 ns/op	         0.4843 GC/Mop	       5 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/SyncMap-12    	  673137	       279.6 ns/op	         5.942 GC/Mop	      51 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/SyncMap-12    	 5215198	        32.16 ns/op	         1.342 GC/Mop	       4 B/op	       0 allocs/op
+PASS
+ROUND 4 VARIANT SyncMap
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/SyncMap-12 	 4367102	        42.03 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/SyncMap-12         	28235661	         6.399 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/SyncMap-12   	10710991	        26.05 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/SyncMap-12          	 1000000	       154.4 ns/op	        26.00 GC/Mop	      96 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite1024/SyncMap-12       	  526135	       341.0 ns/op	        28.51 GC/Mop	     102 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite65536/SyncMap-12      	  377440	       479.9 ns/op	        10.60 GC/Mop	     103 B/op	       2 allocs/op
+BenchmarkExperiment/SetDelete1024/SyncMap-12       	 1246803	       146.3 ns/op	        29.68 GC/Mop	     104 B/op	       3 allocs/op
+BenchmarkExperiment/Mixed95Read65536/SyncMap-12    	 3851502	        54.06 ns/op	         0.5193 GC/Mop	       5 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/SyncMap-12    	  599325	       342.9 ns/op	         5.006 GC/Mop	      51 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/SyncMap-12    	 5535799	        31.94 ns/op	         1.264 GC/Mop	       4 B/op	       0 allocs/op
+PASS
+ROUND 4 VARIANT DoubleLock
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/DoubleLock-12         	 4434088	        39.64 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/DoubleLock-12        	23084566	         7.293 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/DoubleLock-12  	 1748674	       126.9 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/DoubleLock-12         	 1822840	        97.11 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1024/DoubleLock-12      	  757880	       265.7 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite65536/DoubleLock-12     	  485540	       346.4 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/SetDelete1024/DoubleLock-12      	 1571481	       115.3 ns/op	        13.36 GC/Mop	      48 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95Read65536/DoubleLock-12   	 1556451	       116.5 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/DoubleLock-12   	 1009466	       180.0 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/DoubleLock-12   	 2153667	        88.90 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+PASS
+ROUND 5 VARIANT DoubleLock
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/DoubleLock-12         	 4571234	        39.09 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/DoubleLock-12        	24258896	         7.452 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/DoubleLock-12  	 1853205	       100.1 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/DoubleLock-12         	 1904980	        96.25 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1024/DoubleLock-12      	  729889	       264.2 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite65536/DoubleLock-12     	  491763	       366.2 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/SetDelete1024/DoubleLock-12      	 1545790	       116.5 ns/op	        13.59 GC/Mop	      48 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95Read65536/DoubleLock-12   	 1449529	       123.3 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/DoubleLock-12   	  953782	       202.8 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/DoubleLock-12   	 2277607	        81.02 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+PASS
+ROUND 5 VARIANT SyncMap
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/SyncMap-12 	 4281500	        41.41 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/SyncMap-12         	27538376	         6.508 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/SyncMap-12   	18192460	        19.56 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/SyncMap-12          	 1229635	       150.6 ns/op	        26.02 GC/Mop	      96 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite1024/SyncMap-12       	  565956	       340.3 ns/op	        28.27 GC/Mop	     102 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite65536/SyncMap-12      	  304497	       510.2 ns/op	         9.852 GC/Mop	     103 B/op	       2 allocs/op
+BenchmarkExperiment/SetDelete1024/SyncMap-12       	 1240416	       144.0 ns/op	        29.83 GC/Mop	     104 B/op	       3 allocs/op
+BenchmarkExperiment/Mixed95Read65536/SyncMap-12    	 3918885	        54.66 ns/op	         0.5103 GC/Mop	       5 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/SyncMap-12    	  461958	       376.1 ns/op	         4.329 GC/Mop	      51 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/SyncMap-12    	 5464314	        32.67 ns/op	         1.281 GC/Mop	       4 B/op	       0 allocs/op
+PASS
+ROUND 6 VARIANT SyncMap
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/SyncMap-12 	 4312909	        41.42 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/SyncMap-12         	27671906	         6.497 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/SyncMap-12   	11973690	        14.70 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/SyncMap-12          	 1235680	       150.9 ns/op	        25.90 GC/Mop	      96 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite1024/SyncMap-12       	  552669	       331.9 ns/op	        28.95 GC/Mop	     102 B/op	       2 allocs/op
+BenchmarkExperiment/Overwrite65536/SyncMap-12      	  379351	       491.9 ns/op	        10.54 GC/Mop	     103 B/op	       2 allocs/op
+BenchmarkExperiment/SetDelete1024/SyncMap-12       	 1237645	       144.3 ns/op	        29.90 GC/Mop	     104 B/op	       3 allocs/op
+BenchmarkExperiment/Mixed95Read65536/SyncMap-12    	 3796586	        54.62 ns/op	         0.5268 GC/Mop	       5 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/SyncMap-12    	  595360	       347.4 ns/op	         5.039 GC/Mop	      51 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/SyncMap-12    	 5530208	        32.84 ns/op	         1.266 GC/Mop	       4 B/op	       0 allocs/op
+PASS
+ROUND 6 VARIANT DoubleLock
+goos: darwin
+goarch: arm64
+pkg: github.com/tr1v3r/pkg/cache
+cpu: Apple M3 Pro
+BenchmarkExperiment/GetHit1024/DoubleLock-12         	 4639797	        39.26 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/GetMiss1024/DoubleLock-12        	24017346	         7.311 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/ReadParallel65536/DoubleLock-12  	 1865041	       106.2 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1/DoubleLock-12         	 1752051	       100.9 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite1024/DoubleLock-12      	  713506	       271.3 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Overwrite65536/DoubleLock-12     	  413785	       378.4 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/SetDelete1024/DoubleLock-12      	 1533183	       117.3 ns/op	        13.04 GC/Mop	      48 B/op	       1 allocs/op
+BenchmarkExperiment/Mixed95Read65536/DoubleLock-12   	 1492596	       120.9 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed50Read65536/DoubleLock-12   	  888925	       184.0 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+BenchmarkExperiment/Mixed95ReadHot64/DoubleLock-12   	 1968975	        89.62 ns/op	         0 GC/Mop	       0 B/op	       0 allocs/op
+PASS

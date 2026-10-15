@@ -1,0 +1,1 @@
+ok  	github.com/tr1v3r/pkg/cache	11.495s

@@ -55,7 +55,7 @@ values, as with a regular Go map; uncomparable dynamic values panic.
 Validation order is closed cache, TTL, then key; rejected writes store nothing.
 
 Expiration is exact at the read boundary: an entry is expired when
-`now >= deadline`. `Get` checks the deadline under a read lock and returns a miss
+`now >= deadline`. `Get` loads a published snapshot and checks its immutable deadline, returning a miss
 for an expired entry even if the background worker has not removed it yet.
 It does not physically delete expired entries. Cleanup scheduling can delay
 memory reclamation, but it cannot make an expired entry readable.
@@ -83,18 +83,19 @@ synchronous: when it returns, the cache's cleanup goroutine has exited and its
 entries have been cleared. A closed cache cannot be reopened; create a new one
 when needed.
 
-A map provides key lookup, and an indexed minimum heap orders expiration
-deadlines. Each stored key has one heap node. Overwrites update that node with
-`heap.Fix`; deletion removes it with `heap.Remove`. Repeated refreshes therefore
-do not accumulate stale expiration nodes.
+A `sync.Map` provides key lookup, and an indexed minimum heap orders expiration
+deadlines. Each stored key has one current heap node. Overwrites create a new
+node, replace the old heap slot, repair ordering with `heap.Fix`, then publish
+the new node through `sync.Map.Store`. Published values and deadlines are never
+mutated. Deletion removes the node with `heap.Remove`; repeated refreshes do
+not accumulate stale expiration nodes.
 
 The background worker schedules a timer for the earliest deadline rather than
 polling at a fixed interval. `Set` and `Delete` wake it only when the earliest
 deadline changes, including transitions to or from an empty heap. Changes at the
 same deadline need no notification. The worker uses Go 1.24's synchronous timer
 semantics: `Reset` directly replaces the previous deadline without a
-stop-and-drain sequence. When the heap
-is empty, it stops the timer and waits only for a change or shutdown. The timer
+stop-and-drain sequence. When the heap is empty, it stops the timer and waits only for a change or shutdown. The timer
 is also stopped when the worker exits.
 
 ### Complexity
@@ -103,25 +104,29 @@ For `n` stored entries, including expired entries awaiting cleanup:
 
 | Operation | Complexity |
 | --- | --- |
-| `Get` | O(1), using the usual average-case map lookup assumption |
+| `Get` | Amortized O(1) index lookup |
 | `Set` | O(log n) heap maintenance, plus amortized map operations |
 | `Delete` | O(log n) for an existing key; average O(1) for a missing key |
 | Background expiration | O(log n) per removed entry |
 | Stored entries and expiration bookkeeping | O(n) |
 
 These bounds describe data-structure work, not lock contention or scheduling
-latency. Removed entries release their key/value references, but Go maps and
-heap backing arrays can retain capacity from earlier peaks until `Close`;
-allocated capacity need not shrink with the current number of entries.
+latency. The heap backing array can retain capacity from earlier peaks until
+`Close`. Replaced snapshots can remain reachable by in-flight readers until
+those reads finish, and unreachable snapshots are reclaimed by Go GC.
 
 ## Concurrency and limits
 
-The heap and map use separate locks, always acquired in heap-then-map order.
-`Get` takes only the map read lock. Heap adjustments run outside the map lock;
-cleanup briefly takes the map write lock for each deletion, allowing reads
-between deletions. Shared entry deadlines are updated under both locks.
-Writers still serialize on the heap lock, including during batch cleanup;
-this separation does not bound write latency or guarantee a fixed read latency.
+A single heap mutex serializes `Set`, `Delete`, cleanup, and `Close` so index
+updates cannot race with expiration or reinsertion. `Get` uses `sync.Map.Load`
+and immutable snapshot fields without taking that mutex. Only heap indexes
+are mutable, and readers never inspect them. This does not promise a lock-free
+implementation of `sync.Map` itself or a fixed scheduling latency.
+
+Every overwrite allocates a new node instead of mutating one already published.
+This trades extra allocation, GC work, and index memory for reader concurrency
+and simpler synchronization. See the [selection experiment and decision](docs/experiments/syncmap-2026-10-15/README.md)
+for measured costs, workload limits, raw data, and a frozen reproducer.
 
 - Methods are safe to call concurrently on the same cache pointer.
 - Synchronization protects the container, not mutable data stored in values.
@@ -163,5 +168,6 @@ ordinary benchmark runs focused on these operations rather than expiration.
 Results depend on the machine, Go version, and workload; no performance numbers
 are claimed here.
 
-See [expiration contention measurements](docs/performance.md) for the local
-read-latency/write-cost tradeoff and an opt-in, reproducible cleanup-window harness.
+See the [historical split-lock measurements](docs/performance.md) and
+[sync.Map selection experiment](docs/experiments/syncmap-2026-10-15/README.md)
+for the successive designs, measurement boundaries, and reproducible snapshots.

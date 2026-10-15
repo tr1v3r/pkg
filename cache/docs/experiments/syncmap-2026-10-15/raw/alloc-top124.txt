@@ -1,0 +1,30 @@
+File: cache.test
+Type: alloc_space
+Time: 2026-10-15 17:44:11 +08
+Showing nodes accounting for 407.95MB, 99.75% of 408.96MB total
+Dropped 6 nodes (cum <= 2.04MB)
+      flat  flat%   sum%        cum   cum%
+  205.51MB 50.25% 50.25%   403.44MB 98.65%  github.com/tr1v3r/pkg/cache.(*syncMapCache[go.shape.int,go.shape.int]).Set
+  175.51MB 42.92% 93.17%   175.51MB 42.92%  internal/sync.newEntryNode[go.shape.interface {},go.shape.interface {}] (inline)
+      12MB  2.93% 96.10%       12MB  2.93%  internal/sync.newIndirectNode[go.shape.interface {},go.shape.interface {}] (inline)
+   10.42MB  2.55% 98.65%    10.42MB  2.55%  github.com/tr1v3r/pkg/cache.(*expiryHeap[go.shape.int,go.shape.int]).Push
+    4.51MB  1.10% 99.75%     4.51MB  1.10%  runtime.allocm
+         0     0% 99.75%    10.42MB  2.55%  container/heap.Push
+         0     0% 99.75%   403.44MB 98.65%  github.com/tr1v3r/pkg/cache.BenchmarkExperiment.func1.1
+         0     0% 99.75%    53.43MB 13.06%  github.com/tr1v3r/pkg/cache.experimentPopulate
+         0     0% 99.75%   187.51MB 45.85%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Store (inline)
+         0     0% 99.75%   187.51MB 45.85%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Swap
+         0     0% 99.75%       12MB  2.93%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).expand
+         0     0% 99.75%   159.51MB 39.00%  internal/sync.(*entry[go.shape.interface {},go.shape.interface {}]).swap
+         0     0% 99.75%     3.51MB  0.86%  runtime.mstart
+         0     0% 99.75%     3.51MB  0.86%  runtime.mstart0
+         0     0% 99.75%     3.51MB  0.86%  runtime.mstart1
+         0     0% 99.75%     4.51MB  1.10%  runtime.newm
+         0     0% 99.75%     4.51MB  1.10%  runtime.resetspinning
+         0     0% 99.75%     4.51MB  1.10%  runtime.schedule
+         0     0% 99.75%     4.51MB  1.10%  runtime.startm
+         0     0% 99.75%     4.51MB  1.10%  runtime.wakep
+         0     0% 99.75%   187.51MB 45.85%  sync.(*Map).Store (inline)
+         0     0% 99.75%   393.85MB 96.31%  testing.(*B).launch
+         0     0% 99.75%     9.59MB  2.35%  testing.(*B).run1.func1
+         0     0% 99.75%   403.44MB 98.65%  testing.(*B).runN

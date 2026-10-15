@@ -179,7 +179,7 @@ func TestSchedulerGetMissesExactlyAtDeadline(t *testing.T) {
 		// deadline even when the expired entry has not been physically removed.
 		item := &entry[string, int]{key: "boundary", value: 7, deadline: time.Now().Add(time.Minute)}
 		c.heapMu.Lock()
-		c.items[item.key] = item
+		c.items.Store(item.key, item)
 		c.expirations = append(c.expirations, item)
 		c.heapMu.Unlock()
 
@@ -259,7 +259,7 @@ func TestSchedulerBatchWithIdenticalDeadlines(t *testing.T) {
 		time.Sleep(time.Minute - time.Nanosecond)
 		synctest.Wait()
 		c.heapMu.Lock()
-		items, expirations := len(c.items), len(c.expirations)
+		items, expirations := itemCount(c), len(c.expirations)
 		c.heapMu.Unlock()
 		if items != count || expirations != count {
 			t.Fatalf("before deadline: items = %d, expirations = %d, want %d each", items, expirations, count)
@@ -268,7 +268,7 @@ func TestSchedulerBatchWithIdenticalDeadlines(t *testing.T) {
 		time.Sleep(time.Nanosecond)
 		synctest.Wait()
 		c.heapMu.Lock()
-		items, expirations = len(c.items), len(c.expirations)
+		items, expirations = itemCount(c), len(c.expirations)
 		c.heapMu.Unlock()
 		if items != 0 || expirations != 0 {
 			t.Fatalf("at deadline: items = %d, expirations = %d, want 0 each", items, expirations)
@@ -354,16 +354,16 @@ func schedulerAssertKeys(t *testing.T, c *Cache[string, int], keys ...string) {
 	t.Helper()
 	c.heapMu.Lock()
 	defer c.heapMu.Unlock()
-	if len(c.items) != len(keys) || len(c.expirations) != len(keys) {
-		t.Fatalf("items = %d, expirations = %d, want keys %v", len(c.items), len(c.expirations), keys)
+	if itemCount(c) != len(keys) || len(c.expirations) != len(keys) {
+		t.Fatalf("items = %d, expirations = %d, want keys %v", itemCount(c), len(c.expirations), keys)
 	}
 	for _, key := range keys {
-		if _, ok := c.items[key]; !ok {
+		if _, ok := c.items.Load(key); !ok {
 			t.Fatalf("key %q missing from physical storage; want keys %v", key, keys)
 		}
 	}
 	for index, item := range c.expirations {
-		if item.index != index || c.items[item.key] != item {
+		if item.index != index || storedEntry(c, item.key) != item {
 			t.Fatalf("expiration %d is not indexed consistently in heap and items", index)
 		}
 	}

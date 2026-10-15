@@ -2,10 +2,9 @@ package cache
 
 import "time"
 
-// An entry belongs to both the key index and the expiration heap. Its position
-// is updated on every swap, so refresh and deletion can repair the heap in place.
-// key is immutable; index is protected by heapMu, value by mapMu, and deadline
-// writes require both locks (readers may hold either lock).
+// An entry belongs to both the key index and the expiration heap. key, value,
+// and deadline are immutable after publication through sync.Map. Only index
+// changes under heapMu; Get never reads it. Set replaces a node when refreshing.
 type entry[K comparable, V any] struct {
 	key      K
 	value    V

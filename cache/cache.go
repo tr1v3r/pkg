@@ -31,13 +31,10 @@ var (
 // A Cache must be created with New and must not be copied. Its zero value is
 // not usable. There is no capacity limit or eviction policy other than TTL.
 type Cache[K comparable, V any] struct {
-	// Writers always acquire heapMu before mapMu. Get only needs mapMu.
-	// heapMu protects expirations, entry indexes, and closed; mapMu protects
-	// items and entry values. Deadline writes require both locks because
-	// Get reads them under mapMu and heap operations read them under heapMu.
+	// heapMu serializes all writers, cleanup, and shutdown. Get uses only
+	// sync.Map and immutable key/value/deadline fields, never entry indexes.
 	heapMu      sync.Mutex
-	mapMu       sync.RWMutex
-	items       map[K]*entry[K, V]
+	items       sync.Map // K -> *entry[K, V]
 	expirations expiryHeap[K, V]
 	closed      bool
 	wake        chan struct{}
@@ -49,10 +46,9 @@ type Cache[K comparable, V any] struct {
 // The caller must eventually call Close.
 func New[K comparable, V any]() *Cache[K, V] {
 	c := &Cache[K, V]{
-		items: make(map[K]*entry[K, V]),
-		wake:  make(chan struct{}, 1),
-		stop:  make(chan struct{}),
-		done:  make(chan struct{}),
+		wake: make(chan struct{}, 1),
+		stop: make(chan struct{}),
+		done: make(chan struct{}),
 	}
 	go c.run()
 	return c
@@ -63,7 +59,8 @@ func New[K comparable, V any]() *Cache[K, V] {
 // returned without changing an existing entry. Keys that are not equal to
 // themselves (such as NaN) return ErrInvalidKey without storing the value.
 // A closed cache always returns ErrClosed. Updating a key does not create
-// another expiration record.
+// another retained expiration record. It replaces the old node in place in
+// the heap; published values and deadlines are never mutated.
 func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
 	c.heapMu.Lock()
 	defer c.heapMu.Unlock()
@@ -73,34 +70,26 @@ func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
 	if ttl <= 0 {
 		return ErrInvalidTTL
 	}
-	if key != key { //nolint:gocritic // NaN-containing keys cannot be retrieved or deleted from a Go map.
+	if key != key { //nolint:gocritic // NaN-containing keys cannot be retrieved or deleted.
 		return ErrInvalidKey
 	}
-
 	before, scheduled := c.earliest()
-	item, exists := c.store(key, value, time.Now().Add(ttl))
-	if exists {
+	item := &entry[K, V]{key: key, value: value, deadline: time.Now().Add(ttl)}
+	if previous, exists := c.items.Load(key); exists {
+		// Writers share heapMu, so the loaded node still owns this index.
+		old := previous.(*entry[K, V])
+		item.index = old.index
+		c.expirations[item.index] = item
+		old.index = -1
 		heap.Fix(&c.expirations, item.index)
 	} else {
 		heap.Push(&c.expirations, item)
 	}
+	// Publish only after repairing the heap. Readers holding the previous
+	// node can safely finish without observing a partially updated deadline.
+	c.items.Store(key, item)
 	c.notifyIfChanged(before, scheduled)
 	return nil
-}
-
-// store publishes a value and deadline while heapMu is held. The map lock is
-// released before heap maintenance, so readers do not wait for heap adjustments.
-func (c *Cache[K, V]) store(key K, value V, deadline time.Time) (*entry[K, V], bool) {
-	c.mapMu.Lock()
-	defer c.mapMu.Unlock()
-	if item, ok := c.items[key]; ok {
-		item.value = value
-		item.deadline = deadline
-		return item, true
-	}
-	item := &entry[K, V]{key: key, value: value, deadline: deadline}
-	c.items[key] = item
-	return item, false
 }
 
 // Get returns the value for key if it exists and has not expired. At or after
@@ -108,10 +97,11 @@ func (c *Cache[K, V]) store(key K, value V, deadline time.Time) (*entry[K, V], b
 // Get does not refresh the deadline. A miss or closed cache returns V's zero
 // value and false.
 func (c *Cache[K, V]) Get(key K) (V, bool) {
-	c.mapMu.RLock()
-	defer c.mapMu.RUnlock()
-	if item, ok := c.items[key]; ok && time.Now().Before(item.deadline) {
-		return item.value, true
+	if stored, ok := c.items.Load(key); ok {
+		item := stored.(*entry[K, V])
+		if time.Now().Before(item.deadline) {
+			return item.value, true
+		}
 	}
 	var zero V
 	return zero, false
@@ -123,20 +113,11 @@ func (c *Cache[K, V]) Delete(key K) {
 	c.heapMu.Lock()
 	defer c.heapMu.Unlock()
 	before, scheduled := c.earliest()
-	if item := c.remove(key); item != nil {
-		heap.Remove(&c.expirations, item.index)
+	if stored, ok := c.items.Load(key); ok {
+		heap.Remove(&c.expirations, stored.(*entry[K, V]).index)
+		c.items.Delete(key)
 		c.notifyIfChanged(before, scheduled)
 	}
-}
-
-// remove deletes a map entry while heapMu is held. Heap maintenance is kept
-// outside mapMu; heapMu prevents refreshes or reinserts during either step.
-func (c *Cache[K, V]) remove(key K) *entry[K, V] {
-	c.mapMu.Lock()
-	defer c.mapMu.Unlock()
-	item := c.items[key]
-	delete(c.items, key)
-	return item
 }
 
 // Close clears the cache and waits for its cleaner to stop. It is safe to call
@@ -146,9 +127,7 @@ func (c *Cache[K, V]) Close() {
 	c.heapMu.Lock()
 	if !c.closed {
 		c.closed = true
-		c.mapMu.Lock()
-		c.items = nil
-		c.mapMu.Unlock()
+		c.items.Clear()
 		c.expirations = nil
 		close(c.stop)
 	}
@@ -211,7 +190,7 @@ func (c *Cache[K, V]) nextDelay() (time.Duration, bool) {
 			return delay, true
 		}
 		heap.Pop(&c.expirations)
-		c.remove(item.key)
+		c.items.Delete(item.key)
 	}
 	return 0, false
 }

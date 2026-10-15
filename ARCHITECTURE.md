@@ -22,7 +22,7 @@
 | `config` | 配置加载：文件/URL/env → struct，JSON/YAML 可换 parser | `Configure` `NewConfigure` `Parser` `LoadTo` `LoadFromTo` | skr、pkg 内部（依赖 fetch） |
 | `calendar` | iCalendar(.ics) 解析与生成（事件/时区/告警/RRULE） | `Parse` `ParseReader` `Calendar` `Event` `NewDate` `EscapeText` | skr |
 | `circuitbreaker` | 经典三态熔断器（Closed→Open→HalfOpen） | `CircuitBreaker` `New` `Config` `DefaultConfig` `Execute` `State` `ErrOpen` | 独立使用（与 fetch 在调用点组合） |
-| `cache` | 泛型本地 TTL 缓存，严格过期读取、索引最小堆与可关闭的后台清理 | `Cache` `New` `Set` `Get` `Delete` `Close` `ErrClosed` `ErrInvalidTTL` `ErrInvalidKey` | 独立使用 |
+| `cache` | 泛型本地 TTL 缓存，sync.Map快照读取、索引最小堆与可关闭的后台清理 | `Cache` `New` `Set` `Get` `Delete` `Close` `ErrClosed` `ErrInvalidTTL` `ErrInvalidKey` | 独立使用 |
 | `netool` | 网络诊断：自定义 DNS 解析 + ICMP 延迟探测 | `LookupIP` `LookupWithServer` `ICMPDelay` `SingleICMPDelay` | — |
 | `hash` | 常用摘要算法一键计算（MD5/SHA1/SHA2/SHA3 全系） | `CalcMD5` `CalcSHA256` `CalcSHA3_512` … | — |
 | `brute` | 泛型回溯搜索引擎（BFS/DFS 框架） | `Bruter` `NewBruter` `Step` `State` `Queue` | — |

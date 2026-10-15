@@ -1,12 +1,17 @@
-# 集中过期与读取阻塞测量
+# 集中过期与读取阻塞测量（历史双锁方案）
 
 测于 2026-10-15，Apple M3 Pro / darwin arm64，Go 1.24.13，GOMAXPROCS=12。
 基线为 PR #53 的 `a41a5cbdb189cfa71878ccd590e554af2a8ef82f`；对比版本使用
 独立 heap/map 锁，以及仅最早 deadline 变化时通知 worker。
 
+当前实现已改用sync.Map；本页保留原实验记录，数值不代表当前实现。
+后续对照与采纳理由见 [sync.Map选型实验](experiments/syncmap-2026-10-15/README.md)。
+
 ## 方法与边界
 
-可复用脚本为 [`expiry_contention_test.go`](../expiry_contention_test.go)，默认构建不包含它：
+历史脚本为 [`expiry_contention_test.go`](https://github.com/tr1v3r/pkg/blob/ddb9e7c315c18f908e7ca13c73d43bb26d13ee74/cache/expiry_contention_test.go)。
+该脚本依赖当时的mapMu，仅应在提交 `ddb9e7c315c18f908e7ca13c73d43bb26d13ee74`
+的独立checkout中运行以下命令，当前源码不再包含它：
 
 ```sh
 go test -tags=cacheperf ./cache -run '^TestExpiryContentionMeasurement$' -count=3 -v

@@ -15,14 +15,28 @@ import (
 func manualCache[K comparable, V any](t *testing.T) *Cache[K, V] {
 	t.Helper()
 	c := &Cache[K, V]{
-		items: make(map[K]*entry[K, V]),
-		wake:  make(chan struct{}, 1),
-		stop:  make(chan struct{}),
-		done:  make(chan struct{}),
+		wake: make(chan struct{}, 1),
+		stop: make(chan struct{}),
+		done: make(chan struct{}),
 	}
 	close(c.done)
 	t.Cleanup(c.Close)
 	return c
+}
+
+// itemCount is used only with no worker or while heapMu excludes mutations.
+func itemCount[K comparable, V any](c *Cache[K, V]) int {
+	count := 0
+	c.items.Range(func(_, _ any) bool { count++; return true })
+	return count
+}
+
+func storedEntry[K comparable, V any](c *Cache[K, V], key K) *entry[K, V] {
+	stored, ok := c.items.Load(key)
+	if !ok {
+		return nil
+	}
+	return stored.(*entry[K, V])
 }
 
 func TestSetGetDelete(t *testing.T) {
@@ -71,7 +85,7 @@ func assertNonReflexiveKeyRejected[K comparable](t *testing.T, key K) {
 			t.Fatalf("Set error = %v, want ErrInvalidKey", err)
 		}
 	}
-	if len(c.items) != 0 || len(c.expirations) != 0 {
+	if itemCount(c) != 0 || len(c.expirations) != 0 {
 		t.Fatal("rejected key retained a value or expiration node")
 	}
 	if got, ok := c.Get(key); got != nil || ok {
@@ -118,17 +132,17 @@ func TestInvalidTTLPreservesEntry(t *testing.T) {
 			if err := c.Set("key", 1, time.Hour); err != nil {
 				t.Fatal(err)
 			}
-			deadline := c.items["key"].deadline
+			deadline := storedEntry(c, "key").deadline
 			if err := c.Set("key", 2, ttl); !errors.Is(err, ErrInvalidTTL) {
 				t.Fatalf("Set error = %v, want ErrInvalidTTL", err)
 			}
-			if got, ok := c.Get("key"); !ok || got != 1 || !c.items["key"].deadline.Equal(deadline) {
+			if got, ok := c.Get("key"); !ok || got != 1 || !storedEntry(c, "key").deadline.Equal(deadline) {
 				t.Fatal("invalid Set changed the original value or deadline")
 			}
 			if err := c.Set("missing", 3, ttl); !errors.Is(err, ErrInvalidTTL) {
 				t.Fatalf("missing key Set error = %v", err)
 			}
-			if len(c.items) != 1 || len(c.expirations) != 1 {
+			if itemCount(c) != 1 || len(c.expirations) != 1 {
 				t.Fatal("invalid Set added a map or heap entry")
 			}
 		})
@@ -140,14 +154,14 @@ func TestGetRejectsExpiredBeforeCleanup(t *testing.T) {
 	if err := c.Set("key", 7, time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	c.items["key"].deadline = time.Now().Add(-time.Hour)
+	storedEntry(c, "key").deadline = time.Now().Add(-time.Hour)
 	if got, ok := c.Get("key"); got != 0 || ok {
 		t.Fatalf("expired key: got (%d, %v)", got, ok)
 	}
-	if len(c.items) != 1 {
+	if itemCount(c) != 1 {
 		t.Fatal("Get unexpectedly performed physical cleanup")
 	}
-	if delay, scheduled := c.nextDelay(); scheduled || delay != 0 || len(c.items) != 0 {
+	if delay, scheduled := c.nextDelay(); scheduled || delay != 0 || itemCount(c) != 0 {
 		t.Fatal("cleaner failed to remove expired entry")
 	}
 }
@@ -157,11 +171,11 @@ func TestGetDoesNotRefreshTTL(t *testing.T) {
 	if err := c.Set("key", 1, time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	deadline := c.items["key"].deadline
+	deadline := storedEntry(c, "key").deadline
 	for i := 0; i < 100; i++ {
 		c.Get("key")
 	}
-	if !c.items["key"].deadline.Equal(deadline) {
+	if !storedEntry(c, "key").deadline.Equal(deadline) {
 		t.Fatal("Get refreshed the deadline")
 	}
 }
@@ -206,11 +220,11 @@ func TestRefreshDoesNotAccumulateNodes(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if len(c.expirations) != 1 || len(c.items) != 1 {
-		t.Fatalf("refresh accumulated nodes: map=%d, heap=%d", len(c.items), len(c.expirations))
+	if len(c.expirations) != 1 || itemCount(c) != 1 {
+		t.Fatalf("refresh accumulated nodes: map=%d, heap=%d", itemCount(c), len(c.expirations))
 	}
 	c.Delete("key")
-	if len(c.expirations) != 0 || len(c.items) != 0 {
+	if len(c.expirations) != 0 || itemCount(c) != 0 {
 		t.Fatal("Delete retained entries")
 	}
 	for _, item := range c.expirations[:cap(c.expirations)] {
@@ -225,7 +239,7 @@ func TestExpiredOverwriteAndDeleteReinsert(t *testing.T) {
 	if err := c.Set("key", 1, time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	c.items["key"].deadline = time.Now().Add(-time.Hour)
+	storedEntry(c, "key").deadline = time.Now().Add(-time.Hour)
 	if err := c.Set("key", 2, time.Hour); err != nil {
 		t.Fatal(err)
 	}
@@ -273,18 +287,18 @@ func TestHeapAgainstModel(t *testing.T) {
 			c.Delete(key)
 			delete(model, key)
 		case 3:
-			if item, ok := c.items[key]; ok {
+			if item := storedEntry(c, key); item != nil {
 				item.deadline = time.Now().Add(-time.Hour)
 				heap.Fix(&c.expirations, item.index)
 			}
 			c.nextDelay()
 			delete(model, key)
 		}
-		if len(c.items) != len(model) || len(c.expirations) != len(model) {
+		if itemCount(c) != len(model) || len(c.expirations) != len(model) {
 			t.Fatalf("step %d: model/map/heap lengths differ", step)
 		}
 		for index, item := range c.expirations {
-			if item.index != index || c.items[item.key] != item {
+			if item.index != index || storedEntry(c, item.key) != item {
 				t.Fatalf("step %d: broken map/heap index", step)
 			}
 			if index > 0 && c.expirations.Less(index, (index-1)/2) {
@@ -340,7 +354,7 @@ func TestConcurrentOperationsAndClose(t *testing.T) {
 	}
 	c.heapMu.Lock()
 	defer c.heapMu.Unlock()
-	if c.items != nil || c.expirations != nil {
+	if itemCount(c) != 0 || c.expirations != nil {
 		t.Fatal("Close retained stored entries")
 	}
 	select {
@@ -396,7 +410,7 @@ func TestEqualDeadlineRootChangeDoesNotNotify(t *testing.T) {
 	deadline := time.Now().Add(time.Hour)
 	for index, key := range []string{"first", "second"} {
 		item := &entry[string, int]{key: key, deadline: deadline, index: index}
-		c.items[key] = item
+		c.items.Store(key, item)
 		c.expirations = append(c.expirations, item)
 	}
 	c.Delete("first")
@@ -433,7 +447,7 @@ func TestGetDoesNotWaitForHeapLock(t *testing.T) {
 	if err := c.Set("expired", 7, time.Hour); err != nil {
 		t.Fatal(err)
 	}
-	c.items["expired"].deadline = time.Now().Add(-time.Hour)
+	storedEntry(c, "expired").deadline = time.Now().Add(-time.Hour)
 	c.heapMu.Lock()
 	defer c.heapMu.Unlock()
 	result := make(chan bool, 1)
@@ -479,15 +493,43 @@ func TestConcurrentRefreshAndCleanup(t *testing.T) {
 		}(worker)
 	}
 	wg.Wait()
-	if len(c.items) != len(c.expirations) {
+	if itemCount(c) != len(c.expirations) {
 		t.Fatal("concurrent cleanup lost map/heap correspondence")
 	}
 	for index, item := range c.expirations {
-		if item.index != index || c.items[item.key] != item {
+		if item.index != index || storedEntry(c, item.key) != item {
 			t.Fatal("concurrent refresh corrupted the entry index")
 		}
 		if index > 0 && c.expirations.Less(index, (index-1)/2) {
 			t.Fatal("concurrent refresh corrupted heap ordering")
 		}
+	}
+}
+
+func TestRefreshKeepsPublishedSnapshotImmutable(t *testing.T) {
+	c := manualCache[string, int](t)
+	if err := c.Set("key", 1, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	previous := storedEntry(c, "key")
+	deadline := previous.deadline
+	for value := 2; value <= 100; value++ {
+		if err := c.Set("key", value, 2*time.Hour); err != nil {
+			t.Fatal(err)
+		}
+		current := storedEntry(c, "key")
+		if current == previous || current.value != value {
+			t.Fatal("refresh did not publish a new snapshot")
+		}
+		if previous.value != 1 || !previous.deadline.Equal(deadline) {
+			t.Fatal("refresh mutated a published value/deadline")
+		}
+		if previous.index != -1 || current.index != 0 || c.expirations[0] != current {
+			t.Fatal("replacement corrupted heap indexes")
+		}
+	}
+	c.Delete("key")
+	if previous.value != 1 || !previous.deadline.Equal(deadline) {
+		t.Fatal("delete mutated the old snapshot")
 	}
 }

@@ -1,0 +1,65 @@
+=== RUN   TestExperimentFootprint
+    syncmap_comparison_test.go:278: go1.24.13 GOMAXPROCS=12
+    syncmap_comparison_test.go:293: DoubleLock run=0 retained=8157608 bytes (81.58 B/key) objects=100304
+    syncmap_comparison_test.go:293: DoubleLock run=1 retained=8122088 bytes (81.22 B/key) objects=100263
+    syncmap_comparison_test.go:293: DoubleLock run=2 retained=8126888 bytes (81.27 B/key) objects=100267
+    syncmap_comparison_test.go:293: SyncMap run=0 retained=17559832 bytes (175.60 B/key) objects=288657
+    syncmap_comparison_test.go:293: SyncMap run=1 retained=17528704 bytes (175.29 B/key) objects=288463
+    syncmap_comparison_test.go:293: SyncMap run=2 retained=17551144 bytes (175.51 B/key) objects=288604
+--- PASS: TestExperimentFootprint (0.13s)
+=== RUN   TestExperimentEnvironment
+    syncmap_comparison_test.go:301: Go=go1.24.13 CPUs=12 GOMAXPROCS=12
+--- PASS: TestExperimentEnvironment (0.00s)
+=== RUN   TestExperimentExpiryContinuous
+    syncmap_expiry_experiment_test.go:95: go1.24.13 GOMAXPROCS=12 readers=12
+=== RUN   TestExperimentExpiryContinuous/identical/N=10000
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=0 cleanup=58.642875ms reads=205168 p50<=127ns p99<=90.111µs max=562.208µs over10us=11739 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=0 cleanup=2.253875ms reads=10820 p50<=167ns p99<=4.863µs max=1.702417ms over10us=7 over1ms=1
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=1 cleanup=1.996791ms reads=121139 p50<=127ns p99<=303ns max=65.375µs over10us=9 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=1 cleanup=55.435916ms reads=206623 p50<=127ns p99<=86.015µs max=411.25µs over10us=11157 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=2 cleanup=55.489458ms reads=204492 p50<=127ns p99<=86.015µs max=423.5µs over10us=11200 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=2 cleanup=755.041µs reads=3955 p50<=215ns p99<=4.863µs max=5.083µs over10us=0 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=3 cleanup=1.877417ms reads=8481 p50<=167ns p99<=4.863µs max=467.667µs over10us=19 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=3 cleanup=55.185041ms reads=202762 p50<=127ns p99<=86.015µs max=468.541µs over10us=11205 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=4 cleanup=56.461375ms reads=207286 p50<=127ns p99<=86.015µs max=558.25µs over10us=11556 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=4 cleanup=1.433083ms reads=73849 p50<=127ns p99<=303ns max=1.3065ms over10us=6 over1ms=1
+=== RUN   TestExperimentExpiryContinuous/identical/N=100000
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=0 cleanup=574.686209ms reads=2111263 p50<=127ns p99<=90.111µs max=1.655916ms over10us=111675 over1ms=2
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=0 cleanup=13.047416ms reads=606388 p50<=127ns p99<=335ns max=1.223917ms over10us=51 over1ms=1
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=1 cleanup=11.358334ms reads=366300 p50<=127ns p99<=4.095µs max=11.189542ms over10us=58 over1ms=1
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=1 cleanup=574.271042ms reads=2095637 p50<=127ns p99<=86.015µs max=580.666µs over10us=116492 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=2 cleanup=572.754667ms reads=2032818 p50<=127ns p99<=90.111µs max=639.125µs over10us=115086 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=2 cleanup=30.643541ms reads=1194749 p50<=83ns p99<=3.711µs max=11.205167ms over10us=184 over1ms=4
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=3 cleanup=28.217875ms reads=365316 p50<=87ns p99<=4.863µs max=5.200875ms over10us=162 over1ms=2
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=3 cleanup=580.42975ms reads=2159891 p50<=127ns p99<=86.015µs max=2.03ms over10us=116253 over1ms=6
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=4 cleanup=590.098208ms reads=2138667 p50<=127ns p99<=86.015µs max=1.554583ms over10us=119490 over1ms=6
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=4 cleanup=32.363208ms reads=1447527 p50<=127ns p99<=383ns max=11.032666ms over10us=215 over1ms=9
+=== RUN   TestExperimentExpiryContinuous/staggered/N=10000
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=0 cleanup=61.971833ms reads=219934 p50<=127ns p99<=90.111µs max=485µs over10us=12594 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=0 cleanup=2.235958ms reads=70434 p50<=83ns p99<=3.839µs max=2.228458ms over10us=25 over1ms=2
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=1 cleanup=2.281209ms reads=162721 p50<=83ns p99<=303ns max=209.833µs over10us=12 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=1 cleanup=60.897ms reads=211923 p50<=127ns p99<=90.111µs max=426.208µs over10us=12177 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=2 cleanup=61.950584ms reads=222763 p50<=127ns p99<=86.015µs max=492.083µs over10us=12735 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=2 cleanup=4.96275ms reads=362509 p50<=87ns p99<=255ns max=220.792µs over10us=23 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=3 cleanup=2.199166ms reads=73349 p50<=87ns p99<=3.967µs max=1.802167ms over10us=16 over1ms=1
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=3 cleanup=60.198167ms reads=208953 p50<=127ns p99<=90.111µs max=416.666µs over10us=12250 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=4 cleanup=61.053208ms reads=214518 p50<=167ns p99<=90.111µs max=603.75µs over10us=12217 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=4 cleanup=2.054584ms reads=9570 p50<=215ns p99<=4.863µs max=1.963667ms over10us=10 over1ms=1
+=== RUN   TestExperimentExpiryContinuous/staggered/N=100000
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=0 cleanup=644.443834ms reads=2290709 p50<=167ns p99<=86.015µs max=790.458µs over10us=133090 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=0 cleanup=44.343834ms reads=1387487 p50<=83ns p99<=4.351µs max=21.389833ms over10us=193 over1ms=10
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=1 cleanup=61.642375ms reads=1269870 p50<=83ns p99<=4.607µs max=17.84425ms over10us=276 over1ms=13
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=1 cleanup=652.241125ms reads=2282095 p50<=167ns p99<=90.111µs max=682.333µs over10us=133236 over1ms=0
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=2 cleanup=641.2725ms reads=2219092 p50<=127ns p99<=94.207µs max=1.053666ms over10us=124010 over1ms=1
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=2 cleanup=53.1595ms reads=252585 p50<=127ns p99<=5.119µs max=12.820708ms over10us=157 over1ms=6
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=3 cleanup=44.027583ms reads=201306 p50<=167ns p99<=4.863µs max=23.4545ms over10us=190 over1ms=3
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=3 cleanup=642.458916ms reads=2279534 p50<=127ns p99<=86.015µs max=2.779375ms over10us=129681 over1ms=4
+    syncmap_expiry_experiment_test.go:165: DoubleLock wave=4 cleanup=652.016417ms reads=2210893 p50<=167ns p99<=90.111µs max=623.875µs over10us=130963 over1ms=0
+    syncmap_expiry_experiment_test.go:165: SyncMap wave=4 cleanup=46.71875ms reads=418212 p50<=127ns p99<=4.863µs max=14.447583ms over10us=148 over1ms=5
+--- PASS: TestExperimentExpiryContinuous (8.20s)
+    --- PASS: TestExperimentExpiryContinuous/identical/N=10000 (0.54s)
+    --- PASS: TestExperimentExpiryContinuous/identical/N=100000 (3.29s)
+    --- PASS: TestExperimentExpiryContinuous/staggered/N=10000 (0.53s)
+    --- PASS: TestExperimentExpiryContinuous/staggered/N=100000 (3.84s)
+PASS
+ok  	github.com/tr1v3r/pkg/cache	9.296s
