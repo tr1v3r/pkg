@@ -138,28 +138,24 @@ func (c *Cache[K, V]) notify() {
 
 func (c *Cache[K, V]) run() {
 	defer close(c.done)
-	timer := time.NewTimer(time.Hour)
-	timer.Stop()
+	timer := time.NewTimer(0)
 	defer timer.Stop()
 
 	for {
 		delay, scheduled := c.nextDelay()
 		var tick <-chan time.Time
 		if scheduled {
+			// Go 1.24+ Reset discards notifications from the previous deadline.
 			timer.Reset(delay)
 			tick = timer.C
+		} else {
+			timer.Stop()
 		}
 		select {
 		case <-c.stop:
 			return
 		case <-c.wake:
 		case <-tick:
-		}
-		if !timer.Stop() {
-			select {
-			case <-timer.C:
-			default:
-			}
 		}
 	}
 }

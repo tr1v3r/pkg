@@ -52,6 +52,62 @@ func TestSchedulerEarlierInsertionResetsTimer(t *testing.T) {
 	})
 }
 
+func TestSchedulerSuccessiveInsertionsResetActiveTimer(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := New[string, int]()
+		defer c.Close()
+		schedulerSet(t, c, "a", 1, 30*time.Second)
+		synctest.Wait()
+		time.Sleep(5 * time.Second)
+
+		schedulerSet(t, c, "b", 2, 20*time.Second)
+		synctest.Wait()
+		time.Sleep(3 * time.Second)
+
+		schedulerSet(t, c, "c", 3, 10*time.Second)
+		synctest.Wait()
+		time.Sleep(10*time.Second - time.Nanosecond)
+		synctest.Wait()
+		schedulerAssertKeys(t, c, "a", "b", "c")
+		time.Sleep(time.Nanosecond)
+		synctest.Wait()
+		schedulerAssertKeys(t, c, "a", "b")
+
+		time.Sleep(7 * time.Second)
+		synctest.Wait()
+		schedulerAssertKeys(t, c, "a")
+		time.Sleep(5 * time.Second)
+		synctest.Wait()
+		schedulerAssertKeys(t, c)
+	})
+}
+
+func TestSchedulerEmptyAfterDeleteRearmsOnInsertion(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := New[string, int]()
+		defer c.Close()
+		schedulerSet(t, c, "deleted", 1, time.Minute)
+		synctest.Wait()
+		time.Sleep(30 * time.Second)
+		c.Delete("deleted")
+		synctest.Wait()
+		schedulerAssertKeys(t, c)
+
+		// Stay idle beyond the cancelled deadline, then start a new lifetime.
+		time.Sleep(time.Hour)
+		synctest.Wait()
+		schedulerSet(t, c, "new", 2, time.Minute)
+		synctest.Wait()
+		time.Sleep(time.Minute - time.Nanosecond)
+		synctest.Wait()
+		schedulerAssertKeys(t, c, "new")
+		schedulerAssertGet(t, c, "new", 2, true)
+		time.Sleep(time.Nanosecond)
+		synctest.Wait()
+		schedulerAssertKeys(t, c)
+	})
+}
+
 func TestSchedulerRefreshExtendsDeadline(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		c := New[string, int]()

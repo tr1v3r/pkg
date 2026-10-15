@@ -90,7 +90,10 @@ do not accumulate stale expiration nodes.
 
 The background worker schedules a timer for the earliest deadline rather than
 polling at a fixed interval. `Set` and `Delete` wake it to reconsider the next
-deadline.
+deadline. The worker uses Go 1.24's synchronous timer semantics: `Reset` directly
+replaces the previous deadline without a stop-and-drain sequence. When the heap
+is empty, it stops the timer and waits only for a change or shutdown. The timer
+is also stopped when the worker exits.
 
 ### Complexity
 
