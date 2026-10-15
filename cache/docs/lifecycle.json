@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "cache 实例生命周期与同步关闭",
+    "locale": "zh-CN",
+    "output": "cache/docs/lifecycle.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:tr1v3r/pkg.git",
+      "revision": "b1b262200d6c490c1d0f55736060860494311a37",
+      "link_mode": "local-only"
+    }
+  },
+  "lanes": [{"id": "main", "label": "单个 Cache 实例；关闭后不可重开"}],
+  "states": [
+    {
+      "id": "constructed",
+      "type": "start",
+      "label": "New 构造",
+      "sublabel": "map 与三个通道就绪",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "sources": [{"path": "cache/cache.go", "line": 43, "end_line": 54}]
+    },
+    {
+      "id": "open",
+      "type": "active",
+      "label": "可读写",
+      "sublabel": "一个 worker 按需等待",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "sources": [
+        {"path": "cache/cache.go", "line": 62, "end_line": 113},
+        {"path": "cache/cache.go", "line": 139, "end_line": 165}
+      ]
+    },
+    {
+      "id": "closing",
+      "type": "active",
+      "label": "封闭与清空",
+      "sublabel": "持写锁，close(stop)",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "sources": [{"path": "cache/cache.go", "line": 118, "end_line": 125}]
+    },
+    {
+      "id": "joining",
+      "type": "waiting",
+      "label": "等待退出",
+      "sublabel": "解锁后接收 done",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "sources": [
+        {"path": "cache/cache.go", "line": 126, "end_line": 128},
+        {"path": "cache/cache.go", "line": 139, "end_line": 164}
+      ]
+    },
+    {
+      "id": "closed",
+      "type": "success",
+      "label": "关闭完成",
+      "sublabel": "Close 返回；worker 已退出",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "sources": [
+        {"path": "cache/cache.go", "line": 115, "end_line": 128},
+        {"path": "cache/cache.go", "line": 139, "end_line": 154}
+      ]
+    }
+  ],
+  "transitions": [
+    {"id": "launch-worker", "from": "constructed", "to": "open", "label": "启动 worker", "variant": "emphasis"},
+    {"id": "first-close", "from": "open", "to": "closing", "label": "首次 Close"},
+    {"id": "release-lock", "from": "closing", "to": "joining", "label": "释放写锁"},
+    {"id": "worker-done", "from": "joining", "to": "closed", "label": "done 关闭", "variant": "emphasis"}
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "运行中的 worker",
+      "items": [
+        "nextDelay 持写锁清理到期项；有剩余项则 timer.Reset 到最早 deadline。",
+        "堆为空时 tick 为 nil，不做固定间隔轮询；select 等待 wake、tick 或 stop。",
+        "wake / tick 到来后停表并排空旧 tick，再重算；stop 就绪后退出 run。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "关闭的同步边界",
+      "items": [
+        "首次 Close 在同一写锁内置 closed、将 map / heap 置 nil，并关闭 stop。",
+        "worker 不必等到原 TTL；run 返回时先停止 timer，再由 defer 关闭 done。",
+        "Close 解锁后等待 done，避免拿着 worker 所需的锁等待退出。",
+        "并发 Close 只有一个执行清空与 close(stop)；所有调用者都等待 done。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "不可逆的实例状态",
+      "items": [
+        "关闭后 Set 返回 ErrClosed，优先于 TTL 和 key 校验；Get 未命中，Delete 无操作。",
+        "重复 Close 安全；关闭后的实例不能重开，需要重新 New。",
+        "必须用 New 构造且不能复制实例；通常在 New 后立即 defer Close。"
+      ]
+    }
+  ]
+}

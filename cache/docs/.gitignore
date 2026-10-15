@@ -1,0 +1,10 @@
+# Local Archify receipts include machine-specific absolute paths.
+*.delivery.json
+*.delivery-pending.json
+*.delivery-lock.json
+*.browser-check.json
+*.finalize.json
+*.finalize-summary.json
+.archify-*.json
+.archify-*/
+*.review-*/

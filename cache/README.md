@@ -72,6 +72,11 @@ Use `errors.Is` with `cache.ErrInvalidTTL`, `cache.ErrInvalidKey`, or
 
 ## Lifecycle and implementation
 
+See [architecture and lifecycle diagrams](docs/README.md) for interactive,
+source-linked views of the storage/scheduler architecture, cache shutdown, and
+entry expiration. The standalone HTML files and their editable JSON sources live
+in `docs/`.
+
 Every call to `New` starts one background cleanup goroutine. **Always call
 `Close`**, normally with `defer` immediately after construction. Closing is
 synchronous: when it returns, the cache's cleanup goroutine has exited and its
