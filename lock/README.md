@@ -187,8 +187,12 @@ loss. Redis drivers require deadline-capable known client configurations; custom
 Client implementations must honor provided deadlines too.
 
 Acquisition errors may mean the key was created remotely; it is left to expire.
-For lease APIs, late successful acquisitions that already outlived local validity
-are rejected and best-effort released. Gate APIs instead always leave their marker
+For lease APIs, successful replies observed after the request deadline or
+cancellation are rejected even if the local TTL has not elapsed. Late successful
+acquisitions are best-effort released using a fresh bounded context; late renewal
+replies permanently invalidate the handle. Acquisitions that outlived local
+validity are also rejected and best-effort released.
+Gate APIs instead always leave their marker
 to expire and never invoke the callback after a canceled/expired acquisition.
 Renewal errors permanently abandon the handle even if
 Redis might have renewed it; subsequent work must not rely on that uncertainty.

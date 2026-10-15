@@ -142,7 +142,8 @@ func (l *Lease) leave() { l.gate <- struct{}{} }
 // Renew extends ownership by the original TTL. It serializes with other Renew
 // and Release calls. Any failure AFTER calling the driver invalidates the handle,
 // even when the backend outcome is uncertain. A canceled wait makes no request
-// and does not itself abandon a still-valid lease.
+// and does not itself abandon a still-valid lease. A successful reply received
+// after the request deadline or cancellation also invalidates the handle.
 func (l *Lease) Renew(ctx context.Context) error {
 	if err := l.enter(ctx, true); err != nil {
 		return err
@@ -168,6 +169,9 @@ func (l *Lease) Renew(ctx context.Context) error {
 	owned, err := l.driver.Renew(request, l.key, l.owner, l.ttl)
 	if err != nil {
 		return l.finish(errors.Join(ErrLeaseLost, fmt.Errorf("lock: renew %q: %w", l.key, err)))
+	}
+	if requestErr := requestError(request); requestErr != nil {
+		return l.finish(errors.Join(ErrLeaseLost, fmt.Errorf("lock: renew %q: %w", l.key, requestErr)))
 	}
 	if !owned {
 		return l.finish(ErrLeaseLost)

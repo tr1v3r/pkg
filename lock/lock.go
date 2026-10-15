@@ -101,7 +101,8 @@ func nilValue(value any) bool {
 // Cancellation stops renewal but does not automatically delete the remote key.
 //
 // Local validity starts BEFORE the driver request, not at its response. A slow
-// successful acquisition that outlives its TTL is rejected and best-effort released.
+// successful acquisition that outlives its TTL or request deadline is rejected and
+// best-effort released.
 // An errored acquisition may have succeeded remotely; its key is left to expire.
 func (l *Locker) TryLock(ctx context.Context, key string, ttl time.Duration) (*Lease, error) {
 	if key == "" {
@@ -121,10 +122,17 @@ func (l *Locker) TryLock(ctx context.Context, key string, ttl time.Duration) (*L
 	if err != nil {
 		return nil, fmt.Errorf("lock: acquire %q: %w", key, err)
 	}
-	if !acquired {
-		if err := ctx.Err(); err != nil {
+	if requestErr := requestError(request); requestErr != nil {
+		err := fmt.Errorf("lock: acquire %q: %w", key, requestErr)
+		if !acquired {
 			return nil, err
 		}
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), l.operationTimeout)
+		defer cancel()
+		_, cleanupErr := l.driver.Release(cleanup, key, owner)
+		return nil, errors.Join(ErrLeaseLost, err, cleanupErr)
+	}
+	if !acquired {
 		return nil, ErrNotAcquired
 	}
 	lease := newLease(ctx, l, key, owner, ttl, started.Add(ttl))
@@ -153,4 +161,16 @@ func (l *Locker) Lock(ctx context.Context, key string, ttl time.Duration) (*Leas
 		case <-timer.C:
 		}
 	}
+}
+
+// requestError also checks the clock: a deadline can pass before the context's
+// timer goroutine has recorded cancellation.
+func requestError(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+		return context.DeadlineExceeded
+	}
+	return nil
 }
