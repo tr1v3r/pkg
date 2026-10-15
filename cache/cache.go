@@ -143,11 +143,9 @@ func (c *Cache[K, V]) run() {
 
 	for {
 		delay, scheduled := c.nextDelay()
-		var tick <-chan time.Time
 		if scheduled {
 			// Go 1.24+ Reset discards notifications from the previous deadline.
 			timer.Reset(delay)
-			tick = timer.C
 		} else {
 			timer.Stop()
 		}
@@ -155,7 +153,7 @@ func (c *Cache[K, V]) run() {
 		case <-c.stop:
 			return
 		case <-c.wake:
-		case <-tick:
+		case <-timer.C:
 		}
 	}
 }
