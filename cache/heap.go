@@ -4,7 +4,7 @@ import "time"
 
 // An entry belongs to both the key index and the expiration heap. key, value,
 // and deadline are immutable after publication through sync.Map. Only index
-// changes under heapMu; Get never reads it. Set replaces a node when refreshing.
+// changes under mu; Get never reads it. Set replaces a node when refreshing.
 type entry[K comparable, V any] struct {
 	key      K
 	value    V

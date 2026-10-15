@@ -30,7 +30,7 @@ Set → deadline = now + TTL
 【实例所有权】
 New → 一个 worker → nextDelay → 等 wake / timer.C / stop
 Close
-  ├─ heapMu：closed = true → sync.Map.Clear / 清空 heap → close(stop)
+  ├─ mu：closed = true → sync.Map.Clear / 清空 heap → close(stop)
   └─ 释放堆锁 → 等 done → Close 返回时 worker 已退出
 ```
 

@@ -31,9 +31,9 @@ var (
 // A Cache must be created with New and must not be copied. Its zero value is
 // not usable. There is no capacity limit or eviction policy other than TTL.
 type Cache[K comparable, V any] struct {
-	// heapMu serializes all writers, cleanup, and shutdown. Get uses only
+	// mu serializes all writers, cleanup, and shutdown. Get uses only
 	// sync.Map and immutable key/value/deadline fields, never entry indexes.
-	heapMu      sync.Mutex
+	mu          sync.Mutex
 	items       sync.Map // K -> *entry[K, V]
 	expirations expiryHeap[K, V]
 	closed      bool
@@ -62,8 +62,8 @@ func New[K comparable, V any]() *Cache[K, V] {
 // another retained expiration record. It replaces the old node in place in
 // the heap; published values and deadlines are never mutated.
 func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
-	c.heapMu.Lock()
-	defer c.heapMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.closed {
 		return ErrClosed
 	}
@@ -76,7 +76,7 @@ func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
 	before, scheduled := c.earliest()
 	item := &entry[K, V]{key: key, value: value, deadline: time.Now().Add(ttl)}
 	if previous, exists := c.items.Load(key); exists {
-		// Writers share heapMu, so the loaded node still owns this index.
+		// Writers share mu, so the loaded node still owns this index.
 		old := previous.(*entry[K, V])
 		item.index = old.index
 		c.expirations[item.index] = item
@@ -110,8 +110,8 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
 // Delete removes key and its expiration record. It is a no-op if the key is
 // missing or the cache is closed.
 func (c *Cache[K, V]) Delete(key K) {
-	c.heapMu.Lock()
-	defer c.heapMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	before, scheduled := c.earliest()
 	if stored, ok := c.items.Load(key); ok {
 		heap.Remove(&c.expirations, stored.(*entry[K, V]).index)
@@ -124,18 +124,18 @@ func (c *Cache[K, V]) Delete(key K) {
 // repeatedly or concurrently. Once closed, Get always misses, Set returns
 // ErrClosed, and Delete is a no-op.
 func (c *Cache[K, V]) Close() {
-	c.heapMu.Lock()
+	c.mu.Lock()
 	if !c.closed {
 		c.closed = true
 		c.items.Clear()
 		c.expirations = nil
 		close(c.stop)
 	}
-	c.heapMu.Unlock()
+	c.mu.Unlock()
 	<-c.done
 }
 
-// earliest returns the next deadline while heapMu is held.
+// earliest returns the next deadline while mu is held.
 func (c *Cache[K, V]) earliest() (time.Time, bool) {
 	if len(c.expirations) == 0 {
 		return time.Time{}, false
@@ -144,7 +144,7 @@ func (c *Cache[K, V]) earliest() (time.Time, bool) {
 }
 
 // notifyIfChanged coalesces changes to the earliest deadline, including a
-// transition to or from an empty heap. Callers hold heapMu throughout mutation
+// transition to or from an empty heap. Callers hold mu throughout mutation
 // and comparison; the cleaner rechecks the heap under that lock after waking.
 func (c *Cache[K, V]) notifyIfChanged(before time.Time, scheduled bool) {
 	after, nowScheduled := c.earliest()
@@ -182,8 +182,8 @@ func (c *Cache[K, V]) run() {
 // nextDelay removes due entries and returns the wait for the earliest remaining
 // deadline. No key has more than one heap node, including after refreshes.
 func (c *Cache[K, V]) nextDelay() (time.Duration, bool) {
-	c.heapMu.Lock()
-	defer c.heapMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for len(c.expirations) > 0 {
 		item := c.expirations[0]
 		if delay := time.Until(item.deadline); delay > 0 {

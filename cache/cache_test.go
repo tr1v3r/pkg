@@ -24,7 +24,7 @@ func manualCache[K comparable, V any](t *testing.T) *Cache[K, V] {
 	return c
 }
 
-// itemCount is used only with no worker or while heapMu excludes mutations.
+// itemCount is used only with no worker or while mu excludes mutations.
 func itemCount[K comparable, V any](c *Cache[K, V]) int {
 	count := 0
 	c.items.Range(func(_, _ any) bool { count++; return true })
@@ -352,8 +352,8 @@ func TestConcurrentOperationsAndClose(t *testing.T) {
 	if value, ok := c.Get(1); value != 0 || ok {
 		t.Fatal("closed cache returned a value")
 	}
-	c.heapMu.Lock()
-	defer c.heapMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if itemCount(c) != 0 || c.expirations != nil {
 		t.Fatal("Close retained stored entries")
 	}
@@ -448,8 +448,8 @@ func TestGetDoesNotWaitForHeapLock(t *testing.T) {
 		t.Fatal(err)
 	}
 	storedEntry(c, "expired").deadline = time.Now().Add(-time.Hour)
-	c.heapMu.Lock()
-	defer c.heapMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	result := make(chan bool, 1)
 	go func() {
 		value, live := c.Get("live")

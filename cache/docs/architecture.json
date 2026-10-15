@@ -83,7 +83,7 @@
       "dot": "emerald",
       "title": "调度与内存",
       "items": [
-        "nextDelay 持 heapMu 清理到期项；Get 独立读取快照，不等待整批清理。",
+        "nextDelay 持 mu 清理到期项；Get 独立读取快照，不等待整批清理。",
         "wake / tick 后重算；有 deadline 直接 Reset，依赖 Go 1.24 新语义；空堆 Stop 且只等 wake / stop。",
         "Set / Delete 仅最早 deadline 改变时通知；一 key 一节点，续期会增加分配。"
       ]
@@ -93,7 +93,7 @@
       "title": "实例所有权与关闭",
       "items": [
         "New 初始化通道并启动 worker；sync.Map 零值可用，调用方必须最终 Close。",
-        "Close 持 heapMu 清空索引与堆并关闭 stop；释放堆锁后等待 done。",
+        "Close 持 mu 清空索引与堆并关闭 stop；释放堆锁后等待 done。",
         "worker 退出时停止 timer 并关闭 done；重复或并发 Close 都等待同一个完成信号。",
         "仅本进程内存，无持久化、容量淘汰或分布式协调；值不深拷贝。"
       ]

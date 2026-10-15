@@ -178,10 +178,10 @@ func TestSchedulerGetMissesExactlyAtDeadline(t *testing.T) {
 		// Seed without notifying the idle worker: Get must enforce the exact
 		// deadline even when the expired entry has not been physically removed.
 		item := &entry[string, int]{key: "boundary", value: 7, deadline: time.Now().Add(time.Minute)}
-		c.heapMu.Lock()
+		c.mu.Lock()
 		c.items.Store(item.key, item)
 		c.expirations = append(c.expirations, item)
-		c.heapMu.Unlock()
+		c.mu.Unlock()
 
 		time.Sleep(time.Minute - time.Nanosecond)
 		schedulerAssertGet(t, c, "boundary", 7, true)
@@ -258,18 +258,18 @@ func TestSchedulerBatchWithIdenticalDeadlines(t *testing.T) {
 		synctest.Wait()
 		time.Sleep(time.Minute - time.Nanosecond)
 		synctest.Wait()
-		c.heapMu.Lock()
+		c.mu.Lock()
 		items, expirations := itemCount(c), len(c.expirations)
-		c.heapMu.Unlock()
+		c.mu.Unlock()
 		if items != count || expirations != count {
 			t.Fatalf("before deadline: items = %d, expirations = %d, want %d each", items, expirations, count)
 		}
 
 		time.Sleep(time.Nanosecond)
 		synctest.Wait()
-		c.heapMu.Lock()
+		c.mu.Lock()
 		items, expirations = itemCount(c), len(c.expirations)
-		c.heapMu.Unlock()
+		c.mu.Unlock()
 		if items != 0 || expirations != 0 {
 			t.Fatalf("at deadline: items = %d, expirations = %d, want 0 each", items, expirations)
 		}
@@ -352,8 +352,8 @@ func schedulerAssertGet(t *testing.T, c *Cache[string, int], key string, want in
 
 func schedulerAssertKeys(t *testing.T, c *Cache[string, int], keys ...string) {
 	t.Helper()
-	c.heapMu.Lock()
-	defer c.heapMu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if itemCount(c) != len(keys) || len(c.expirations) != len(keys) {
 		t.Fatalf("items = %d, expirations = %d, want keys %v", itemCount(c), len(c.expirations), keys)
 	}

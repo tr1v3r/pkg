@@ -5327,7 +5327,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>运行中的 worker</h3>
         </div>
         <ul>
-          <li>nextDelay 持 heapMu 弹出并删除到期项；有剩余项直接 Reset 到最早 deadline。</li>
+          <li>nextDelay 持 mu 弹出并删除到期项；有剩余项直接 Reset 到最早 deadline。</li>
           <li>select 直接等 timer.C、wake 或 stop；空堆 Stop 后无到期通知，不轮询。</li>
           <li>wake / tick 后重算；Go 1.24 Reset 保证不再收到旧 tick，无需 drain；stop 就绪后退出。</li>
         </ul>
@@ -5339,7 +5339,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>关闭的同步边界</h3>
         </div>
         <ul>
-          <li>首次 Close 持 heapMu 置 closed、Clear 索引、清空堆并关闭 stop。</li>
+          <li>首次 Close 持 mu 置 closed、Clear 索引、清空堆并关闭 stop。</li>
           <li>worker 不必等到原 TTL；run 返回时先停止 timer，再由 defer 关闭 done。</li>
           <li>Close 解锁后等待 done，避免拿着 worker 所需的锁等待退出。</li>
           <li>并发 Close 只有一个执行清空与 close(stop)；所有调用者都等待 done。</li>
