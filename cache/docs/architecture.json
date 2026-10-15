@@ -8,7 +8,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:tr1v3r/pkg.git",
-      "revision": "1d8386417741681b9305ab6b5448c8bc57495069",
+      "revision": "6099f9809a5ef6a39350645cef54507efc492fae",
       "link_mode": "local-only"
     }
   },
@@ -20,20 +20,20 @@
       "sublabel": "Set / Get / Delete",
       "pos": [60, 80],
       "size": [240, 96],
-      "sources": [{"path": "cache/cache.go", "line": 61, "end_line": 140}]
+      "sources": [{"path": "cache/cache.go", "line": 57, "end_line": 121}]
     },
     {
       "id": "shared-index",
       "type": "database",
       "label": "共享内存索引",
-      "sublabel": "mapMu + heapMu + 索引最小堆",
-      "tag": "共享 entry，分离锁",
+      "sublabel": "sync.Map + 索引最小堆",
+      "tag": "不可变快照，一 key 一节点",
       "pos": [600, 80],
       "size": [340, 110],
       "sources": [
-        {"path": "cache/cache.go", "line": 33, "end_line": 46},
-        {"path": "cache/cache.go", "line": 80, "end_line": 118},
-        {"path": "cache/heap.go", "line": 5, "end_line": 44}
+        {"path": "cache/cache.go", "line": 33, "end_line": 43},
+        {"path": "cache/cache.go", "line": 76, "end_line": 108},
+        {"path": "cache/heap.go", "line": 5, "end_line": 43}
       ]
     },
     {
@@ -44,9 +44,9 @@
       "pos": [60, 440],
       "size": [240, 96],
       "sources": [
-        {"path": "cache/cache.go", "line": 51, "end_line": 56},
-        {"path": "cache/cache.go", "line": 122, "end_line": 129},
-        {"path": "cache/cache.go", "line": 167, "end_line": 179}
+        {"path": "cache/cache.go", "line": 48, "end_line": 55},
+        {"path": "cache/cache.go", "line": 112, "end_line": 121},
+        {"path": "cache/cache.go", "line": 146, "end_line": 158}
       ]
     },
     {
@@ -58,42 +58,42 @@
       "pos": [600, 440],
       "size": [340, 110],
       "sources": [
-        {"path": "cache/cache.go", "line": 181, "end_line": 201},
-        {"path": "cache/cache.go", "line": 203, "end_line": 217}
+        {"path": "cache/cache.go", "line": 160, "end_line": 180},
+        {"path": "cache/cache.go", "line": 182, "end_line": 196}
       ]
     }
   ],
   "connections": [
-    {"id": "api-index", "from": "cache-api", "to": "shared-index", "label": "Get 读 map；写入先 heap 后 map", "variant": "emphasis"},
+    {"id": "api-index", "from": "cache-api", "to": "shared-index", "label": "Get 读快照；写入持堆锁", "variant": "emphasis"},
     {"id": "api-notify", "from": "cache-api", "to": "wake-channel", "label": "最早 deadline 改变"},
     {"id": "wake-worker", "from": "wake-channel", "to": "expiration-worker", "label": "异步唤醒并重算", "variant": "dashed"},
-    {"id": "worker-index", "from": "expiration-worker", "to": "shared-index", "label": "堆锁清理，逐项短锁 map"}
+    {"id": "worker-index", "from": "expiration-worker", "to": "shared-index", "label": "持堆锁弹出并删除 key"}
   ],
   "cards": [
     {
       "dot": "cyan",
       "title": "读写路径",
       "items": [
-        "Get 只持 mapMu 读锁：now < deadline 才命中；不续期，不删除条目。",
+        "Get 使用 sync.Map.Load；now < deadline 才命中，不获取堆锁。",
         "Set 校验顺序：closed → TTL > 0 → key 自反；失败不改变已有条目。",
-        "写入先锁 heapMu 后锁 mapMu；deadline 更新持两锁，堆调整不持 mapMu。"
+        "新增 Push；续期替换节点并 Fix 后 Store，发布后 value / deadline 不变。"
       ]
     },
     {
       "dot": "emerald",
       "title": "调度与内存",
       "items": [
-        "nextDelay 持 heapMu 弹出到期项，逐项短锁 mapMu 删除；读取可在删除间隙执行。",
+        "nextDelay 持 heapMu 清理到期项；Get 独立读取快照，不等待整批清理。",
         "wake / tick 后重算；有 deadline 直接 Reset，依赖 Go 1.24 新语义；空堆 Stop 且只等 wake / stop。",
-        "Set / Delete 仅最早 deadline 改变时通知；每 key 一个节点，容量可保留历史峰值。"
+        "Set / Delete 仅最早 deadline 改变时通知；一 key 一节点，续期会增加分配。"
       ]
     },
     {
       "dot": "amber",
       "title": "实例所有权与关闭",
       "items": [
-        "New 初始化通道与 map，并启动一个 worker；调用方必须最终 Close。",
-        "Close 按 heapMu → mapMu 清空索引并关闭 stop；释放两锁后等待 done。",
+        "New 初始化通道并启动 worker；sync.Map 零值可用，调用方必须最终 Close。",
+        "Close 持 heapMu 清空索引与堆并关闭 stop；释放堆锁后等待 done。",
         "worker 退出时停止 timer 并关闭 done；重复或并发 Close 都等待同一个完成信号。",
         "仅本进程内存，无持久化、容量淘汰或分布式协调；值不深拷贝。"
       ]

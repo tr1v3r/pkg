@@ -1,11 +1,11 @@
 # cache 架构与生命周期
 
-图表基于 `1d8386417741681b9305ab6b5448c8bc57495069` 的实现；每个关键节点
+图表基于 `6099f9809a5ef6a39350645cef54507efc492fae` 的实现；每个关键节点
 附有仓库相对路径和源码行号。图中涉及的状态是阅读模型，不是新增的导出 API 或枚举。
 
 | 图表 | 内容 | 可维护源文件 |
 | --- | --- | --- |
-| [架构图](architecture.html) | 并发 API、map 与索引最小堆、合并唤醒、deadline 驱动的清理 worker | [architecture.json](architecture.json) |
+| [架构图](architecture.html) | 并发 API、sync.Map快照与索引最小堆、合并唤醒、deadline 驱动的清理 worker | [architecture.json](architecture.json) |
 | [实例生命周期](lifecycle.html) | New、开放访问、Close 清空、stop / done 同步与不可逆关闭 | [lifecycle.json](lifecycle.json) |
 | [条目生命周期](entry-lifecycle.html) | 存活、逻辑过期、物理移除、到期后重写与主动删除 | [entry-lifecycle.json](entry-lifecycle.json) |
 
@@ -25,17 +25,19 @@
 Set → deadline = now + TTL
   ├─ now < deadline  → Get 命中；读取不续期
   └─ now >= deadline → Get 未命中
-                       └─ worker 持堆锁，逐项短锁 map 后物理删除
+                       └─ worker 持堆锁弹出并从 sync.Map 物理删除
 
 【实例所有权】
 New → 一个 worker → nextDelay → 等 wake / timer.C / stop
 Close
-  ├─ heapMu → mapMu：closed = true → 清空 map / heap → close(stop)
-  └─ 释放两把锁 → 等 done → Close 返回时 worker 已退出
+  ├─ heapMu：closed = true → sync.Map.Clear / 清空 heap → close(stop)
+  └─ 释放堆锁 → 等 done → Close 返回时 worker 已退出
 ```
 
 Set / Delete 仅在最早 deadline 改变时通知 worker，包括空堆转换；Get 不需要堆锁。
-实测取舍与复现方法见 [集中过期测量](performance.md)。
+Set 发布新的 value / deadline 快照，Get 不读取可变的堆下标。
+选型决策和复现资料见 [sync.Map实验](experiments/syncmap-2026-10-15/README.md)；
+旧方案证据见 [历史双锁测量](performance.md)。
 
 ## 更新与重新生成
 
