@@ -1,7 +1,11 @@
-// Package lock provides backend-independent, owner-checked lease locks.
+// Package lock provides backend-independent fixed-TTL execution gates and
+// owner-checked lease locks.
 //
-// Locks are time-bounded leases, not fencing tokens or exactly-once execution.
-// Callers must stop protected work when a lease expires or its Done channel closes.
+// TryRun and Run reserve a key for a fixed TTL without renewing or releasing it
+// when the callback finishes. Their TTL does not bound callback execution time.
+// TryLock and Lock instead return time-bounded leases; callers must stop protected
+// work when a lease expires or its Done channel closes. Neither mode provides
+// fencing tokens, exactly-once execution, or durable business idempotency.
 package lock
 
 import (
@@ -25,6 +29,7 @@ import (
 // backend failover, pauses, and partitions remain part of the backend's safety
 // model. The core cannot turn a weak backend into a strongly consistent lock.
 // Driver implementations own their connection resources; Locker never closes them.
+// TryRun and Run use only TryAcquire; they never renew or release reservations.
 type Driver interface {
 	TryAcquire(ctx context.Context, key, owner string, ttl time.Duration) (bool, error)
 	Renew(ctx context.Context, key, owner string, ttl time.Duration) (bool, error)

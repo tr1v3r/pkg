@@ -15,10 +15,12 @@ var (
 	ErrClosed      = errors.New("lock: lease handle closed")
 	ErrInvalidTTL  = errors.New("lock: TTL must be positive")
 	ErrInvalidKey  = errors.New("lock: key must not be empty")
+	ErrNilFunc     = errors.New("lock: callback must not be nil")
 )
 
-// Locker coordinates lease handles over a Driver. It is safe for concurrent use
-// and owns neither connections nor background goroutines. Use New to construct it.
+// Locker coordinates fixed-TTL execution gates and lease handles over a Driver.
+// It is safe for concurrent use and owns neither connections nor background
+// goroutines. Use New to construct it.
 type Locker struct {
 	driver           Driver
 	retryInterval    time.Duration
@@ -29,7 +31,7 @@ type Locker struct {
 // Option configures a Locker before it is shared with other goroutines.
 type Option func(*Locker) error
 
-// WithRetryInterval sets the delay between contended Lock attempts (default 50ms).
+// WithRetryInterval sets the delay between contended Run/Lock attempts (default 50ms).
 // Backend errors are returned immediately, not retried as contention.
 func WithRetryInterval(interval time.Duration) Option {
 	return func(l *Locker) error {
@@ -56,7 +58,8 @@ func WithOperationTimeout(timeout time.Duration) Option {
 
 // WithAutoRenew enables renewal roughly one third of the TTL after each
 // successful acquisition/renewal. It is off by default. Any renewal failure
-// permanently invalidates the local handle and closes Lease.Done.
+// permanently invalidates the local handle and closes Lease.Done. This option
+// only affects TryLock/Lock; TryRun/Run always use a fixed, unrenewed TTL.
 func WithAutoRenew() Option {
 	return func(l *Locker) error {
 		l.autoRenew = true

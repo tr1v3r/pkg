@@ -26,12 +26,14 @@ func TestIntegrationRedisLeaseLifecycle(t *testing.T) {
 	client := goredis.NewClient(&goredis.Options{
 		Addr: addr, ContextTimeoutEnabled: true, MaxRetries: -1,
 	})
-	defer client.Close()
+	t.Cleanup(func() { _ = client.Close() })
 	prefix := "pkg-lock-core-integration:" + rand.Text() + ":"
 	t.Cleanup(func() {
 		cleanup, stop := context.WithTimeout(context.Background(), time.Second)
 		defer stop()
-		_ = client.Del(cleanup, prefix+"resource", prefix+"auto").Err()
+		if cleanupErr := client.Del(cleanup, prefix+"resource", prefix+"auto").Err(); cleanupErr != nil {
+			t.Errorf("clean own integration keys: %v", cleanupErr)
+		}
 	})
 	backend, err := redisdriver.New(client, prefix)
 	if err != nil {
