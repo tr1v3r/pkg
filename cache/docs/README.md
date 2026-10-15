@@ -1,6 +1,6 @@
 # cache 架构与生命周期
 
-图表基于 `c8f09d179a1f831ad0cbf2c5a70b31fef99b9d26` 的实现；每个关键节点
+图表基于 `1d8386417741681b9305ab6b5448c8bc57495069` 的实现；每个关键节点
 附有仓库相对路径和源码行号。图中涉及的状态是阅读模型，不是新增的导出 API 或枚举。
 
 | 图表 | 内容 | 可维护源文件 |
@@ -25,14 +25,17 @@
 Set → deadline = now + TTL
   ├─ now < deadline  → Get 命中；读取不续期
   └─ now >= deadline → Get 未命中
-                       └─ worker 获得写锁后物理删除，不要求恰好同时发生
+                       └─ worker 持堆锁，逐项短锁 map 后物理删除
 
 【实例所有权】
 New → 一个 worker → nextDelay → 等 wake / timer.C / stop
 Close
-  ├─ 持写锁：closed = true → 清空 map / heap → close(stop)
-  └─ 释放锁 → 等 done → Close 返回时 worker 已退出
+  ├─ heapMu → mapMu：closed = true → 清空 map / heap → close(stop)
+  └─ 释放两把锁 → 等 done → Close 返回时 worker 已退出
 ```
+
+Set / Delete 仅在最早 deadline 改变时通知 worker，包括空堆转换；Get 不需要堆锁。
+实测取舍与复现方法见 [集中过期测量](performance.md)。
 
 ## 更新与重新生成
 

@@ -8,7 +8,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:tr1v3r/pkg.git",
-      "revision": "c8f09d179a1f831ad0cbf2c5a70b31fef99b9d26",
+      "revision": "1d8386417741681b9305ab6b5448c8bc57495069",
       "link_mode": "local-only"
     }
   },
@@ -22,7 +22,7 @@
       "lane": "main",
       "col": 0,
       "step": "01",
-      "sources": [{"path": "cache/cache.go", "line": 43, "end_line": 54}]
+      "sources": [{"path": "cache/cache.go", "line": 48, "end_line": 59}]
     },
     {
       "id": "open",
@@ -33,19 +33,19 @@
       "col": 1,
       "step": "02",
       "sources": [
-        {"path": "cache/cache.go", "line": 62, "end_line": 113},
-        {"path": "cache/cache.go", "line": 139, "end_line": 159}
+        {"path": "cache/cache.go", "line": 67, "end_line": 140},
+        {"path": "cache/cache.go", "line": 181, "end_line": 201}
       ]
     },
     {
       "id": "closing",
       "type": "active",
       "label": "封闭与清空",
-      "sublabel": "持写锁，close(stop)",
+      "sublabel": "清空并关闭 stop",
       "lane": "main",
       "col": 2,
       "step": "03",
-      "sources": [{"path": "cache/cache.go", "line": 118, "end_line": 125}]
+      "sources": [{"path": "cache/cache.go", "line": 145, "end_line": 154}]
     },
     {
       "id": "joining",
@@ -56,8 +56,8 @@
       "col": 3,
       "step": "04",
       "sources": [
-        {"path": "cache/cache.go", "line": 126, "end_line": 128},
-        {"path": "cache/cache.go", "line": 139, "end_line": 159}
+        {"path": "cache/cache.go", "line": 155, "end_line": 157},
+        {"path": "cache/cache.go", "line": 181, "end_line": 201}
       ]
     },
     {
@@ -69,15 +69,15 @@
       "col": 4,
       "step": "05",
       "sources": [
-        {"path": "cache/cache.go", "line": 115, "end_line": 128},
-        {"path": "cache/cache.go", "line": 139, "end_line": 154}
+        {"path": "cache/cache.go", "line": 142, "end_line": 157},
+        {"path": "cache/cache.go", "line": 181, "end_line": 196}
       ]
     }
   ],
   "transitions": [
     {"id": "launch-worker", "from": "constructed", "to": "open", "label": "启动 worker", "variant": "emphasis"},
     {"id": "first-close", "from": "open", "to": "closing", "label": "首次 Close"},
-    {"id": "release-lock", "from": "closing", "to": "joining", "label": "释放写锁"},
+    {"id": "release-lock", "from": "closing", "to": "joining", "label": "释放两把锁"},
     {"id": "worker-done", "from": "joining", "to": "closed", "label": "done 关闭", "variant": "emphasis"}
   ],
   "cards": [
@@ -85,7 +85,7 @@
       "dot": "cyan",
       "title": "运行中的 worker",
       "items": [
-        "nextDelay 持写锁清理到期项；有剩余项则直接 timer.Reset 到最早 deadline。",
+        "nextDelay 持 heapMu 清理，逐项短锁 mapMu；有剩余项直接 Reset 到最早 deadline。",
         "select 直接等 timer.C、wake 或 stop；空堆 Stop 后无到期通知，不轮询。",
         "wake / tick 后重算；Go 1.24 Reset 保证不再收到旧 tick，无需 drain；stop 就绪后退出。"
       ]
@@ -94,7 +94,7 @@
       "dot": "amber",
       "title": "关闭的同步边界",
       "items": [
-        "首次 Close 在同一写锁内置 closed、将 map / heap 置 nil，并关闭 stop。",
+        "首次 Close 按 heapMu → mapMu 加锁，清空 map / heap 并关闭 stop。",
         "worker 不必等到原 TTL；run 返回时先停止 timer，再由 defer 关闭 done。",
         "Close 解锁后等待 done，避免拿着 worker 所需的锁等待退出。",
         "并发 Close 只有一个执行清空与 close(stop)；所有调用者都等待 done。"

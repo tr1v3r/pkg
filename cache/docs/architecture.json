@@ -8,7 +8,7 @@
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:tr1v3r/pkg.git",
-      "revision": "c8f09d179a1f831ad0cbf2c5a70b31fef99b9d26",
+      "revision": "1d8386417741681b9305ab6b5448c8bc57495069",
       "link_mode": "local-only"
     }
   },
@@ -20,20 +20,20 @@
       "sublabel": "Set / Get / Delete",
       "pos": [60, 80],
       "size": [240, 96],
-      "sources": [{"path": "cache/cache.go", "line": 56, "end_line": 113}]
+      "sources": [{"path": "cache/cache.go", "line": 61, "end_line": 140}]
     },
     {
       "id": "shared-index",
       "type": "database",
       "label": "共享内存索引",
-      "sublabel": "map + 索引最小堆 + RWMutex",
-      "tag": "同一个 entry，两个索引",
+      "sublabel": "mapMu + heapMu + 索引最小堆",
+      "tag": "共享 entry，分离锁",
       "pos": [600, 80],
       "size": [340, 110],
       "sources": [
-        {"path": "cache/cache.go", "line": 33, "end_line": 40},
-        {"path": "cache/cache.go", "line": 75, "end_line": 100},
-        {"path": "cache/heap.go", "line": 5, "end_line": 41}
+        {"path": "cache/cache.go", "line": 33, "end_line": 46},
+        {"path": "cache/cache.go", "line": 80, "end_line": 118},
+        {"path": "cache/heap.go", "line": 5, "end_line": 44}
       ]
     },
     {
@@ -44,9 +44,9 @@
       "pos": [60, 440],
       "size": [240, 96],
       "sources": [
-        {"path": "cache/cache.go", "line": 45, "end_line": 52},
-        {"path": "cache/cache.go", "line": 105, "end_line": 112},
-        {"path": "cache/cache.go", "line": 130, "end_line": 137}
+        {"path": "cache/cache.go", "line": 51, "end_line": 56},
+        {"path": "cache/cache.go", "line": 122, "end_line": 129},
+        {"path": "cache/cache.go", "line": 167, "end_line": 179}
       ]
     },
     {
@@ -58,34 +58,34 @@
       "pos": [600, 440],
       "size": [340, 110],
       "sources": [
-        {"path": "cache/cache.go", "line": 139, "end_line": 159},
-        {"path": "cache/cache.go", "line": 161, "end_line": 175}
+        {"path": "cache/cache.go", "line": 181, "end_line": 201},
+        {"path": "cache/cache.go", "line": 203, "end_line": 217}
       ]
     }
   ],
   "connections": [
-    {"id": "api-index", "from": "cache-api", "to": "shared-index", "label": "加锁读写", "variant": "emphasis"},
-    {"id": "api-notify", "from": "cache-api", "to": "wake-channel", "label": "Set / 有效 Delete"},
+    {"id": "api-index", "from": "cache-api", "to": "shared-index", "label": "Get 读 map；写入先 heap 后 map", "variant": "emphasis"},
+    {"id": "api-notify", "from": "cache-api", "to": "wake-channel", "label": "最早 deadline 改变"},
     {"id": "wake-worker", "from": "wake-channel", "to": "expiration-worker", "label": "异步唤醒并重算", "variant": "dashed"},
-    {"id": "worker-index", "from": "expiration-worker", "to": "shared-index", "label": "加写锁清理到期条目"}
+    {"id": "worker-index", "from": "expiration-worker", "to": "shared-index", "label": "堆锁清理，逐项短锁 map"}
   ],
   "cards": [
     {
       "dot": "cyan",
       "title": "读写路径",
       "items": [
-        "Get 持读锁：只有 now < deadline 才命中；不续期，也不删除过期条目。",
+        "Get 只持 mapMu 读锁：now < deadline 才命中；不续期，不删除条目。",
         "Set 校验顺序：closed → TTL > 0 → key 自反；失败不改变已有条目。",
-        "新增用 heap.Push；覆盖复用原 entry 并 heap.Fix；Delete 同时移除 map 与堆记录。"
+        "写入先锁 heapMu 后锁 mapMu；deadline 更新持两锁，堆调整不持 mapMu。"
       ]
     },
     {
       "dot": "emerald",
       "title": "调度与内存",
       "items": [
-        "nextDelay 批量删除已到期堆顶，再返回最早剩余 deadline 的等待时间。",
+        "nextDelay 持 heapMu 弹出到期项，逐项短锁 mapMu 删除；读取可在删除间隙执行。",
         "wake / tick 后重算；有 deadline 直接 Reset，依赖 Go 1.24 新语义；空堆 Stop 且只等 wake / stop。",
-        "每个 key 只有一个堆节点；heap.Pop 清空移除槽位，容量仍可能保留历史峰值。"
+        "Set / Delete 仅最早 deadline 改变时通知；每 key 一个节点，容量可保留历史峰值。"
       ]
     },
     {
@@ -93,7 +93,7 @@
       "title": "实例所有权与关闭",
       "items": [
         "New 初始化通道与 map，并启动一个 worker；调用方必须最终 Close。",
-        "Close 持写锁置 closed、清空两个索引并关闭 stop；解锁后等待 done。",
+        "Close 按 heapMu → mapMu 清空索引并关闭 stop；释放两锁后等待 done。",
         "worker 退出时停止 timer 并关闭 done；重复或并发 Close 都等待同一个完成信号。",
         "仅本进程内存，无持久化、容量淘汰或分布式协调；值不深拷贝。"
       ]
