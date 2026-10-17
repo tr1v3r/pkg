@@ -654,80 +654,121 @@ func TestCleanupUnlimitedPassDrainsAllDue(t *testing.T) {
 	}
 }
 
-// TestConcurrentWritersAndCloseDuringBacklogDrain pins the reason batching
-// exists: while a large overdue backlog drains, the worker must release mu
-// between passes so Set/Delete complete mid-drain, and Close must cut the
-// drain short instead of waiting it out. The interleaving observation is
-// structural, not timing-based: with one unbounded pass, a writer can only
-// ever observe an untouched heap (remaining == backlog) or a fully drained
-// one (remaining < batch), never anything between, so old code fails.
+// TestConcurrentWritersAndCloseDuringBacklogDrain pauses the real worker
+// between cleanup passes. Writers must complete while overdue entries remain,
+// and Close must stop the worker without needing another cleanup pass.
 func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
-	const (
-		backlog = 200000
-		batch   = 128
-	)
-	c := New[int, int](WithBatchSize(batch))
-
-	// Seed a fully overdue backlog under mu; the idle worker knows no timer
-	// and stays parked until the explicit wake below.
-	c.mu.Lock()
+	const batch, backlog = 4, 16
+	c := &Cache[int, int]{
+		batch: batchConfig{size: batch},
+		wake:  make(chan struct{}, 1),
+		stop:  make(chan struct{}),
+		done:  make(chan struct{}),
+	}
 	overdue := time.Now().Add(-time.Hour)
 	for key := 0; key < backlog; key++ {
 		item := &entry[int, int]{key: key, value: key, deadline: overdue}
 		heap.Push(&c.expirations, item)
 		c.items.Store(key, item)
 	}
-	c.mu.Unlock()
-	select {
-	case c.wake <- struct{}{}: // Start the drain before any writer runs.
-	default:
-	}
 
-	interleaved := make(chan struct{})
-	drained := make(chan struct{})
-	errc := make(chan error, 1)
-	go func() {
-		for i := 0; ; i++ {
-			if err := c.Set(-1, i, time.Hour); err != nil {
-				errc <- err
-				return
-			}
-			c.mu.Lock()
-			remaining := len(c.expirations)
-			c.mu.Unlock()
-			// remaining < backlog-4*batch proves the cleaner removed well
-			// over one batch (the writer deletes at most 64 distinct keys,
-			// far below the margin); remaining > 2*batch proves the backlog
-			// is far from gone. A Set completing in that window means the
-			// writer acquired mu between two cleanup passes.
-			switch {
-			case remaining > 2*batch && remaining < backlog-4*batch:
-				close(interleaved)
-				return
-			case remaining <= 2*batch:
-				close(drained)
-				return
-			}
-			c.Delete(i % 64)
-			if _, ok := c.Get(i % 64); ok {
-				errc <- errors.New("deleted backlog key is still readable")
-				return
-			}
+	type cleanupPass struct {
+		delay     time.Duration
+		scheduled bool
+	}
+	passes := make(chan cleanupPass)
+	resume := make(chan struct{}, 1)
+	release := make(chan struct{})
+	go c.run(func() (time.Duration, bool) {
+		delay, scheduled := c.nextDelay()
+		// nextDelay has returned and released mu. Keep the scheduler here
+		// until the test permits another pass, shutdown, or failure cleanup.
+		select {
+		case passes <- cleanupPass{delay: delay, scheduled: scheduled}:
+		case <-c.stop:
+		case <-release:
 		}
-	}()
-
-	select {
-	case <-interleaved:
-	case <-drained:
-		t.Fatal("backlog drained to completion without a writer Set landing mid-drain: cleanup no longer yields between passes")
-	case err := <-errc:
-		t.Fatal(err)
-	case <-time.After(30 * time.Second):
-		t.Fatal("writer made no progress against the draining worker")
+		select {
+		case <-resume:
+		case <-c.stop:
+		case <-release:
+		}
+		return delay, scheduled
+	})
+	t.Cleanup(func() {
+		// Unblock the worker even when an assertion fails before Close.
+		close(release)
+		c.Close()
+	})
+	waitPass := func() {
+		t.Helper()
+		select {
+		case pass := <-passes:
+			if !pass.scheduled || pass.delay != 0 {
+				t.Fatalf("cleanup reported (%v, %t), want (0, true) with backlog remaining",
+					pass.delay, pass.scheduled)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("worker did not finish a cleanup pass")
+		}
 	}
 
-	// Close must terminate the still-draining worker promptly and leave the
-	// usual closed-cache invariants behind.
+	waitPass()
+	c.mu.Lock()
+	remaining := len(c.expirations)
+	var deleted *entry[int, int]
+	if remaining > 0 {
+		deleted = c.expirations[0]
+	}
+	c.mu.Unlock()
+	if remaining != backlog-batch {
+		t.Fatalf("first pass left %d entries, want %d", remaining, backlog-batch)
+	}
+
+	written := make(chan error, 1)
+	go func() {
+		if err := c.Set(-1, 42, time.Hour); err != nil {
+			written <- err
+			return
+		}
+		c.Delete(deleted.key)
+		written <- nil
+	}()
+	select {
+	case err := <-written:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Set/Delete blocked between cleanup passes")
+	}
+	if value, ok := c.Get(-1); !ok || value != 42 {
+		t.Fatalf("Set between passes: Get = (%d, %t), want (42, true)", value, ok)
+	}
+	c.mu.Lock()
+	removed := storedEntry(c, deleted.key) == nil && deleted.index == -1
+	items, expirations := itemCount(c), len(c.expirations)
+	c.mu.Unlock()
+	if !removed {
+		t.Fatal("Delete between passes did not remove the overdue key from the map and heap")
+	}
+	if items != backlog-batch || expirations != backlog-batch {
+		t.Fatalf("after Set/Delete: items = %d, expirations = %d, want %d each",
+			items, expirations, backlog-batch)
+	}
+
+	// Permit exactly one more pass to verify that the scheduler resumes.
+	resume <- struct{}{}
+	waitPass()
+	c.mu.Lock()
+	remaining = len(c.expirations)
+	c.mu.Unlock()
+	if remaining != backlog-2*batch {
+		t.Fatalf("second pass left %d entries, want %d", remaining, backlog-2*batch)
+	}
+
+	// The worker is paused with overdue entries still present. Close must
+	// unblock it via stop; waiting for the backlog to drain would deadlock.
 	closed := make(chan struct{})
 	go func() {
 		c.Close()
@@ -735,8 +776,8 @@ func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
 	}()
 	select {
 	case <-closed:
-	case <-time.After(15 * time.Second):
-		t.Fatal("Close blocked on the draining worker")
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close waited for the paused worker to drain the backlog")
 	}
 	if _, ok := c.Get(-1); ok {
 		t.Fatal("closed cache returned a value")
@@ -745,7 +786,7 @@ func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
 		t.Fatalf("closed Set error = %v, want ErrClosed", err)
 	}
 	c.mu.Lock()
-	items, expirations := itemCount(c), len(c.expirations)
+	items, expirations = itemCount(c), len(c.expirations)
 	c.mu.Unlock()
 	if items != 0 || expirations != 0 {
 		t.Fatalf("Close retained entries: items = %d, expirations = %d", items, expirations)

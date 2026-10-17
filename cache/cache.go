@@ -60,7 +60,7 @@ func New[K comparable, V any](opts ...Option) *Cache[K, V] {
 	for _, opt := range opts {
 		opt(&c.batch)
 	}
-	go c.run()
+	go c.run(c.nextDelay)
 	return c
 }
 
@@ -167,13 +167,13 @@ func (c *Cache[K, V]) notifyIfChanged(before time.Time, scheduled bool) {
 	}
 }
 
-func (c *Cache[K, V]) run() {
+func (c *Cache[K, V]) run(nextDelay func() (time.Duration, bool)) {
 	defer close(c.done)
 	timer := time.NewTimer(0)
 	defer timer.Stop()
 
 	for {
-		delay, scheduled := c.nextDelay()
+		delay, scheduled := nextDelay()
 		if scheduled {
 			// Go 1.24+ Reset discards notifications from the previous deadline.
 			timer.Reset(delay)
