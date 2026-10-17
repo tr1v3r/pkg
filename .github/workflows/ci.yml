@@ -116,11 +116,11 @@ jobs:
           go-version: ${{ matrix.go }}
           check-latest: true
           cache-dependency-path: '**/go.sum'
-      - name: Stress cache cleanup and capacity with the race detector
+      - name: Stress cache cleanup, capacity and hot keys with the race detector
         working-directory: cache
         run: >-
           go test -race -count=10 -cpu=1,2,4 -timeout=5m
-          -run '^TestCacheConcurrent(Cleanup|Capacity)Stress$' ./...
+          -run '^TestCacheConcurrent(Cleanup|Capacity|CapacityProtection|HotKey)Stress$' ./...
 
   release-source:
     name: Identify dev merge

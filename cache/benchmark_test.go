@@ -3,6 +3,7 @@ package cache_test
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -161,4 +162,50 @@ func BenchmarkCacheCapacity(b *testing.B) {
 			}
 		}
 	})
+}
+
+// BenchmarkCacheMixedParallel measures bounded mixed workloads without race or
+// coverage instrumentation. ns/op is mean operation cost, not request P99.
+func BenchmarkCacheMixedParallel(b *testing.B) {
+	for _, reads := range []int{50, 90, 99} {
+		for _, keys := range []int{1, 1024} {
+			for _, ttl := range []time.Duration{time.Millisecond, benchmarkTTL} {
+				b.Run(fmt.Sprintf("Reads=%d/Keys=%d/TTL=%s", reads, keys, ttl), func(b *testing.B) {
+					c := cache.New[int, int]()
+					b.Cleanup(c.Close)
+					for key := 0; key < keys; key++ {
+						if err := c.Set(key, key, ttl); err != nil {
+							b.Fatal(err)
+						}
+					}
+					var seeds atomic.Uint64
+					b.ReportAllocs()
+					b.ResetTimer()
+					b.RunParallel(func(pb *testing.PB) {
+						// Seed once per worker; the timed loop has no shared counter.
+						// Use separate bits for key choice and read/write decisions.
+						state := seeds.Add(1)
+						for pb.Next() {
+							state = state*6364136223846793005 + 1
+							key := int((state >> 32) % uint64(keys))
+							switch operation := (state >> 16) % 100; {
+							case operation < uint64(reads):
+								if got, ok := c.Get(key); ok && got != key {
+									b.Errorf("Get(%d) = %d", key, got)
+									return
+								}
+							case operation == 99 && reads < 99:
+								c.Delete(key)
+							default:
+								if err := c.Set(key, key, ttl); err != nil {
+									b.Error(err)
+									return
+								}
+							}
+						}
+					})
+				})
+			}
+		}
+	}
 }
