@@ -65,7 +65,7 @@ func New[K comparable, V any](opts ...Option[K, V]) *Cache[K, V] {
 	for _, opt := range opts {
 		opt(c)
 	}
-	go c.run()
+	go c.cleanup()
 	return c
 }
 
@@ -184,7 +184,7 @@ func (c *Cache[K, V]) notifyIfChanged(before time.Time, scheduled bool) {
 	}
 }
 
-func (c *Cache[K, V]) run() {
+func (c *Cache[K, V]) cleanup() {
 	defer close(c.done)
 	timer := time.NewTimer(0)
 	defer timer.Stop()
