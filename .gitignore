@@ -118,3 +118,7 @@ fabric.properties
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+
+# Local module tooling and coverage artifacts
+__pycache__/
+coverage.html

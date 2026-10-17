@@ -1,6 +1,7 @@
 version: "2"
 
 run:
+  relative-path-mode: cfg
   timeout: 10m
   modules-download-mode: readonly
   build-tags:

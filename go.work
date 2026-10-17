@@ -1,0 +1,30 @@
+go 1.24.0
+
+use (
+	.
+	./alfred
+	./brute
+	./cache
+	./calendar
+	./circuitbreaker
+	./config
+	./fetch
+	./guard
+	./hash
+	./log
+	./netool
+	./notion
+	./pools
+	./rss
+	./sort
+	./thread
+	./websocket
+)
+
+replace github.com/tr1v3r/pkg/circuitbreaker v0.1.0 => ./circuitbreaker
+
+replace github.com/tr1v3r/pkg/fetch v0.1.0 => ./fetch
+
+replace github.com/tr1v3r/pkg/guard v0.1.0 => ./guard
+
+replace github.com/tr1v3r/pkg/log v0.1.0 => ./log

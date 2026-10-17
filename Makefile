@@ -1,127 +1,109 @@
-# Makefile for Go project
+# Commands run in every library module; set MODULE=cache to select one.
+MODULES := ./scripts/modules.sh
+LINT ?= golangci-lint
+LINT_CONFIG := $(CURDIR)/.golangci.yml
 
-.PHONY: help format format-all lint lint-fix test test-cover clean lint-config lint-verbose lint-fast lint-ci security deps check-vet
+.PHONY: help modules format format-all lint lint-fix lint-fast lint-verbose lint-config lint-ci \
+        security check-vet deps deps-published check-modules test test-fast test-race test-cover test-integration \
+        test-package test-standalone test-published check-all check-quick clean install-tools
 
-# Default target
 help:
-	@echo "Available targets:"
-	@echo "  format        - Format changed Go files using goimports-reviser"
-	@echo "  format-all    - Format all Go files"
-	@echo "  lint          - Run golangci-lint with standard configuration"
-	@echo "  lint-fix      - Run golangci-lint with auto-fix"
-	@echo "  lint-fast     - Run golangci-lint fast mode (skips slow linters)"
-	@echo "  lint-verbose  - Run golangci-lint with verbose output"
-	@echo "  lint-config   - Show current golangci-lint configuration"
-	@echo "  lint-ci       - Run golangci-lint in CI mode"
-	@echo "  security      - Run gosec security scanner"
-	@echo "  check-vet     - Run go vet static analysis"
-	@echo "  test          - Run all tests"
-	@echo "  test-cover    - Run tests with coverage"
-	@echo "  deps          - Check and download dependencies"
-	@echo "  clean         - Clean up generated files"
+	@echo "Use MODULE=cache to select one module. Available targets:"
+	@echo "  modules          List library modules"
+	@echo "  format[-all]     Format changed/all Go files with goimports-reviser"
+	@echo "  lint[-fix]       Lint each module with the shared configuration"
+	@echo "  security         Run gosec in each module"
+	@echo "  check-vet        Run go vet in each module"
+	@echo "  deps             Tidy modules using isolated checkout dependencies"
+	@echo "  deps-published   Tidy against actual releases and record their checksums"
+	@echo "  check-modules    Check tidy manifests without workspace replacements"
+	@echo "  test[-fast|-race|-integration|-cover]  Test each module"
+	@echo "  test-package PKG=./fetch              Test one module"
+	@echo "  test-standalone  Test checkout artifacts with GOWORK=off"
+	@echo "  test-published   Test actual pinned releases with GOWORK=off"
+	@echo "  check-all        Format, lint, security, tidy check and race tests"
+	@echo "  check-quick      Lint and short tests"
+	@echo "  clean            Remove module coverage reports and test binaries"
+	@echo "  install-tools    Install formatting, lint and security tools"
 
-# Formatting
+modules:
+	@$(MODULES) --list
+
 format:
-	@echo "Formatting changed Go files..."
-	@changed_files=$$(git diff --name-only --diff-filter=ACMR -- '*.go'); \
-	if [ -z "$$changed_files" ]; then \
-		echo "No changed Go files to format."; \
-	else \
-		goimports-reviser -rm-unused $$changed_files; \
-	fi
+	@python3 scripts/format.py
 
 format-all:
-	@echo "Formatting all Go files..."
-	goimports-reviser -rm-unused ./...
+	$(MODULES) goimports-reviser -project-name github.com/tr1v3r/pkg -rm-unused ./...
 
-# Linting
 lint:
-	@echo "Running golangci-lint..."
-	golangci-lint run
+	$(MODULES) $(LINT) run --config="$(LINT_CONFIG)"
 
 lint-fix:
-	@echo "Running golangci-lint with auto-fix..."
-	golangci-lint run --fix
+	$(MODULES) $(LINT) run --fix --config="$(LINT_CONFIG)"
 
 lint-fast:
-	@echo "Running golangci-lint in fast mode..."
-	golangci-lint run --max-issues-per-linter=10 --max-same-issues=5
+	$(MODULES) $(LINT) run --config="$(LINT_CONFIG)" --max-issues-per-linter=10 --max-same-issues=5
 
 lint-verbose:
-	@echo "Running golangci-lint with verbose output..."
-	golangci-lint run -v
+	$(MODULES) $(LINT) run -v --config="$(LINT_CONFIG)"
 
 lint-config:
-	@echo "Current golangci-lint configuration:"
-	golangci-lint config path
+	$(LINT) config path --config="$(LINT_CONFIG)"
 
 lint-ci:
-	@echo "Running golangci-lint in CI mode..."
-	golangci-lint run --timeout=10m --out-format=github-actions
+	$(MODULES) $(LINT) run --config="$(LINT_CONFIG)" --timeout=10m
 
 security:
-	@echo "Running security scan with gosec..."
-	gosec ./...
+	$(MODULES) gosec ./...
 
 check-vet:
-	@echo "Running go vet static analysis..."
-	go vet ./...
+	$(MODULES) go vet ./...
 
 deps:
-	@echo "Checking and downloading dependencies..."
-	go mod download
-	go mod tidy
+	./scripts/standalone.sh --tidy
 
-# Testing
+deps-published:
+	./scripts/standalone.sh --published --tidy
+
+check-modules:
+	./scripts/standalone.sh --check-tidy
+
 test:
-	@echo "Running all tests..."
-	go test -v ./...
+	$(MODULES) go test -v ./...
 
 test-fast:
-	@echo "Running tests without race detection (faster)..."
-	go test -short ./...
+	$(MODULES) go test -short ./...
 
 test-race:
-	@echo "Running tests with race detection..."
-	go test -race -short ./...
+	$(MODULES) go test -race -short ./...
 
 test-cover:
-	@echo "Running tests with coverage..."
-	go test -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "✅ Coverage report generated: coverage.html"
+	$(MODULES) go test -coverprofile=coverage.out ./...
+	$(MODULES) go tool cover -html=coverage.out -o coverage.html
 
+# Preserve the existing opt-in integration build mode.
 test-integration:
-	@echo "Running integration tests..."
-	go test -v -tags=integration ./...
+	$(MODULES) go test -v -tags=integration ./...
 
 test-package:
-	@if [ -z "$(PKG)" ]; then \
-		echo "Usage: make test-package PKG=./pkgname"; \
-		exit 1; \
-	fi
-	@echo "Testing package $(PKG)..."
-	go test -v $(PKG)
+	@test -n "$(PKG)" || { echo "Usage: make test-package PKG=./fetch"; exit 1; }
+	MODULE="$(PKG)" $(MODULES) go test -v ./...
 
-# Check everything (common CI pipeline)
-check-all: format lint security deps test-race
-	@echo "✅ All checks completed successfully"
+test-standalone:
+	./scripts/standalone.sh go test -race -count=1 -tags=integration ./...
 
-# Quick check for development
+test-published:
+	./scripts/standalone.sh --published go test -race -count=1 -tags=integration ./...
+
+check-all: format lint security check-modules test-race
+
 check-quick: lint-fast test-fast
-	@echo "✅ Quick checks completed"
 
-# Clean up
 clean:
-	@echo "Cleaning up generated files..."
-	go clean
-	rm -f coverage.out coverage.html
-	@echo "✅ Clean up completed"
+	$(MODULES) go clean
+	$(MODULES) sh -c 'rm -f coverage.out coverage.html'
 
-# Install development tools
 install-tools:
-	@echo "Installing development tools..."
 	go install github.com/incu6us/goimports-reviser@latest
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-	@echo "✅ Development tools installed"
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+	go install github.com/securego/gosec/v2/cmd/gosec@latest

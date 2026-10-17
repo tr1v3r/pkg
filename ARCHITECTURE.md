@@ -4,7 +4,8 @@
 > 为 skr（智能机器人）、ivy（内容构建引擎）等兄弟项目提供从日志、HTTP、
 > 并发原语到 Notion/RSS/日历等领域客户端的统一底座。
 >
-> module path: `github.com/tr1v3r/pkg`，Go 1.24，17 个子包。
+> 当前模块布局：Go 1.24，17 个独立模块 `github.com/tr1v3r/pkg/<包名>`，根模块作为旧版本迁移边界。
+> 2026-10-17 拆分后的开发、CI 与发布规则见 [MODULES.md](./MODULES.md)；下文兄弟仓库用量属于原盘点时的快照。
 
 ---
 
@@ -274,9 +275,9 @@ if errors.Is(err, circuitbreaker.ErrOpen) { /* fast-fail 降级路径 */ }
 
 ## 6. 设计决策与取舍（含推断标注）
 
-1. **〔推断〕单 module 多包而非多 module**：16 个子包共居一个 module，兄弟仓库
-   `replace` 或直接 require 一次即可用全部工具；代价是依赖树合并（gin/miekg-dns 等
-   重依赖只被少数包使用，消费方仍需拉全 go.sum）。
+1. **独立 module，共享仓库和工具链**：17 个包各自维护 go.mod、CI 检查与版本。
+   go.work 支持联调；消费者只安装需要的模块。代价是需要维护包间版本依赖，
+   并处理旧根模块与新子模块同时被选中时的迁移，详见 MODULES.md。
 2. **熔断与重试不内建进 fetch**：fetch 文档明确指引调用点组合。推断动机：保持
    fetch 可单独编译进最小依赖场景，且组合策略（先熔断后重试/反之）因场景而异。
 3. **`pools` 与 `thread` 并存**：pools 是"等待一批任务完成"的最薄封装（skr 高频用），

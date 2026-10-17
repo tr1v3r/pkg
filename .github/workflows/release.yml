@@ -1,0 +1,56 @@
+name: Release module
+
+on:
+  push:
+    tags: ['v*', '**/v*']
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate tagged module (Go ${{ matrix.go }})
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.24.x', '1.25.x', '1.26.x', '1.27.x']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+          cache-dependency-path: '**/go.sum'
+      - name: Validate tag and real published dependencies
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: ./scripts/check-release.sh "$RELEASE_TAG"
+
+  release:
+    name: Create GitHub release
+    needs: validate
+    concurrency:
+      group: module-publication
+      queue: max
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release for the existing tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          case "$RELEASE_TAG" in
+            */*) latest=false ;;
+            *) latest=true ;;
+          esac
+          prerelease=false
+          case "${RELEASE_TAG##*/}" in
+            *-*) prerelease=true; latest=false ;;
+          esac
+          gh release create "$RELEASE_TAG" --verify-tag --generate-notes \
+            --latest="$latest" --prerelease="$prerelease" --title "$RELEASE_TAG"

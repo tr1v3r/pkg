@@ -1,6 +1,8 @@
 # pkg
 
-A collection of utility Go packages providing commonly needed functionality for Go applications.
+A collection of independently versioned Go 1.24+ utility modules, maintained in one repository.
+
+See [MODULES.md](./MODULES.md) for module boundaries, development commands, migration and release order.
 
 ## Packages
 
@@ -25,10 +27,9 @@ Advanced structured logging with multiple output handlers, async processing, and
 - Non-blocking log output with guaranteed message delivery
 
 ### [fetch](./fetch) - HTTP Client with Resilience
-Robust HTTP client with circuit breaker, retry mechanisms, and middleware support.
+Robust HTTP client with retry mechanisms and middleware support; compose with the independent circuitbreaker module when needed.
 
 **Features:**
-- Circuit breaker with automatic failure detection and recovery
 - Configurable retry logic with exponential backoff
 - Extensible middleware architecture
 - Thread-safe client operations
@@ -124,7 +125,7 @@ Additional sorting algorithms and utilities beyond the standard library.
 - Extended sorting methods
 - Performance-optimized algorithm implementations
 
-### [shutdown](./shutdown) - Shutdown Signal Handler
+### [guard](./guard) - Shutdown Signal Handler
 Listen for shutdown signals and handle graceful application termination.
 
 **Features:**
@@ -134,9 +135,16 @@ Listen for shutdown signals and handle graceful application termination.
 
 ## Installation
 
+Install only the modules you use. After the first independent releases:
+
 ```bash
-go get github.com/tr1v3r/pkg
+go get github.com/tr1v3r/pkg/cache@v0.1.0
+go get github.com/tr1v3r/pkg/notion@v0.1.0
 ```
+
+The split targets these first versions; they are not published by this change.
+Existing consumers of the old root module must follow the [migration steps](./MODULES.md#first-release-and-migration).
+For local development, `go.work` selects the checkout's modules.
 
 ## Usage
 
@@ -149,6 +157,21 @@ import (
     "github.com/tr1v3r/pkg/notion"
 )
 ```
+
+## Development
+
+```sh
+make test-fast                 # all library modules
+make MODULE=cache test-race    # one module
+make lint
+make check-modules             # standalone dependency checks using checkout artifacts
+make test-standalone
+```
+
+Each module has its own `go.mod`, CI result and directory-prefixed release tag,
+for example `cache/v0.1.0`. Shared tooling discovers modules automatically.
+After dev → master merges pass CI, changed modules receive automatic patch releases;
+see [automatic releases](./MODULES.md#automatic-releases-after-dev--master) for the rules.
 
 ## Recent Updates
 
