@@ -2,7 +2,7 @@
 
 A concurrency-safe, generic, in-memory TTL cache for Go 1.24 and later. The
 package uses only the Go standard library and does not depend on other packages
-in this module.
+in this repository.
 
 ## Usage
 

@@ -5,15 +5,17 @@ Guidance for AI coding agents (Claude Code, etc.) working in this repository.
 
 ## Project Overview
 
-Go utility package collection (`github.com/tr1v3r/pkg`), Go 1.24+. Single module at the repo root; packages are independent and imported individually (`go get github.com/tr1v3r/pkg` + `import "github.com/tr1v3r/pkg/<pkg>"`).
+Go utility collection, Go 1.24+. Each of the 17 top-level library directories is an independent module (`github.com/tr1v3r/pkg/<pkg>`). The root module is an empty migration boundary; `go.work` joins all modules for development. See `MODULES.md` for dependencies, standalone checks and first-release migration.
+
+CI test coverage is explicit: Go 1.24.x, 1.25.x, 1.26.x and 1.27.x for every module, module tooling, cache stress and release validation. Keep these matrices aligned.
 
 ## Common Commands
 
 ```bash
-make test              # Run all tests (go test -v ./...)
+make test              # Run go test -v ./... in every library module
 make test-fast         # Quick tests (-short, no race detection)
 make test-race         # Tests with -race -short
-make test-cover        # Tests with coverage → coverage.html
+make test-cover        # Coverage reports inside each module
 make test-integration  # Integration tests (-tags=integration)
 make test-package PKG=./fetch   # Test one package
 make format            # Format changed Go files (goimports-reviser -rm-unused)
@@ -24,11 +26,18 @@ make lint-fix          # Auto-fix lint issues
 make security          # gosec security scan
 make check-vet         # go vet
 make install-tools     # Install goimports-reviser, golangci-lint, gosec
-make check-all         # Full CI check: format + lint + security + deps + test-race
+make check-all         # Full CI check: format + lint + security + tidy check + test-race
 make check-quick       # Quick dev check: lint-fast + test-fast
+make MODULE=cache test-race # Select one module for most targets
+make check-modules     # GOWORK=off tidy check using temporary checkout artifacts
+make test-standalone   # GOWORK=off race/integration tests using checkout artifacts
+make test-published    # GOWORK=off tests against actual published pins
+make deps-published    # Tidy actual releases and record real internal checksums
+python3 scripts/test-tooling.py # Module tooling and migration regression checks
+python3 scripts/test-release.py # Automatic version selection and release gates
 ```
 
-Run a single test: `go test -v -run TestName ./packagename`.
+Run a single test: `MODULE=cache ./scripts/modules.sh go test -v -run TestName ./...`. Root `go test ./...` does not test nested modules. `scripts/modules.sh --list` drives CI module discovery.
 
 ## Package Structure
 
@@ -57,6 +66,7 @@ Run a single test: `go test -v -run TestName ./packagename`.
 - `notion` imports `log`
 - `websocket` imports `log`
 - `config` imports `fetch`
+- Tests additionally depend on `fetch -> circuitbreaker` and `config -> guard`.
 - Everything else is standalone; keep it that way unless there's a strong reason.
 
 ## Code Quality
@@ -82,7 +92,9 @@ Run a single test: `go test -v -run TestName ./packagename`.
 
 - **Formatting is `goimports-reviser`**, not `gofmt`/`goimports`. Install via `make install-tools`. `make format` only touches git-changed files.
 - **`log` vs stdlib `log/slog`**: this repo's `log/` is the primary logger and already provides slog compatibility internally; do not create a `slog/` wrapper package.
-- **Single go.mod** at the repo root — `log` is NOT a separate module (it was in the past).
+- **Multiple modules**: each library has its own go.mod; root go.mod contains no library packages or dependencies. Internal pins target planned first v0.1.0 releases; do not claim published compatibility based on checkout-proxy tests. Keep local replacements in go.work only.
+- **Automatic releases**: after a same-repository dev -> master PR passes push CI, publish changed Go/manifests with independent patch increments. Four Go toolchains validate real dependency pins before any new tag. Keep the source gate, serialized queue, bootstrap order and retry idempotency intact. Dry-run with `python3 scripts/auto-release.py`.
+- **Release tags**: directory-prefixed tags such as cache/v0.1.0. First publish the root split boundary, then dependencies before dependents, including test dependencies. Never create tags/releases without explicit user authorization.
 - **Build tags**: tooling references `integration` and `demo` tags (`make test-integration`, lint `build-tags`); most tests are plain unit tests using `httptest`.
 - **Worktree checkout**: `.git` here is a file pointing into the parent repo's modules dir; normal `git` commands work fine.
 - **Commit style**: Conventional Commits (`feat(scope): ...`, `fix: ...`, `docs: ...`) — see `git log` for examples.

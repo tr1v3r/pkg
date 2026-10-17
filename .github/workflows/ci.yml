@@ -5,44 +5,101 @@ on:
     branches: [master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  lint:
-    name: Lint
+  modules:
+    name: Discover modules
     runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.discover.outputs.modules }}
     steps:
       - uses: actions/checkout@v4
-
+      - id: discover
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import subprocess
+          modules = subprocess.check_output(['./scripts/modules.sh', '--list'], text=True).splitlines()
+          print('modules=' + json.dumps(modules))
+          PY
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: go.work
+          cache: false
+      - name: Check workspace membership
+        run: python3 scripts/check-workspace.py
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          # exact pin: future 2.x releases may add checks that break the gate
-          version: v2.12.2
-
-  test:
-    name: Test (Go ${{ matrix.go }})
+  tooling:
+    name: Module tooling (Go ${{ matrix.go }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        go: ['1.24.x', 'stable']
+        go: ['1.24.x', '1.25.x', '1.26.x', '1.27.x']
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+          check-latest: true
+          cache: false
+      - name: Check workspace membership
+        run: python3 scripts/check-workspace.py
+      - name: Test module tooling and consumer migration
+        run: |
+          python3 scripts/test-tooling.py
+          python3 scripts/test-release.py
 
-      - name: Run tests with race detector
-        run: go test -race -count=1 ./...
+  lint:
+    name: Lint (${{ matrix.module }})
+    needs: modules
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.modules.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: '**/go.sum'
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.12.2
+          working-directory: ${{ matrix.module }}
+          args: --config=${{ github.workspace }}/.golangci.yml
 
-      - name: Run tests with coverage
-        run: go test -count=1 -coverprofile=coverage.out ./...
-
-      - name: Report total coverage
-        run: go tool cover -func=coverage.out | tail -1
+  test:
+    name: Test (${{ matrix.module }}, Go ${{ matrix.go }})
+    needs: modules
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.modules.outputs.modules) }}
+        go: ['1.24.x', '1.25.x', '1.26.x', '1.27.x']
+    env:
+      MODULE: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+          cache-dependency-path: '**/go.sum'
+      - name: Workspace tests with race detection
+        run: ./scripts/modules.sh go test -race -count=1 ./...
+      - name: Coverage
+        run: ./scripts/modules.sh go test -count=1 -coverprofile=coverage.out ./...
+      - name: Report module coverage
+        run: ./scripts/modules.sh go tool cover -func=coverage.out
+      - name: Tidy without workspace replacements
+        run: ./scripts/standalone.sh --check-tidy
+      - name: Standalone tests using checkout module artifacts
+        run: ./scripts/standalone.sh go test -race -count=1 -tags=integration ./...
 
   cache-stress:
     name: Cache stress (Go ${{ matrix.go }})
@@ -51,15 +108,84 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go: ['1.24.x', 'stable']
+        go: ['1.24.x', '1.25.x', '1.26.x', '1.27.x']
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-
+          check-latest: true
+          cache-dependency-path: '**/go.sum'
       - name: Stress cache cleanup and capacity with the race detector
+        working-directory: cache
         run: >-
           go test -race -count=10 -cpu=1,2,4 -timeout=5m
-          -run '^TestCacheConcurrent(Cleanup|Capacity)Stress$' ./cache
+          -run '^TestCacheConcurrent(Cleanup|Capacity)Stress$' ./...
+
+  release-source:
+    name: Identify dev merge
+    needs: [modules, tooling, lint, test, cache-stress]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      eligible: ${{ steps.source.outputs.eligible }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/auto-release.py --check-merge
+
+  auto-release:
+    name: Release modules from dev merge
+    needs: release-source
+    if: needs.release-source.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: read
+    concurrency:
+      group: module-publication
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          check-latest: true
+          cache: false
+      - name: Record Go 1.24 installation
+        run: echo "RELEASE_GO124=$(go env GOROOT)" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          check-latest: true
+          cache: false
+      - name: Record Go 1.25 installation
+        run: echo "RELEASE_GO125=$(go env GOROOT)" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          check-latest: true
+          cache: false
+      - name: Record Go 1.26 installation
+        run: echo "RELEASE_GO126=$(go env GOROOT)" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.x'
+          check-latest: true
+          cache: false
+      - name: Record Go 1.27 installation
+        run: echo "RELEASE_GO127=$(go env GOROOT)" >> "$GITHUB_ENV"
+      - name: Publish changed modules in dependency order
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/auto-release.py --publish
