@@ -32,19 +32,19 @@ var (
 //
 // A Cache must be created with New and must not be copied. Its zero value is
 // not usable. There is no capacity limit or eviction policy other than TTL.
-// The cleaner drains overdue entries in batches bounded by DefaultBatchSize
-// and DefaultBatchBudget, resuming immediately while entries remain due.
+// By default, cleanup passes are bounded by DefaultCleanupBatchSize and
+// DefaultCleanupBatchBudget. Cleanup resumes immediately while entries remain due.
 type Cache[K comparable, V any] struct {
 	// mu serializes all writers, cleanup, and shutdown. Get uses only
 	// sync.Map and immutable key/value/deadline fields, never entry indexes.
-	mu          sync.Mutex
-	items       sync.Map // K -> *entry[K, V]
-	expirations expiryHeap[K, V]
-	batch       batchConfig
-	closed      bool
-	wake        chan struct{}
-	stop        chan struct{}
-	done        chan struct{}
+	mu           sync.Mutex
+	items        sync.Map // K -> *entry[K, V]
+	expirations  expiryHeap[K, V]
+	cleanupBatch cleanupBatchConfig
+	closed       bool
+	wake         chan struct{}
+	stop         chan struct{}
+	done         chan struct{}
 }
 
 // New creates an empty cache and starts its background expiration cleaner.
@@ -52,13 +52,13 @@ type Cache[K comparable, V any] struct {
 // Close.
 func New[K comparable, V any](opts ...Option) *Cache[K, V] {
 	c := &Cache[K, V]{
-		wake:  make(chan struct{}, 1),
-		stop:  make(chan struct{}),
-		done:  make(chan struct{}),
-		batch: defaultBatch(),
+		wake:         make(chan struct{}, 1),
+		stop:         make(chan struct{}),
+		done:         make(chan struct{}),
+		cleanupBatch: defaultCleanupBatch(),
 	}
 	for _, opt := range opts {
-		opt(&c.batch)
+		opt(&c.cleanupBatch)
 	}
 	go c.run(c.nextDelay)
 	return c
@@ -204,7 +204,7 @@ func (c *Cache[K, V]) nextDelay() (time.Duration, bool) {
 		if delay := time.Until(item.deadline); delay > 0 {
 			return delay, true
 		}
-		if removed > 0 && c.batch.exhausted(removed, time.Since(start)) {
+		if removed > 0 && c.cleanupBatch.exhausted(removed, time.Since(start)) {
 			return 0, true // Overdue entries remain: run the next pass now.
 		}
 		heap.Pop(&c.expirations)

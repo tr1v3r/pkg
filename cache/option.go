@@ -2,30 +2,30 @@ package cache
 
 import "time"
 
-// DefaultBatchSize is the default maximum number of expired entries removed
+// DefaultCleanupBatchSize is the default maximum number of expired entries removed
 // by one cleanup pass.
-const DefaultBatchSize = 128
+const DefaultCleanupBatchSize = 128
 
-// DefaultBatchBudget is the default maximum wall-clock time one cleanup pass
+// DefaultCleanupBatchBudget is the default maximum wall-clock time one cleanup pass
 // spends removing expired entries.
-const DefaultBatchBudget = time.Millisecond
+const DefaultCleanupBatchBudget = time.Millisecond
 
-// batchConfig bounds a single cleanup pass. Zero or negative values disable
+// cleanupBatchConfig bounds a single cleanup pass. Zero or negative values disable
 // the respective limit.
-type batchConfig struct {
+type cleanupBatchConfig struct {
 	size   int           // entries removed per pass; <= 0 means unlimited
 	budget time.Duration // wall time per pass; <= 0 means unlimited
 }
 
-// defaultBatch returns the default cleanup limits.
-func defaultBatch() batchConfig {
-	return batchConfig{size: DefaultBatchSize, budget: DefaultBatchBudget}
+// defaultCleanupBatch returns the default cleanup limits.
+func defaultCleanupBatch() cleanupBatchConfig {
+	return cleanupBatchConfig{size: DefaultCleanupBatchSize, budget: DefaultCleanupBatchBudget}
 }
 
 // exhausted reports whether a pass that already removed removed entries and
 // spent elapsed must stop: its entry or time allowance is spent. Callers keep
 // the pass going when nothing was removed yet so cleanup always progresses.
-func (b batchConfig) exhausted(removed int, elapsed time.Duration) bool {
+func (b cleanupBatchConfig) exhausted(removed int, elapsed time.Duration) bool {
 	if b.size > 0 && removed >= b.size {
 		return true
 	}
@@ -33,16 +33,16 @@ func (b batchConfig) exhausted(removed int, elapsed time.Duration) bool {
 }
 
 // Option customizes the limits of a single expiration cleanup pass.
-type Option func(*batchConfig)
+type Option func(*cleanupBatchConfig)
 
-// WithBatchSize sets the maximum number of expired entries one cleanup pass
+// WithCleanupBatchSize sets the maximum number of expired entries one cleanup pass
 // removes before stopping. A nonpositive n removes the limit.
-func WithBatchSize(n int) Option {
-	return func(b *batchConfig) { b.size = n }
+func WithCleanupBatchSize(n int) Option {
+	return func(b *cleanupBatchConfig) { b.size = n }
 }
 
-// WithBatchBudget sets the maximum wall-clock time one cleanup pass spends
+// WithCleanupBatchBudget sets the maximum wall-clock time one cleanup pass spends
 // removing expired entries before stopping. A nonpositive d removes the limit.
-func WithBatchBudget(d time.Duration) Option {
-	return func(b *batchConfig) { b.budget = d }
+func WithCleanupBatchBudget(d time.Duration) Option {
+	return func(b *cleanupBatchConfig) { b.budget = d }
 }

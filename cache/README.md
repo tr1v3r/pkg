@@ -30,9 +30,14 @@ func main() {
 }
 ```
 
-Construct instances with `New[K comparable, V any]() *Cache[K, V]`. The zero
-value is not supported, and a cache instance must not be copied. Share the
-pointer returned by `New` instead.
+Construct instances with `New[K comparable, V any](opts ...Option) *Cache[K, V]`.
+The zero value is not supported, and a cache instance must not be copied. Share
+the pointer returned by `New` instead.
+
+Background expiration cleanup defaults to `DefaultCleanupBatchSize` (128 entries)
+and `DefaultCleanupBatchBudget` (1 ms) per pass. Configure these limits with
+`WithCleanupBatchSize(n)` and `WithCleanupBatchBudget(d)`; a nonpositive value
+disables the respective limit.
 
 ## API and TTL semantics
 

@@ -11,7 +11,7 @@ import (
 )
 
 // A fixture without a cleaner lets tests examine expiration and heap invariants
-// independently of scheduling. Lifecycle tests use New instead. Its batch
+// independently of scheduling. Lifecycle tests use New instead. Its cleanup batch
 // limits stay zero (unlimited) so one nextDelay call drains a whole backlog.
 func manualCache[K comparable, V any](t *testing.T) *Cache[K, V] {
 	t.Helper()
@@ -544,21 +544,21 @@ func expireAll[K comparable, V any](c *Cache[K, V]) {
 	}
 }
 
-func TestBatchConfigExhausted(t *testing.T) {
+func TestCleanupBatchConfigExhausted(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
-		config  batchConfig
+		config  cleanupBatchConfig
 		removed int
 		elapsed time.Duration
 		want    bool
 	}{
-		{name: "zero config unlimited", config: batchConfig{}, removed: 1 << 20, elapsed: time.Hour, want: false},
-		{name: "size reached", config: batchConfig{size: 100}, removed: 100, elapsed: 0, want: true},
-		{name: "size one entry short", config: batchConfig{size: 100}, removed: 99, elapsed: time.Hour, want: false},
-		{name: "size disabled", config: batchConfig{size: -1, budget: time.Millisecond}, removed: 1 << 20, elapsed: time.Microsecond, want: false},
-		{name: "budget reached", config: batchConfig{budget: time.Millisecond}, removed: 1, elapsed: time.Millisecond, want: true},
-		{name: "budget below", config: batchConfig{budget: time.Millisecond}, removed: 1 << 20, elapsed: time.Microsecond, want: false},
-		{name: "budget disabled", config: batchConfig{budget: -time.Second}, removed: 1 << 20, elapsed: time.Hour, want: false},
+		{name: "zero config unlimited", config: cleanupBatchConfig{}, removed: 1 << 20, elapsed: time.Hour, want: false},
+		{name: "size reached", config: cleanupBatchConfig{size: 100}, removed: 100, elapsed: 0, want: true},
+		{name: "size one entry short", config: cleanupBatchConfig{size: 100}, removed: 99, elapsed: time.Hour, want: false},
+		{name: "size disabled", config: cleanupBatchConfig{size: -1, budget: time.Millisecond}, removed: 1 << 20, elapsed: time.Microsecond, want: false},
+		{name: "budget reached", config: cleanupBatchConfig{budget: time.Millisecond}, removed: 1, elapsed: time.Millisecond, want: true},
+		{name: "budget below", config: cleanupBatchConfig{budget: time.Millisecond}, removed: 1 << 20, elapsed: time.Microsecond, want: false},
+		{name: "budget disabled", config: cleanupBatchConfig{budget: -time.Second}, removed: 1 << 20, elapsed: time.Hour, want: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := tc.config.exhausted(tc.removed, tc.elapsed); got != tc.want {
@@ -571,28 +571,28 @@ func TestBatchConfigExhausted(t *testing.T) {
 func TestNewAppliesCleanupDefaultsAndOptions(t *testing.T) {
 	c := New[string, int]()
 	t.Cleanup(c.Close)
-	if c.batch.size != DefaultBatchSize || c.batch.budget != DefaultBatchBudget {
+	if c.cleanupBatch.size != DefaultCleanupBatchSize || c.cleanupBatch.budget != DefaultCleanupBatchBudget {
 		t.Fatalf("defaults = (%d, %v), want (%d, %v)",
-			c.batch.size, c.batch.budget, DefaultBatchSize, DefaultBatchBudget)
+			c.cleanupBatch.size, c.cleanupBatch.budget, DefaultCleanupBatchSize, DefaultCleanupBatchBudget)
 	}
 
-	c = New[string, int](WithBatchSize(7), WithBatchBudget(time.Second))
+	c = New[string, int](WithCleanupBatchSize(7), WithCleanupBatchBudget(time.Second))
 	t.Cleanup(c.Close)
-	if c.batch.size != 7 || c.batch.budget != time.Second {
-		t.Fatalf("options applied (%d, %v), want (7, 1s)", c.batch.size, c.batch.budget)
+	if c.cleanupBatch.size != 7 || c.cleanupBatch.budget != time.Second {
+		t.Fatalf("options applied (%d, %v), want (7, 1s)", c.cleanupBatch.size, c.cleanupBatch.budget)
 	}
 
-	c = New[string, int](WithBatchSize(0), WithBatchBudget(-time.Millisecond))
+	c = New[string, int](WithCleanupBatchSize(0), WithCleanupBatchBudget(-time.Millisecond))
 	t.Cleanup(c.Close)
-	if c.batch.size != 0 || c.batch.budget != -time.Millisecond {
-		t.Fatalf("nonpositive options overridden: (%d, %v)", c.batch.size, c.batch.budget)
+	if c.cleanupBatch.size != 0 || c.cleanupBatch.budget != -time.Millisecond {
+		t.Fatalf("nonpositive options overridden: (%d, %v)", c.cleanupBatch.size, c.cleanupBatch.budget)
 	}
 }
 
 func TestCleanupBatchSizeLimitsPass(t *testing.T) {
-	const due, batchSize = 10, 3
+	const due, cleanupBatchSize = 10, 3
 	c := manualCache[int, int](t)
-	c.batch = batchConfig{size: batchSize}
+	c.cleanupBatch = cleanupBatchConfig{size: cleanupBatchSize}
 	for key := 0; key < due; key++ {
 		if err := c.Set(key, key, time.Hour); err != nil {
 			t.Fatal(err)
@@ -603,8 +603,8 @@ func TestCleanupBatchSizeLimitsPass(t *testing.T) {
 	if delay, scheduled := c.nextDelay(); !scheduled || delay != 0 {
 		t.Fatalf("truncated pass reported (%v, %t), want (0, true) to resume", delay, scheduled)
 	}
-	if remaining := len(c.expirations); remaining != due-batchSize {
-		t.Fatalf("pass removed %d entries, want the batch size %d", due-remaining, batchSize)
+	if remaining := len(c.expirations); remaining != due-cleanupBatchSize {
+		t.Fatalf("pass removed %d entries, want the batch size %d", due-remaining, cleanupBatchSize)
 	}
 
 	for pass := 1; len(c.expirations) > 0; pass++ {
@@ -621,7 +621,7 @@ func TestCleanupBatchSizeLimitsPass(t *testing.T) {
 func TestCleanupBatchBudgetLimitsPass(t *testing.T) {
 	const due = 100000 // Far more than one pass can remove within 1ns.
 	c := manualCache[int, int](t)
-	c.batch = batchConfig{budget: time.Nanosecond}
+	c.cleanupBatch = cleanupBatchConfig{budget: time.Nanosecond}
 	for key := 0; key < due; key++ {
 		if err := c.Set(key, key, time.Hour); err != nil {
 			t.Fatal(err)
@@ -638,7 +638,7 @@ func TestCleanupBatchBudgetLimitsPass(t *testing.T) {
 }
 
 func TestCleanupUnlimitedPassDrainsAllDue(t *testing.T) {
-	c := manualCache[int, int](t) // Zero batch config: no limits.
+	c := manualCache[int, int](t) // Zero cleanup batch config: no limits.
 	for key := 0; key < 500; key++ {
 		if err := c.Set(key, key, time.Hour); err != nil {
 			t.Fatal(err)
@@ -658,12 +658,12 @@ func TestCleanupUnlimitedPassDrainsAllDue(t *testing.T) {
 // between cleanup passes. Writers must complete while overdue entries remain,
 // and Close must stop the worker without needing another cleanup pass.
 func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
-	const batch, backlog = 4, 16
+	const cleanupBatchSize, backlog = 4, 16
 	c := &Cache[int, int]{
-		batch: batchConfig{size: batch},
-		wake:  make(chan struct{}, 1),
-		stop:  make(chan struct{}),
-		done:  make(chan struct{}),
+		cleanupBatch: cleanupBatchConfig{size: cleanupBatchSize},
+		wake:         make(chan struct{}, 1),
+		stop:         make(chan struct{}),
+		done:         make(chan struct{}),
 	}
 	overdue := time.Now().Add(-time.Hour)
 	for key := 0; key < backlog; key++ {
@@ -721,8 +721,8 @@ func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
 		deleted = c.expirations[0]
 	}
 	c.mu.Unlock()
-	if remaining != backlog-batch {
-		t.Fatalf("first pass left %d entries, want %d", remaining, backlog-batch)
+	if remaining != backlog-cleanupBatchSize {
+		t.Fatalf("first pass left %d entries, want %d", remaining, backlog-cleanupBatchSize)
 	}
 
 	written := make(chan error, 1)
@@ -752,9 +752,9 @@ func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
 	if !removed {
 		t.Fatal("Delete between passes did not remove the overdue key from the map and heap")
 	}
-	if items != backlog-batch || expirations != backlog-batch {
+	if items != backlog-cleanupBatchSize || expirations != backlog-cleanupBatchSize {
 		t.Fatalf("after Set/Delete: items = %d, expirations = %d, want %d each",
-			items, expirations, backlog-batch)
+			items, expirations, backlog-cleanupBatchSize)
 	}
 
 	// Permit exactly one more pass to verify that the scheduler resumes.
@@ -763,8 +763,8 @@ func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
 	c.mu.Lock()
 	remaining = len(c.expirations)
 	c.mu.Unlock()
-	if remaining != backlog-2*batch {
-		t.Fatalf("second pass left %d entries, want %d", remaining, backlog-2*batch)
+	if remaining != backlog-2*cleanupBatchSize {
+		t.Fatalf("second pass left %d entries, want %d", remaining, backlog-2*cleanupBatchSize)
 	}
 
 	// The worker is paused with overdue entries still present. Close must
