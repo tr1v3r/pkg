@@ -22,6 +22,9 @@ var (
 	// ErrInvalidKey is returned by Set for a key that is not equal to itself,
 	// such as a floating-point NaN or a comparable struct containing one.
 	ErrInvalidKey = errors.New("cache: key must be equal to itself")
+	// ErrCapacity is returned by Set when a new key cannot be admitted without
+	// exceeding the entry limit or removing an unexpired entry.
+	ErrCapacity = errors.New("cache: capacity exceeded")
 )
 
 // Cache stores values by key until their individual expiration deadlines.
@@ -31,7 +34,8 @@ var (
 // are not equal to themselves, such as floating-point NaNs.
 //
 // A Cache must be created with New and must not be copied. Its zero value is
-// not usable. There is no capacity limit or eviction policy other than TTL.
+// not usable. Capacity is unlimited unless configured with WithMaxEntries.
+// Unexpired entries are never evicted to make room for new keys.
 // By default, cleanup passes are bounded by DefaultCleanupBatchSize and
 // DefaultCleanupBatchBudget. Cleanup resumes immediately while entries remain due.
 type Cache[K comparable, V any] struct {
@@ -41,6 +45,7 @@ type Cache[K comparable, V any] struct {
 	items        sync.Map // K -> *entry[K, V]
 	expirations  expiryHeap[K, V]
 	cleanupBatch cleanupBatchConfig
+	maxEntries   int // retained entries, including overdue ones; <= 0 means unlimited
 	closed       bool
 	wake         chan struct{}
 	stop         chan struct{}
@@ -71,6 +76,9 @@ func New[K comparable, V any](opts ...Option[K, V]) *Cache[K, V] {
 // A closed cache always returns ErrClosed. Updating a key does not create
 // another retained expiration record. It replaces the old node in place in
 // the heap; published values and deadlines are never mutated.
+// With a positive entry limit, a new key at capacity reclaims at most one
+// expired entry. If none is expired, Set returns ErrCapacity without changing
+// the cache. Existing keys can always be replaced, even at capacity.
 func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -84,8 +92,17 @@ func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) error {
 		return ErrInvalidKey
 	}
 	before, scheduled := c.earliest()
+	previous, exists := c.items.Load(key)
+	if !exists && c.maxEntries > 0 && len(c.expirations) >= c.maxEntries {
+		if time.Now().Before(c.expirations[0].deadline) {
+			return ErrCapacity
+		}
+		// One free slot is enough. Leave any remaining backlog to the cleaner.
+		expired := heap.Pop(&c.expirations).(*entry[K, V])
+		c.items.Delete(expired.key)
+	}
 	item := &entry[K, V]{key: key, value: value, deadline: time.Now().Add(ttl)}
-	if previous, exists := c.items.Load(key); exists {
+	if exists {
 		// Writers share mu, so the loaded node still owns this index.
 		old := previous.(*entry[K, V])
 		item.index = old.index

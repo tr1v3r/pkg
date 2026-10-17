@@ -67,7 +67,8 @@ floating-point NaNs or comparable structs containing NaNs, with `ErrInvalidKey`.
 This prevents entries that Go maps cannot look up or delete from retaining values
 after expiration. Interface-typed keys must also contain comparable dynamic
 values, as with a regular Go map; uncomparable dynamic values panic.
-Validation order is closed cache, TTL, then key; rejected writes store nothing.
+Validation order is closed cache, TTL, key, then capacity for new keys; rejected
+writes store nothing and leave existing entries unchanged.
 
 Expiration is exact at the read boundary: an entry is expired when
 `now >= deadline`. `Get` loads a published snapshot and checks its immutable deadline, returning a miss
@@ -82,8 +83,50 @@ After `Close`:
 - `Delete` is a no-op.
 - Further calls to `Close` are safe.
 
-Use `errors.Is` with `cache.ErrInvalidTTL`, `cache.ErrInvalidKey`, or
-`cache.ErrClosed` to check the exported errors.
+Use `errors.Is` with `cache.ErrInvalidTTL`, `cache.ErrInvalidKey`,
+`cache.ErrClosed`, or `cache.ErrCapacity` to check the exported errors.
+
+## Entry capacity
+
+Capacity is unlimited by default. Set an optional entry limit at construction:
+
+```go
+c := cache.New[string, int](cache.WithMaxEntries[string, int](10_000))
+defer c.Close()
+
+if err := c.Set("answer", 42, time.Minute); err != nil {
+    if errors.Is(err, cache.ErrCapacity) {
+        // Continue without caching this value, or record the rejection.
+    } else {
+        // Handle invalid input or a closed cache.
+    }
+}
+```
+
+`WithMaxEntries[K, V](n)` limits retained entries, including expired entries
+awaiting physical cleanup. A nonpositive value disables the limit. Repeated
+options use the last value. Configure capacity before storing entries; changing
+it after construction is unsupported, including by applying an option directly.
+
+- A new key below capacity is inserted normally.
+- At capacity, a new key reclaims at most one expired heap root before insertion.
+  If the earliest entry is still live, `Set` returns `ErrCapacity` without changing
+  any existing entry. Remaining overdue entries are left to background cleanup.
+- An existing key can be replaced at capacity, including one that has expired but
+  has not been physically removed. Replacements start a new TTL and use one slot.
+- `Delete` and background expiration free slots for future writes.
+- Unexpired entries are never evicted to admit new keys; there is no LRU/LFU policy.
+
+Admission and insertion share the existing writer mutex, so concurrent writers
+cannot oversubscribe the configured entry limit. Reads have no capacity-related
+bookkeeping. Applications choose whether a rejected cache write should affect
+business behavior; the cache does not silently discard writes.
+
+This is an **entry count limit, not a byte or process-memory limit**. Replacing a
+value with a larger one is allowed. Values may reference arbitrarily large or
+shared objects, in-flight readers can retain old snapshots, and GC controls when
+unreachable objects are reclaimed. A count limit does not establish a bound on
+process RSS.
 
 ## Lifecycle and implementation
 
@@ -147,8 +190,9 @@ for measured costs, workload limits, raw data, and a frozen reproducer.
 - Synchronization protects the container, not mutable data stored in values.
   Maps, slices, pointers, and other reference-containing values are not cloned.
   Callers must synchronize access to shared mutable values themselves.
-- There is no capacity limit, size-based eviction, LRU/LFU policy, or automatic
-  bound on application memory usage. Choose TTLs and key cardinality accordingly.
+- Capacity is unlimited unless configured with `WithMaxEntries`. There is no
+  byte-based limit or eviction of unexpired entries. Choose TTLs and entry limits
+  according to the workload.
 - There is no loader, singleflight/request deduplication, persistence, Redis
   integration, or distributed coordination.
 - TTL expiration is a cache visibility guarantee, not a real-time callback or
@@ -173,16 +217,18 @@ A dedicated CI stress job runs on Go 1.24 and stable with 1, 2, and 4 CPUs,
 repeating each setting 10 times under the race detector:
 
 ```sh
-go test -race -count=10 -cpu=1,2,4 -timeout=5m -run '^TestCacheConcurrentCleanupStress$' ./cache
+go test -race -count=10 -cpu=1,2,4 -timeout=5m -run '^TestCacheConcurrent(Cleanup|Capacity)Stress$' ./cache
 ```
 
-The test uses the real worker and default cleanup limits, 128 workers, two
+The cleanup test uses the real worker and default cleanup limits, 128 workers, two
 32,768-entry overdue backlogs, and 16 concurrent callers of `Close`. It checks
 mixed reads/writes/refreshes/deletes, strict expiry, physical backlog reclamation,
 map/heap consistency, and shutdown. It accepts valid scheduling orders rather
 than requiring a writer to land in a particular cleanup window. Short-mode tests
 skip this workload. The timeout is a hang watchdog; this is a correctness stress
-test and does not establish QPS capacity or P99 latency.
+test and does not establish QPS capacity or P99 latency. The capacity stress test
+adds 128 workers with a 64-entry limit and checks admission, short TTLs, deletes,
+map/heap consistency, and concurrent shutdown.
 
 Run the representative microbenchmarks with:
 
@@ -191,7 +237,8 @@ go test ./cache -run '^$' -bench . -benchmem
 ```
 
 They cover Get hits, misses, parallel reads, overwrites at several cache sizes,
-and Set/Delete pairs. Setup and population are excluded from the timed region.
+Set/Delete pairs, and entry-capacity admission/rejection/reclamation. Setup and
+population are excluded from the timed region.
 Keys are reused, so retained entries do not grow with the benchmark iteration
 count; the Set/Delete benchmark measures one pair per iteration. Long TTLs keep
 ordinary benchmark runs focused on these operations rather than expiration.

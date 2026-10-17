@@ -446,3 +446,48 @@ func TestSchedulerEqualDeadlineUpdatesNeedNoWake(t *testing.T) {
 		}
 	})
 }
+
+func TestCapacityReclaimsAtExactDeadline(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := manualCache[int, int](t)
+		WithMaxEntries[int, int](1)(c)
+		if err := c.Set(1, 1, time.Minute); err != nil {
+			t.Fatal(err)
+		}
+		old := storedEntry(c, 1)
+		<-c.wake
+		time.Sleep(time.Minute)
+		if !time.Now().Equal(old.deadline) {
+			t.Fatal("test did not reach the exact deadline")
+		}
+		if err := c.Set(2, 2, time.Hour); err != nil {
+			t.Fatalf("Set at the old entry's deadline = %v", err)
+		}
+		if storedEntry(c, 1) != nil || old.index != -1 || len(c.expirations) != 1 {
+			t.Fatal("Set did not replace the expired entry")
+		}
+		select {
+		case <-c.wake:
+		default:
+			t.Fatal("replacement deadline did not notify the worker")
+		}
+	})
+}
+
+func TestSchedulerCapacityDeleteAndReinsert(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := New[string, int](WithMaxEntries[string, int](1))
+		defer c.Close()
+		schedulerSet(t, c, "first", 1, time.Hour)
+		synctest.Wait()
+		c.Delete("first")
+		schedulerSet(t, c, "second", 2, time.Minute)
+		synctest.Wait()
+		time.Sleep(time.Minute)
+		synctest.Wait()
+		schedulerAssertKeys(t, c)
+		schedulerSet(t, c, "third", 3, time.Hour)
+		synctest.Wait()
+		schedulerAssertKeys(t, c, "third")
+	})
+}
