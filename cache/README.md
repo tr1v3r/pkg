@@ -30,9 +30,24 @@ func main() {
 }
 ```
 
-Construct instances with `New[K comparable, V any]() *Cache[K, V]`. The zero
-value is not supported, and a cache instance must not be copied. Share the
-pointer returned by `New` instead.
+Construct instances with `New[K comparable, V any](opts ...Option[K, V]) *Cache[K, V]`.
+The zero value is not supported, and a cache instance must not be copied. Share
+the pointer returned by `New` instead.
+
+Background expiration cleanup defaults to `DefaultCleanupBatchSize` (128 entries)
+and `DefaultCleanupBatchBudget` (1 ms) per pass. Configure these limits with
+`WithCleanupBatchSize[K, V](n)` and `WithCleanupBatchBudget[K, V](d)`; a nonpositive
+value disables the respective limit. Options receive the entire cache and are
+applied before its cleaner starts. Use the same key and value type arguments
+for the cache and its options:
+
+```go
+c := cache.New[string, int](
+    cache.WithCleanupBatchSize[string, int](256),
+    cache.WithCleanupBatchBudget[string, int](2*time.Millisecond),
+)
+defer c.Close()
+```
 
 ## API and TTL semantics
 
@@ -153,6 +168,21 @@ On Go 1.25+, additional `testing/synctest` tests use virtual time to verify
 cleanup scheduling, exact deadline boundaries, rescheduling, and shutdown.
 These tests are version-gated; the package, core tests, examples, and benchmarks
 remain compatible with Go 1.24. CI runs tests on Go 1.24 and the stable release.
+
+A dedicated CI stress job runs on Go 1.24 and stable with 1, 2, and 4 CPUs,
+repeating each setting 10 times under the race detector:
+
+```sh
+go test -race -count=10 -cpu=1,2,4 -timeout=5m -run '^TestCacheConcurrentCleanupStress$' ./cache
+```
+
+The test uses the real worker and default cleanup limits, 128 workers, two
+32,768-entry overdue backlogs, and 16 concurrent callers of `Close`. It checks
+mixed reads/writes/refreshes/deletes, strict expiry, physical backlog reclamation,
+map/heap consistency, and shutdown. It accepts valid scheduling orders rather
+than requiring a writer to land in a particular cleanup window. Short-mode tests
+skip this workload. The timeout is a hang watchdog; this is a correctness stress
+test and does not establish QPS capacity or P99 latency.
 
 Run the representative microbenchmarks with:
 
