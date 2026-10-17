@@ -276,6 +276,40 @@ func TestSchedulerBatchWithIdenticalDeadlines(t *testing.T) {
 	})
 }
 
+func TestSchedulerBatchedCleanupDrainsBacklog(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// 250 overdue entries exceed the default batch size of 128, forcing
+		// the worker through truncated passes; it must resume on its own.
+		const count = 250
+		c := New[int, int]()
+		defer c.Close()
+		for key := range count {
+			if err := c.Set(key, key, time.Minute); err != nil {
+				t.Fatalf("Set(%d): %v", key, err)
+			}
+		}
+		synctest.Wait()
+		time.Sleep(time.Minute - time.Nanosecond)
+		synctest.Wait()
+		schedulerAssertKeysInt(t, c, count)
+
+		time.Sleep(time.Nanosecond)
+		synctest.Wait()
+		schedulerAssertKeysInt(t, c, 0)
+	})
+}
+
+// schedulerAssertKeysInt checks the total entry count of an int-keyed cache;
+// schedulerAssertKeys needs concrete keys.
+func schedulerAssertKeysInt(t *testing.T, c *Cache[int, int], want int) {
+	t.Helper()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if got := itemCount(c); got != want || len(c.expirations) != want {
+		t.Fatalf("items = %d, expirations = %d, want %d each", got, len(c.expirations), want)
+	}
+}
+
 func TestSchedulerCloseStopsWorker(t *testing.T) {
 	for _, tc := range []struct {
 		name string

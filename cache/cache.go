@@ -1,8 +1,10 @@
 // Package cache provides a concurrent, in-memory cache with per-entry TTLs.
 //
 // Entries expire at their deadline even if the background cleaner has not yet
-// removed them. Construct a Cache with New and call Close when it is no longer
-// needed to release its cleaner goroutine and stored values.
+// removed them. The cleaner removes overdue entries in batches limited by
+// count and duration, so a large backlog never holds the write lock for long.
+// Construct a Cache with New and call Close when it is no longer needed to
+// release its cleaner goroutine and stored values.
 package cache
 
 import (
@@ -30,12 +32,15 @@ var (
 //
 // A Cache must be created with New and must not be copied. Its zero value is
 // not usable. There is no capacity limit or eviction policy other than TTL.
+// The cleaner drains overdue entries in batches bounded by DefaultBatchSize
+// and DefaultBatchBudget, resuming immediately while entries remain due.
 type Cache[K comparable, V any] struct {
 	// mu serializes all writers, cleanup, and shutdown. Get uses only
 	// sync.Map and immutable key/value/deadline fields, never entry indexes.
 	mu          sync.Mutex
 	items       sync.Map // K -> *entry[K, V]
 	expirations expiryHeap[K, V]
+	batch       batchConfig
 	closed      bool
 	wake        chan struct{}
 	stop        chan struct{}
@@ -43,12 +48,17 @@ type Cache[K comparable, V any] struct {
 }
 
 // New creates an empty cache and starts its background expiration cleaner.
-// The caller must eventually call Close.
-func New[K comparable, V any]() *Cache[K, V] {
+// Options tune the cleaner's per-pass limits. The caller must eventually call
+// Close.
+func New[K comparable, V any](opts ...Option) *Cache[K, V] {
 	c := &Cache[K, V]{
-		wake: make(chan struct{}, 1),
-		stop: make(chan struct{}),
-		done: make(chan struct{}),
+		wake:  make(chan struct{}, 1),
+		stop:  make(chan struct{}),
+		done:  make(chan struct{}),
+		batch: defaultBatch(),
+	}
+	for _, opt := range opts {
+		opt(&c.batch)
 	}
 	go c.run()
 	return c
@@ -181,13 +191,21 @@ func (c *Cache[K, V]) run() {
 
 // nextDelay removes due entries and returns the wait for the earliest remaining
 // deadline. No key has more than one heap node, including after refreshes.
+// A pass stops once its batch limits are exhausted and returns a zero wait
+// while overdue entries remain; the worker then releases mu between passes,
+// keeping writers responsive while a large backlog drains. A pass that removed
+// nothing never stops, so cleanup always progresses.
 func (c *Cache[K, V]) nextDelay() (time.Duration, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for len(c.expirations) > 0 {
+	start := time.Now()
+	for removed := 0; len(c.expirations) > 0; removed++ {
 		item := c.expirations[0]
 		if delay := time.Until(item.deadline); delay > 0 {
 			return delay, true
+		}
+		if removed > 0 && c.batch.exhausted(removed, time.Since(start)) {
+			return 0, true // Overdue entries remain: run the next pass now.
 		}
 		heap.Pop(&c.expirations)
 		c.items.Delete(item.key)

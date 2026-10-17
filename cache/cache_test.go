@@ -11,7 +11,8 @@ import (
 )
 
 // A fixture without a cleaner lets tests examine expiration and heap invariants
-// independently of scheduling. Lifecycle tests use New instead.
+// independently of scheduling. Lifecycle tests use New instead. Its batch
+// limits stay zero (unlimited) so one nextDelay call drains a whole backlog.
 func manualCache[K comparable, V any](t *testing.T) *Cache[K, V] {
 	t.Helper()
 	c := &Cache[K, V]{
@@ -532,4 +533,227 @@ func TestRefreshKeepsPublishedSnapshotImmutable(t *testing.T) {
 	if previous.value != 1 || !previous.deadline.Equal(deadline) {
 		t.Fatal("delete mutated the old snapshot")
 	}
+}
+
+// expireAll makes every live entry overdue at the same instant, which keeps
+// any heap arrangement a valid min-heap.
+func expireAll[K comparable, V any](c *Cache[K, V]) {
+	overdue := time.Now().Add(-time.Hour)
+	for _, item := range c.expirations {
+		item.deadline = overdue
+	}
+}
+
+func TestBatchConfigExhausted(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		config  batchConfig
+		removed int
+		elapsed time.Duration
+		want    bool
+	}{
+		{name: "zero config unlimited", config: batchConfig{}, removed: 1 << 20, elapsed: time.Hour, want: false},
+		{name: "size reached", config: batchConfig{size: 100}, removed: 100, elapsed: 0, want: true},
+		{name: "size one entry short", config: batchConfig{size: 100}, removed: 99, elapsed: time.Hour, want: false},
+		{name: "size disabled", config: batchConfig{size: -1, budget: time.Millisecond}, removed: 1 << 20, elapsed: time.Microsecond, want: false},
+		{name: "budget reached", config: batchConfig{budget: time.Millisecond}, removed: 1, elapsed: time.Millisecond, want: true},
+		{name: "budget below", config: batchConfig{budget: time.Millisecond}, removed: 1 << 20, elapsed: time.Microsecond, want: false},
+		{name: "budget disabled", config: batchConfig{budget: -time.Second}, removed: 1 << 20, elapsed: time.Hour, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.config.exhausted(tc.removed, tc.elapsed); got != tc.want {
+				t.Fatalf("exhausted(%d, %v) = %t, want %t", tc.removed, tc.elapsed, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestNewAppliesCleanupDefaultsAndOptions(t *testing.T) {
+	c := New[string, int]()
+	t.Cleanup(c.Close)
+	if c.batch.size != DefaultBatchSize || c.batch.budget != DefaultBatchBudget {
+		t.Fatalf("defaults = (%d, %v), want (%d, %v)",
+			c.batch.size, c.batch.budget, DefaultBatchSize, DefaultBatchBudget)
+	}
+
+	c = New[string, int](WithBatchSize(7), WithBatchBudget(time.Second))
+	t.Cleanup(c.Close)
+	if c.batch.size != 7 || c.batch.budget != time.Second {
+		t.Fatalf("options applied (%d, %v), want (7, 1s)", c.batch.size, c.batch.budget)
+	}
+
+	c = New[string, int](WithBatchSize(0), WithBatchBudget(-time.Millisecond))
+	t.Cleanup(c.Close)
+	if c.batch.size != 0 || c.batch.budget != -time.Millisecond {
+		t.Fatalf("nonpositive options overridden: (%d, %v)", c.batch.size, c.batch.budget)
+	}
+}
+
+func TestCleanupBatchSizeLimitsPass(t *testing.T) {
+	const due, batchSize = 10, 3
+	c := manualCache[int, int](t)
+	c.batch = batchConfig{size: batchSize}
+	for key := 0; key < due; key++ {
+		if err := c.Set(key, key, time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expireAll(c)
+
+	if delay, scheduled := c.nextDelay(); !scheduled || delay != 0 {
+		t.Fatalf("truncated pass reported (%v, %t), want (0, true) to resume", delay, scheduled)
+	}
+	if remaining := len(c.expirations); remaining != due-batchSize {
+		t.Fatalf("pass removed %d entries, want the batch size %d", due-remaining, batchSize)
+	}
+
+	for pass := 1; len(c.expirations) > 0; pass++ {
+		if pass > due {
+			t.Fatal("cleanup never drained the backlog")
+		}
+		c.nextDelay()
+	}
+	if itemCount(c) != 0 || len(c.expirations) != 0 {
+		t.Fatal("batched cleanup left entries behind")
+	}
+}
+
+func TestCleanupBatchBudgetLimitsPass(t *testing.T) {
+	const due = 100000 // Far more than one pass can remove within 1ns.
+	c := manualCache[int, int](t)
+	c.batch = batchConfig{budget: time.Nanosecond}
+	for key := 0; key < due; key++ {
+		if err := c.Set(key, key, time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expireAll(c)
+
+	if delay, scheduled := c.nextDelay(); !scheduled || delay != 0 {
+		t.Fatalf("truncated pass reported (%v, %t), want (0, true) to resume", delay, scheduled)
+	}
+	if remaining := len(c.expirations); remaining <= 0 || remaining >= due {
+		t.Fatalf("pass left %d of %d entries, want a partial drain", remaining, due)
+	}
+}
+
+func TestCleanupUnlimitedPassDrainsAllDue(t *testing.T) {
+	c := manualCache[int, int](t) // Zero batch config: no limits.
+	for key := 0; key < 500; key++ {
+		if err := c.Set(key, key, time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expireAll(c)
+
+	if delay, scheduled := c.nextDelay(); scheduled || delay != 0 {
+		t.Fatalf("unlimited pass reported (%v, %t), want (0, false)", delay, scheduled)
+	}
+	if itemCount(c) != 0 || len(c.expirations) != 0 {
+		t.Fatal("unlimited pass did not drain every due entry")
+	}
+}
+
+// TestConcurrentWritersAndCloseDuringBacklogDrain pins the reason batching
+// exists: while a large overdue backlog drains, the worker must release mu
+// between passes so Set/Delete complete mid-drain, and Close must cut the
+// drain short instead of waiting it out. The interleaving observation is
+// structural, not timing-based: with one unbounded pass, a writer can only
+// ever observe an untouched heap (remaining == backlog) or a fully drained
+// one (remaining < batch), never anything between, so old code fails.
+func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
+	const (
+		backlog = 200000
+		batch   = 128
+	)
+	c := New[int, int](WithBatchSize(batch))
+
+	// Seed a fully overdue backlog under mu; the idle worker knows no timer
+	// and stays parked until the explicit wake below.
+	c.mu.Lock()
+	overdue := time.Now().Add(-time.Hour)
+	for key := 0; key < backlog; key++ {
+		item := &entry[int, int]{key: key, value: key, deadline: overdue}
+		heap.Push(&c.expirations, item)
+		c.items.Store(key, item)
+	}
+	c.mu.Unlock()
+	select {
+	case c.wake <- struct{}{}: // Start the drain before any writer runs.
+	default:
+	}
+
+	interleaved := make(chan struct{})
+	drained := make(chan struct{})
+	errc := make(chan error, 1)
+	go func() {
+		for i := 0; ; i++ {
+			if err := c.Set(-1, i, time.Hour); err != nil {
+				errc <- err
+				return
+			}
+			c.mu.Lock()
+			remaining := len(c.expirations)
+			c.mu.Unlock()
+			// remaining < backlog-4*batch proves the cleaner removed well
+			// over one batch (the writer deletes at most 64 distinct keys,
+			// far below the margin); remaining > 2*batch proves the backlog
+			// is far from gone. A Set completing in that window means the
+			// writer acquired mu between two cleanup passes.
+			switch {
+			case remaining > 2*batch && remaining < backlog-4*batch:
+				close(interleaved)
+				return
+			case remaining <= 2*batch:
+				close(drained)
+				return
+			}
+			c.Delete(i % 64)
+			if _, ok := c.Get(i % 64); ok {
+				errc <- errors.New("deleted backlog key is still readable")
+				return
+			}
+		}
+	}()
+
+	select {
+	case <-interleaved:
+	case <-drained:
+		t.Fatal("backlog drained to completion without a writer Set landing mid-drain: cleanup no longer yields between passes")
+	case err := <-errc:
+		t.Fatal(err)
+	case <-time.After(30 * time.Second):
+		t.Fatal("writer made no progress against the draining worker")
+	}
+
+	// Close must terminate the still-draining worker promptly and leave the
+	// usual closed-cache invariants behind.
+	closed := make(chan struct{})
+	go func() {
+		c.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(15 * time.Second):
+		t.Fatal("Close blocked on the draining worker")
+	}
+	if _, ok := c.Get(-1); ok {
+		t.Fatal("closed cache returned a value")
+	}
+	if err := c.Set(-1, 1, time.Hour); !errors.Is(err, ErrClosed) {
+		t.Fatalf("closed Set error = %v, want ErrClosed", err)
+	}
+	c.mu.Lock()
+	items, expirations := itemCount(c), len(c.expirations)
+	c.mu.Unlock()
+	if items != 0 || expirations != 0 {
+		t.Fatalf("Close retained entries: items = %d, expirations = %d", items, expirations)
+	}
+	select {
+	case <-c.done:
+	default:
+		t.Fatal("Close returned before the worker exited")
+	}
+	c.Close() // Idempotent.
 }
