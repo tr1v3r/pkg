@@ -211,13 +211,16 @@ go test -race ./cache
 On Go 1.25+, additional `testing/synctest` tests use virtual time to verify
 cleanup scheduling, exact deadline boundaries, rescheduling, and shutdown.
 These tests are version-gated; the package, core tests, examples, and benchmarks
-remain compatible with Go 1.24. CI runs tests on Go 1.24 and the stable release.
+remain compatible with Go 1.24. CI runs tests on Go 1.24, 1.25, 1.26, and 1.27.
+Go 1.24 additionally runs
+real-time scheduler smoke tests with generous watchdogs; exact virtual-time
+assertions remain specific to Go 1.25+.
 
-A dedicated CI stress job runs on Go 1.24 and stable with 1, 2, and 4 CPUs,
+A dedicated CI stress job runs on all four Go versions with 1, 2, and 4 CPUs,
 repeating each setting 10 times under the race detector:
 
 ```sh
-go test -race -count=10 -cpu=1,2,4 -timeout=5m -run '^TestCacheConcurrent(Cleanup|Capacity)Stress$' ./cache
+go test -race -count=10 -cpu=1,2,4 -timeout=5m -run '^TestCacheConcurrent(Cleanup|Capacity|CapacityProtection|HotKey)Stress$' ./cache
 ```
 
 The cleanup test uses the real worker and default cleanup limits, 128 workers, two
@@ -229,6 +232,16 @@ skip this workload. The timeout is a hang watchdog; this is a correctness stress
 test and does not establish QPS capacity or P99 latency. The capacity stress test
 adds 128 workers with a 64-entry limit and checks admission, short TTLs, deletes,
 map/heap consistency, and concurrent shutdown.
+
+The capacity-protection stress test checks exact admission counts and persistent
+long-TTL sentinels through repeated full-cache rejection, deletion, expiration,
+and refill waves. It covers default cleanup, one-entry passes, tiny time budgets,
+and unlimited passes with the real cleaner. The hot-key stress test distinguishes
+value generations and checks visibility after completed refreshes, deletes, and
+reinsertions; reads overlapping a write accept any valid writer in that wave.
+Repeated lifecycle tests also verify that each cache's cleaner has exited after
+concurrent shutdown. These bounded workloads are regression tests, not long-running
+soak tests or memory-usage guarantees.
 
 Run the representative microbenchmarks with:
 
@@ -242,6 +255,17 @@ population are excluded from the timed region.
 Keys are reused, so retained entries do not grow with the benchmark iteration
 count; the Set/Delete benchmark measures one pair per iteration. Long TTLs keep
 ordinary benchmark runs focused on these operations rather than expiration.
+
+`BenchmarkCacheMixedParallel` adds 50%, 90%, and 99% read workloads, one hot key
+or 1,024 keys, and short/long TTLs. The remaining operations are writes and deletes
+(99% reads leaves only writes). Run it without race/coverage instrumentation:
+
+```sh
+go test ./cache -run '^$' -bench '^BenchmarkCacheMixedParallel$' -benchmem -cpu=1,2,4
+```
+
+Its ns/op and allocations describe average operation cost. Tail latency, writer
+fairness, and steady-state GC/memory require separate workload measurements.
 Results depend on the machine, Go version, and workload; no performance numbers
 are claimed here.
 
