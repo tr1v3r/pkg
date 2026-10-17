@@ -1,6 +1,7 @@
 package cache_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -100,4 +101,64 @@ func BenchmarkCacheSetDelete(b *testing.B) {
 		}
 		c.Delete(entries)
 	}
+}
+
+func BenchmarkCacheCapacity(b *testing.B) {
+	const entries = 1024
+	for _, limited := range []bool{false, true} {
+		for _, operation := range []string{"Get", "Overwrite", "SetDelete"} {
+			b.Run(fmt.Sprintf("Limited=%t/%s", limited, operation), func(b *testing.B) {
+				var opts []cache.Option[int, int]
+				if limited {
+					limit := entries
+					if operation == "SetDelete" {
+						limit++
+					}
+					opts = append(opts, cache.WithMaxEntries[int, int](limit))
+				}
+				c := cache.New[int, int](opts...)
+				b.Cleanup(c.Close)
+				for key := 0; key < entries; key++ {
+					if err := c.Set(key, key, benchmarkTTL); err != nil {
+						b.Fatal(err)
+					}
+				}
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					switch operation {
+					case "Get":
+						if value, ok := c.Get(i % entries); !ok || value != i%entries {
+							b.Fatal("unexpected cache miss or value")
+						}
+					case "Overwrite":
+						if err := c.Set(i%entries, i, benchmarkTTL); err != nil {
+							b.Fatal(err)
+						}
+					case "SetDelete":
+						if err := c.Set(entries, i, benchmarkTTL); err != nil {
+							b.Fatal(err)
+						}
+						c.Delete(entries)
+					}
+				}
+			})
+		}
+	}
+	b.Run("RejectFull", func(b *testing.B) {
+		c := cache.New[int, int](cache.WithMaxEntries[int, int](entries))
+		b.Cleanup(c.Close)
+		for key := 0; key < entries; key++ {
+			if err := c.Set(key, key, benchmarkTTL); err != nil {
+				b.Fatal(err)
+			}
+		}
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if err := c.Set(entries, i, benchmarkTTL); !errors.Is(err, cache.ErrCapacity) {
+				b.Fatalf("Set at capacity = %v", err)
+			}
+		}
+	})
 }

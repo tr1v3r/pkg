@@ -98,3 +98,22 @@ func ExampleOption() {
 	// Output:
 	// 42 true
 }
+
+func ExampleWithMaxEntries() {
+	c := cache.New[string, int](cache.WithMaxEntries[string, int](1))
+	defer c.Close()
+
+	if err := c.Set("first", 1, time.Hour); err != nil {
+		panic(err)
+	}
+	fmt.Println(errors.Is(c.Set("second", 2, time.Hour), cache.ErrCapacity))
+	// Updating an existing key needs no extra slot.
+	fmt.Println(c.Set("first", 3, time.Hour))
+	value, ok := c.Get("first")
+	fmt.Println(value, ok)
+
+	// Output:
+	// true
+	// <nil>
+	// 3 true
+}

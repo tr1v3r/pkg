@@ -253,3 +253,75 @@ func assertCacheStressConsistency(t *testing.T, c *Cache[int, int]) {
 		}
 	}
 }
+
+// TestCacheConcurrentCapacityStress exercises admission alongside the real
+// cleaner, deletes, refreshes and shutdown. It does not measure capacity in QPS.
+func TestCacheConcurrentCapacityStress(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cache capacity stress test in short mode")
+	}
+	const limit, workers, rounds = 64, 128, 256
+	c := New[int, int](WithMaxEntries[int, int](limit))
+	t.Cleanup(c.Close)
+
+	// A complete workload runs before the shutdown race so an early Close
+	// cannot turn all admission and expiration checks into closed-cache checks.
+	for phase := 0; phase < 2; phase++ {
+		var ready, all sync.WaitGroup
+		start := make(chan struct{})
+		for worker := 0; worker < workers; worker++ {
+			ready.Add(1)
+			all.Add(1)
+			go func(worker int) {
+				defer all.Done()
+				ready.Done()
+				<-start
+				for round := 0; round < rounds; round++ {
+					key := (worker + round*17) % (limit * 4)
+					ttl := time.Hour
+					if round%2 == 0 {
+						ttl = time.Nanosecond
+					}
+					err := c.Set(key, key, ttl)
+					if err != nil && !errors.Is(err, ErrCapacity) &&
+						(phase == 0 || !errors.Is(err, ErrClosed)) {
+						t.Errorf("Set during phase %d = %v", phase, err)
+						return
+					}
+					if value, ok := c.Get(key); ok && value != key {
+						t.Errorf("Get(%d) = %d", key, value)
+						return
+					}
+					if round%3 == 0 {
+						c.Delete((key + 1) % (limit * 4))
+					}
+					if round%16 == 0 {
+						assertCapacityConsistent(t, c)
+					}
+				}
+			}(worker)
+		}
+		if phase == 1 {
+			for closer := 0; closer < cacheStressClosers; closer++ {
+				ready.Add(1)
+				all.Add(1)
+				go func() {
+					defer all.Done()
+					ready.Done()
+					<-start
+					c.Close()
+				}()
+			}
+		}
+		ready.Wait()
+		close(start)
+		all.Wait()
+		assertCapacityConsistent(t, c)
+	}
+	if err := c.Set(0, 0, time.Hour); !errors.Is(err, ErrClosed) {
+		t.Fatalf("Set after Close = %v, want ErrClosed", err)
+	}
+	if _, ok := c.Get(0); ok {
+		t.Fatal("closed cache returned a value")
+	}
+}

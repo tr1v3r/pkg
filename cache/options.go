@@ -13,6 +13,16 @@ const DefaultCleanupBatchBudget = time.Millisecond
 // Option configures a Cache during New, before its cleaner starts.
 type Option[K comparable, V any] func(*Cache[K, V])
 
+// WithMaxEntries limits the number of retained entries, including expired entries
+// awaiting cleanup. At capacity, Set may reclaim one expired entry to admit a new
+// key; otherwise it returns ErrCapacity. Existing keys can still be replaced.
+// A nonpositive n removes the limit. The default is unlimited.
+// Configure the limit before storing entries; changing it after construction
+// is unsupported. This limits entry count, not memory usage in bytes.
+func WithMaxEntries[K comparable, V any](n int) Option[K, V] {
+	return func(c *Cache[K, V]) { c.maxEntries = n }
+}
+
 // WithCleanupBatchSize sets the maximum number of expired entries one cleanup pass
 // removes before stopping. A nonpositive n removes the limit.
 func WithCleanupBatchSize[K comparable, V any](n int) Option[K, V] {
