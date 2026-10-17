@@ -26,10 +26,8 @@ func defaultCleanupBatch() cleanupBatchConfig {
 // spent elapsed must stop: its entry or time allowance is spent. Callers keep
 // the pass going when nothing was removed yet so cleanup always progresses.
 func (b cleanupBatchConfig) exhausted(removed int, elapsed time.Duration) bool {
-	if b.size > 0 && removed >= b.size {
-		return true
-	}
-	return b.budget > 0 && elapsed >= b.budget
+	return (b.size > 0 && removed >= b.size) ||
+		(b.budget > 0 && elapsed >= b.budget)
 }
 
 // Option customizes the limits of a single expiration cleanup pass.
