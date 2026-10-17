@@ -576,13 +576,13 @@ func TestNewAppliesCleanupDefaultsAndOptions(t *testing.T) {
 			c.cleanupBatch.size, c.cleanupBatch.budget, DefaultCleanupBatchSize, DefaultCleanupBatchBudget)
 	}
 
-	c = New[string, int](WithCleanupBatchSize(7), WithCleanupBatchBudget(time.Second))
+	c = New[string, int](WithCleanupBatchSize[string, int](7), WithCleanupBatchBudget[string, int](time.Second))
 	t.Cleanup(c.Close)
 	if c.cleanupBatch.size != 7 || c.cleanupBatch.budget != time.Second {
 		t.Fatalf("options applied (%d, %v), want (7, 1s)", c.cleanupBatch.size, c.cleanupBatch.budget)
 	}
 
-	c = New[string, int](WithCleanupBatchSize(0), WithCleanupBatchBudget(-time.Millisecond))
+	c = New[string, int](WithCleanupBatchSize[string, int](0), WithCleanupBatchBudget[string, int](-time.Millisecond))
 	t.Cleanup(c.Close)
 	if c.cleanupBatch.size != 0 || c.cleanupBatch.budget != -time.Millisecond {
 		t.Fatalf("nonpositive options overridden: (%d, %v)", c.cleanupBatch.size, c.cleanupBatch.budget)

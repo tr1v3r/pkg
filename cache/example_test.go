@@ -78,3 +78,23 @@ func ExampleCache_Close() {
 	// 0 false
 	// true
 }
+
+func ExampleOption() {
+	seed := cache.Option[string, int](func(c *cache.Cache[string, int]) {
+		if err := c.Set("answer", 42, time.Hour); err != nil {
+			panic(err)
+		}
+	})
+	c := cache.New[string, int](
+		cache.WithCleanupBatchSize[string, int](64),
+		cache.WithCleanupBatchBudget[string, int](time.Millisecond),
+		seed,
+	)
+	defer c.Close()
+
+	value, ok := c.Get("answer")
+	fmt.Println(value, ok)
+
+	// Output:
+	// 42 true
+}

@@ -48,9 +48,9 @@ type Cache[K comparable, V any] struct {
 }
 
 // New creates an empty cache and starts its background expiration cleaner.
-// Options tune the cleaner's per-pass limits. The caller must eventually call
-// Close.
-func New[K comparable, V any](opts ...Option) *Cache[K, V] {
+// Options are applied to the cache before the cleaner starts. The caller
+// must eventually call Close.
+func New[K comparable, V any](opts ...Option[K, V]) *Cache[K, V] {
 	c := &Cache[K, V]{
 		wake:         make(chan struct{}, 1),
 		stop:         make(chan struct{}),
@@ -58,7 +58,7 @@ func New[K comparable, V any](opts ...Option) *Cache[K, V] {
 		cleanupBatch: defaultCleanupBatch(),
 	}
 	for _, opt := range opts {
-		opt(&c.cleanupBatch)
+		opt(c)
 	}
 	go c.run()
 	return c

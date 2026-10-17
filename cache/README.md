@@ -30,14 +30,24 @@ func main() {
 }
 ```
 
-Construct instances with `New[K comparable, V any](opts ...Option) *Cache[K, V]`.
+Construct instances with `New[K comparable, V any](opts ...Option[K, V]) *Cache[K, V]`.
 The zero value is not supported, and a cache instance must not be copied. Share
 the pointer returned by `New` instead.
 
 Background expiration cleanup defaults to `DefaultCleanupBatchSize` (128 entries)
 and `DefaultCleanupBatchBudget` (1 ms) per pass. Configure these limits with
-`WithCleanupBatchSize(n)` and `WithCleanupBatchBudget(d)`; a nonpositive value
-disables the respective limit.
+`WithCleanupBatchSize[K, V](n)` and `WithCleanupBatchBudget[K, V](d)`; a nonpositive
+value disables the respective limit. Options receive the entire cache and are
+applied before its cleaner starts. Use the same key and value type arguments
+for the cache and its options:
+
+```go
+c := cache.New[string, int](
+    cache.WithCleanupBatchSize[string, int](256),
+    cache.WithCleanupBatchBudget[string, int](2*time.Millisecond),
+)
+defer c.Close()
+```
 
 ## API and TTL semantics
 

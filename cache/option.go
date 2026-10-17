@@ -30,17 +30,17 @@ func (b cleanupBatchConfig) exhausted(removed int, elapsed time.Duration) bool {
 		(b.budget > 0 && elapsed >= b.budget)
 }
 
-// Option customizes the limits of a single expiration cleanup pass.
-type Option func(*cleanupBatchConfig)
+// Option configures a Cache during New, before its cleaner starts.
+type Option[K comparable, V any] func(*Cache[K, V])
 
 // WithCleanupBatchSize sets the maximum number of expired entries one cleanup pass
 // removes before stopping. A nonpositive n removes the limit.
-func WithCleanupBatchSize(n int) Option {
-	return func(b *cleanupBatchConfig) { b.size = n }
+func WithCleanupBatchSize[K comparable, V any](n int) Option[K, V] {
+	return func(c *Cache[K, V]) { c.cleanupBatch.size = n }
 }
 
 // WithCleanupBatchBudget sets the maximum wall-clock time one cleanup pass spends
 // removing expired entries before stopping. A nonpositive d removes the limit.
-func WithCleanupBatchBudget(d time.Duration) Option {
-	return func(b *cleanupBatchConfig) { b.budget = d }
+func WithCleanupBatchBudget[K comparable, V any](d time.Duration) Option[K, V] {
+	return func(c *Cache[K, V]) { c.cleanupBatch.budget = d }
 }
