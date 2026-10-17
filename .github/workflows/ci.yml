@@ -43,3 +43,23 @@ jobs:
 
       - name: Report total coverage
         run: go tool cover -func=coverage.out | tail -1
+
+  cache-stress:
+    name: Cache stress (Go ${{ matrix.go }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.24.x', 'stable']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Stress real cache cleanup with the race detector
+        run: >-
+          go test -race -count=10 -cpu=1,2,4 -timeout=5m
+          -run '^TestCacheConcurrentCleanupStress$' ./cache
