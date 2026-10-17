@@ -654,77 +654,28 @@ func TestCleanupUnlimitedPassDrainsAllDue(t *testing.T) {
 	}
 }
 
-// TestConcurrentWritersAndCloseDuringBacklogDrain pauses the real worker
-// between cleanup passes. Writers must complete while overdue entries remain,
-// and Close must stop the worker without needing another cleanup pass.
-func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
+// Use the manual fixture to make the boundary between two cleanup passes
+// deterministic. Real worker scheduling is covered separately by scheduler tests.
+func TestWritersBetweenCleanupPasses(t *testing.T) {
 	const cleanupBatchSize, backlog = 4, 16
-	c := &Cache[int, int]{
-		cleanupBatch: cleanupBatchConfig{size: cleanupBatchSize},
-		wake:         make(chan struct{}, 1),
-		stop:         make(chan struct{}),
-		done:         make(chan struct{}),
-	}
-	overdue := time.Now().Add(-time.Hour)
+	c := manualCache[int, int](t)
+	c.cleanupBatch = cleanupBatchConfig{size: cleanupBatchSize}
 	for key := 0; key < backlog; key++ {
-		item := &entry[int, int]{key: key, value: key, deadline: overdue}
-		heap.Push(&c.expirations, item)
-		c.items.Store(key, item)
-	}
-
-	type cleanupPass struct {
-		delay     time.Duration
-		scheduled bool
-	}
-	passes := make(chan cleanupPass)
-	resume := make(chan struct{}, 1)
-	release := make(chan struct{})
-	go c.run(func() (time.Duration, bool) {
-		delay, scheduled := c.nextDelay()
-		// nextDelay has returned and released mu. Keep the scheduler here
-		// until the test permits another pass, shutdown, or failure cleanup.
-		select {
-		case passes <- cleanupPass{delay: delay, scheduled: scheduled}:
-		case <-c.stop:
-		case <-release:
-		}
-		select {
-		case <-resume:
-		case <-c.stop:
-		case <-release:
-		}
-		return delay, scheduled
-	})
-	t.Cleanup(func() {
-		// Unblock the worker even when an assertion fails before Close.
-		close(release)
-		c.Close()
-	})
-	waitPass := func() {
-		t.Helper()
-		select {
-		case pass := <-passes:
-			if !pass.scheduled || pass.delay != 0 {
-				t.Fatalf("cleanup reported (%v, %t), want (0, true) with backlog remaining",
-					pass.delay, pass.scheduled)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatal("worker did not finish a cleanup pass")
+		if err := c.Set(key, key, time.Hour); err != nil {
+			t.Fatal(err)
 		}
 	}
-
-	waitPass()
-	c.mu.Lock()
-	remaining := len(c.expirations)
-	var deleted *entry[int, int]
-	if remaining > 0 {
-		deleted = c.expirations[0]
+	expireAll(c)
+	if delay, scheduled := c.nextDelay(); !scheduled || delay != 0 {
+		t.Fatalf("first pass reported (%v, %t), want (0, true)", delay, scheduled)
 	}
-	c.mu.Unlock()
-	if remaining != backlog-cleanupBatchSize {
+	if remaining := len(c.expirations); remaining != backlog-cleanupBatchSize {
 		t.Fatalf("first pass left %d entries, want %d", remaining, backlog-cleanupBatchSize)
 	}
+	deleted := c.expirations[0]
 
+	// A separate goroutine must be able to write without another cleanup
+	// pass running. The timeout only guards against a retained mutex.
 	written := make(chan error, 1)
 	go func() {
 		if err := c.Set(-1, 42, time.Hour); err != nil {
@@ -740,61 +691,62 @@ func TestConcurrentWritersAndCloseDuringBacklogDrain(t *testing.T) {
 			t.Fatal(err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("Set/Delete blocked between cleanup passes")
+		t.Fatal("Set/Delete blocked after a cleanup pass returned")
 	}
-	if value, ok := c.Get(-1); !ok || value != 42 {
-		t.Fatalf("Set between passes: Get = (%d, %t), want (42, true)", value, ok)
-	}
-	c.mu.Lock()
-	removed := storedEntry(c, deleted.key) == nil && deleted.index == -1
-	items, expirations := itemCount(c), len(c.expirations)
-	c.mu.Unlock()
-	if !removed {
+	if storedEntry(c, deleted.key) != nil || deleted.index != -1 {
 		t.Fatal("Delete between passes did not remove the overdue key from the map and heap")
 	}
-	if items != backlog-cleanupBatchSize || expirations != backlog-cleanupBatchSize {
+	if items, expirations := itemCount(c), len(c.expirations); items != backlog-cleanupBatchSize ||
+		expirations != backlog-cleanupBatchSize {
 		t.Fatalf("after Set/Delete: items = %d, expirations = %d, want %d each",
 			items, expirations, backlog-cleanupBatchSize)
 	}
 
-	// Permit exactly one more pass to verify that the scheduler resumes.
-	resume <- struct{}{}
-	waitPass()
-	c.mu.Lock()
-	remaining = len(c.expirations)
-	c.mu.Unlock()
-	if remaining != backlog-2*cleanupBatchSize {
+	if delay, scheduled := c.nextDelay(); !scheduled || delay != 0 {
+		t.Fatalf("second pass reported (%v, %t), want (0, true)", delay, scheduled)
+	}
+	if remaining := len(c.expirations); remaining != backlog-2*cleanupBatchSize {
 		t.Fatalf("second pass left %d entries, want %d", remaining, backlog-2*cleanupBatchSize)
 	}
-
-	// The worker is paused with overdue entries still present. Close must
-	// unblock it via stop; waiting for the backlog to drain would deadlock.
-	closed := make(chan struct{})
-	go func() {
-		c.Close()
-		close(closed)
-	}()
-	select {
-	case <-closed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Close waited for the paused worker to drain the backlog")
+	if value, ok := c.Get(-1); !ok || value != 42 {
+		t.Fatalf("Get after cleanup resumed = (%d, %t), want (42, true)", value, ok)
 	}
-	if _, ok := c.Get(-1); ok {
+}
+
+// Keep the overdue backlog stable until Close clears it. Worker shutdown is
+// covered by TestSchedulerCloseStopsWorker using a cache created with New.
+func TestCloseWithCleanupBacklog(t *testing.T) {
+	const cleanupBatchSize, backlog = 4, 16
+	c := manualCache[int, int](t)
+	c.cleanupBatch = cleanupBatchConfig{size: cleanupBatchSize}
+	for key := 0; key < backlog; key++ {
+		if err := c.Set(key, key, time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expireAll(c)
+	if delay, scheduled := c.nextDelay(); !scheduled || delay != 0 {
+		t.Fatalf("cleanup reported (%v, %t), want (0, true)", delay, scheduled)
+	}
+	if remaining := len(c.expirations); remaining != backlog-cleanupBatchSize {
+		t.Fatalf("before Close: %d entries, want %d", remaining, backlog-cleanupBatchSize)
+	}
+
+	c.Close()
+	if items, expirations := itemCount(c), len(c.expirations); items != 0 || expirations != 0 {
+		t.Fatalf("Close retained entries: items = %d, expirations = %d", items, expirations)
+	}
+	select {
+	case <-c.stop:
+	default:
+		t.Fatal("Close did not signal worker shutdown")
+	}
+	if _, ok := c.Get(0); ok {
 		t.Fatal("closed cache returned a value")
 	}
 	if err := c.Set(-1, 1, time.Hour); !errors.Is(err, ErrClosed) {
 		t.Fatalf("closed Set error = %v, want ErrClosed", err)
 	}
-	c.mu.Lock()
-	items, expirations = itemCount(c), len(c.expirations)
-	c.mu.Unlock()
-	if items != 0 || expirations != 0 {
-		t.Fatalf("Close retained entries: items = %d, expirations = %d", items, expirations)
-	}
-	select {
-	case <-c.done:
-	default:
-		t.Fatal("Close returned before the worker exited")
-	}
+	c.Delete(0)
 	c.Close() // Idempotent.
 }
