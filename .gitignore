@@ -122,3 +122,6 @@ fabric.properties
 # Local module tooling and coverage artifacts
 __pycache__/
 coverage.html
+
+# Local development worktrees
+/.worktrees/
