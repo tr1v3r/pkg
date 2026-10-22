@@ -1,197 +1,99 @@
 package pools
 
 import (
+	"context"
+	"sync"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewPool(t *testing.T) {
-	size := 5
-	pool := NewPool(size)
+func acquire(t *testing.T, p Pool) {
+	t.Helper()
+	if err := p.Acquire(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	assert.NotNil(t, pool)
-	assert.Equal(t, size, pool.Size())
-	assert.Equal(t, 0, pool.Num())
+func TestNewPool(t *testing.T) {
+	p := NewPool(2)
+	assert.Equal(t, 2, p.Size())
+	assert.Equal(t, 0, p.Num())
+	acquire(t, p)
+	assert.Equal(t, 1, p.Num())
+	p.Release()
+	assert.Equal(t, 0, p.Num())
 }
 
 func TestPoolZeroSize(t *testing.T) {
 	assert.PanicsWithValue(t, "pools: size must not be zero", func() { NewPool(0) })
 }
 
-func TestPoolNegativeSize(t *testing.T) {
-	size := -1
-	pool := NewPool(size)
-
-	assert.NotNil(t, pool)
-	assert.Equal(t, 0, pool.Size())
-	assert.Equal(t, 0, pool.Num())
+func TestUnlimitedPool(t *testing.T) {
+	p := NewPool(-1)
+	for i := 0; i < 100; i++ {
+		acquire(t, p)
+	}
+	assert.Zero(t, p.Size())
+	assert.Zero(t, p.Num())
+	for i := 0; i < 100; i++ {
+		p.Release()
+	}
 }
 
-func TestPoolWaitDone(t *testing.T) {
-	size := 2
-	pool := NewPool(size)
-
-	// Test basic Wait and Done
-	assert.Equal(t, 0, pool.Num())
-
-	pool.Wait()
-	assert.Equal(t, 1, pool.Num())
-
-	pool.Done()
-	assert.Equal(t, 0, pool.Num())
+func TestReleaseWithoutAcquisition(t *testing.T) {
+	p := NewPool(1)
+	assert.PanicsWithValue(t, "pools: release without acquisition", p.Release)
+	acquire(t, p)
+	p.Release()
+	assert.PanicsWithValue(t, "pools: release without acquisition", p.Release)
 }
 
-func TestPoolConcurrent(t *testing.T) {
-	size := 3
-	pool := NewPool(size)
-
-	done := make(chan bool, size)
-
-	// Start multiple goroutines
-	for i := 0; i < size; i++ {
-		go func(index int) {
-			pool.Wait()
-			// Simulate some work
-			time.Sleep(10 * time.Millisecond)
-			done <- true
-			pool.Done()
-		}(i)
-	}
-
-	// Wait for all goroutines to complete
-	count := 0
-	for i := 0; i < size; i++ {
-		select {
-		case <-done:
-			count++
-		case <-time.After(1 * time.Second):
-			t.Errorf("Timeout waiting for goroutine %d", i)
-		}
-	}
-
-	assert.Equal(t, size, count)
-
-	// Receiving from done does not mean Done() has run yet (it fires after the
-	// send). WaitAll is the pool's own synchronization barrier for token return.
-	pool.WaitAll()
-	assert.Equal(t, 0, pool.Num())
-}
-
-func TestPoolWaitAll(t *testing.T) {
-	size := 3
-	pool := NewPool(size)
-
-	// Ensure every Wait() (and its wg.Add) happens before WaitAll: sync.WaitGroup
-	// requires Add-before-Wait when the counter starts at zero, otherwise
-	// WaitAll can observe a zero counter and return immediately.
-	started := make(chan struct{}, size)
-	for i := 0; i < size; i++ {
-		go func(index int) {
-			pool.Wait()
-			started <- struct{}{}
-			time.Sleep(50 * time.Millisecond) // Simulate work
-			pool.Done()
-		}(i)
-	}
-	for i := 0; i < size; i++ {
-		<-started
-	}
-
-	// Wait for all tokens to be released
-	pool.WaitAll()
-	assert.Equal(t, 0, pool.Num())
-}
-
-func TestPoolAsyncWait(t *testing.T) {
-	size := 2
-	pool := NewPool(size)
-
-	// Test AsyncWait
-	sig := pool.AsyncWait()
-	assert.NotNil(t, sig)
-
-	// Wait for the signal
-	select {
-	case <-sig:
-		// Received signal, token should be taken
-		assert.Equal(t, 1, pool.Num())
-	case <-time.After(100 * time.Millisecond):
-		t.Error("Timeout waiting for AsyncWait signal")
-	}
-
-	// Return the token
-	pool.Done()
-	assert.Equal(t, 0, pool.Num())
-}
-
-func TestPoolAsyncWaitAll(t *testing.T) {
-	size := 2
-	pool := NewPool(size)
-
-	// Take some tokens
-	pool.Wait()
-	pool.Wait()
-
-	// Start AsyncWaitAll
-	sig := pool.AsyncWaitAll()
-	assert.NotNil(t, sig)
-
-	// Return tokens after a delay
+func TestAcquireBlocksUntilRelease(t *testing.T) {
+	p := NewPool(1)
+	acquire(t, p)
+	observed := &observedContext{Context: context.Background(), selecting: make(chan struct{})}
+	acquired := make(chan struct{})
 	go func() {
-		time.Sleep(50 * time.Millisecond)
-		pool.Done()
-		pool.Done()
+		if err := p.Acquire(observed); err != nil {
+			t.Error(err)
+		}
+		close(acquired)
 	}()
-
-	// Wait for all tokens to be returned
+	awaitSignal(t, observed.selecting)
 	select {
-	case <-sig:
-		// All tokens returned
-		assert.Equal(t, 0, pool.Num())
-	case <-time.After(200 * time.Millisecond):
-		t.Error("Timeout waiting for AsyncWaitAll signal")
+	case <-acquired:
+		t.Fatal("acquired beyond capacity")
+	default:
 	}
+	p.Release()
+	awaitSignal(t, acquired)
+	assert.Equal(t, 1, p.Num())
+	p.Release()
 }
 
-func TestPoolNilPool(t *testing.T) {
-	var p *pool
-
-	// Test methods on nil pool that are safe
-	assert.Equal(t, 0, p.Num())
-	assert.Equal(t, 0, p.Size())
-
-	// Async methods are safe for nil pool
-	sig1 := p.AsyncWait()
-	sig2 := p.AsyncWaitAll()
-	assert.NotNil(t, sig1)
-	assert.NotNil(t, sig2)
-}
-
-func TestPoolAsyncWaitWithNilPool(t *testing.T) {
-	var p *pool
-
-	// Test AsyncWait methods on nil pool
-	sig1 := p.AsyncWait()
-	assert.NotNil(t, sig1)
-
-	// Should receive signal immediately for nil pool
-	select {
-	case <-sig1:
-		// Expected
-	case <-time.After(10 * time.Millisecond):
-		t.Error("Timeout waiting for AsyncWait signal on nil pool")
-	}
-
-	sig2 := p.AsyncWaitAll()
-	assert.NotNil(t, sig2)
-
-	// Should receive signal immediately for nil pool
-	select {
-	case <-sig2:
-		// Expected
-	case <-time.After(10 * time.Millisecond):
-		t.Error("Timeout waiting for AsyncWaitAll signal on nil pool")
+func TestConcurrentLimitAndReuse(t *testing.T) {
+	p := NewPool(3)
+	for batch := 0; batch < 2; batch++ {
+		var wg sync.WaitGroup
+		var active atomic.Int32
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := p.Acquire(context.Background()); err != nil {
+					t.Error(err)
+					return
+				}
+				defer p.Release()
+				if n := active.Add(1); n > 3 {
+					t.Errorf("active workers exceed capacity: %d", n)
+				}
+				active.Add(-1)
+			}()
+		}
+		wg.Wait()
+		assert.Zero(t, p.Num())
 	}
 }

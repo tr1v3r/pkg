@@ -51,7 +51,7 @@ Run a single test: `MODULE=cache ./scripts/modules.sh go test -v -run TestName .
 - **cache/** — Generic, standard-library-only local TTL cache: `New[K, V]` (+ `Option[K, V]` applied to the cache), `Set` (positive TTL only), `Get`, `Delete`, `Close`. Strict expiry on reads; sync.Map snapshots, indexed min-heap and deadline-driven cleanup. Cleanup removes overdue entries in batches bounded by count and wall time (defaults `DefaultCleanupBatchSize`=128 / `DefaultCleanupBatchBudget`=1ms; `WithCleanupBatchSize`/`WithCleanupBatchBudget`, nonpositive disables), releasing the heap lock between passes. Set publishes a new node; only indexes mutate under the heap lock. Always `Close` to stop the worker; zero value is unsupported.
 - **hash/** — Crypto hashes (MD5, SHA family, SHA3) with hex-string results; MD5/SHA1 carry deprecation notices for security contexts.
 - **netool/** — DNS resolution (multiple servers, A/CNAME/NS, retries) and ICMP ping.
-- **pools/** — Goroutine pool with token-based Wait/Done patterns.
+- **pools/** — Context-aware concurrency limiter with Acquire/Release; callers track completion separately.
 - **thread/** — Thread pool with per-job timeouts, buffered job queue, graceful shutdown.
 - **websocket/** — WebSocket server (Gin integration) and client. Note: `cilent.go` is a real (mis-spelled) filename kept for history — don't "fix" it casually, it would break imports.
 - **config/** — Config loading from files and URLs (HTTP/HTTPS via `fetch`), extensible parser interface, env-var support, built-in JSON.

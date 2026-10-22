@@ -1,10 +1,16 @@
-// Package pools : goroutine pools
+// Package pools provides context-aware concurrency limits without worker management
+// or task completion tracking.
 package pools
 
-// NewPool returns a pool. Positive size limits concurrency; negative size permits
-// unlimited concurrency while still tracking completion. Zero size panics.
+// NewPool returns a concurrency limiter. Positive size bounds concurrency;
+// negative size disables the limit. Zero size panics.
 func NewPool(size int) Pool {
-	var p pool
-	p.Init(size)
-	return &p
+	if size == 0 {
+		panic("pools: size must not be zero")
+	}
+	p := &pool{}
+	if size > 0 {
+		p.tokens = make(chan struct{}, size)
+	}
+	return p
 }
