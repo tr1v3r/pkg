@@ -2,13 +2,11 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A small, standard-library-only token pool for limiting concurrent work in Go.
-You launch the goroutines; the pool controls admission and tracks completion.
-It does not maintain reusable workers or a job queue.
+A standard-library-only, context-aware concurrency limiter for Go 1.24+.
+The pool controls admission; callers own goroutines, results, errors, and completion.
+It does not maintain workers, queue jobs, or start background goroutines.
 
 ## Installation
-
-Requires Go 1.24 or later.
 
 ```sh
 go get github.com/tr1v3r/pkg/pools
@@ -20,79 +18,115 @@ go get github.com/tr1v3r/pkg/pools
 package main
 
 import (
+    "context"
     "fmt"
+    "log"
+    "sync"
 
     "github.com/tr1v3r/pkg/pools"
 )
 
 func main() {
     p := pools.NewPool(2)
-    inputs := []int{1, 2, 3, 4, 5}
-    results := make([]int, len(inputs))
-    for i, value := range inputs {
-        p.Wait() // Acquire before launching the worker.
+    var wg sync.WaitGroup
+    results := make([]int, 5)
+    for i := range results {
+        if err := p.Acquire(context.Background()); err != nil {
+            log.Fatal(err)
+        }
+        wg.Add(1)
         go func() {
-            defer p.Done()
-            results[i] = value * value
+            defer wg.Done()
+            defer p.Release()
+            results[i] = (i + 1) * (i + 1)
         }()
     }
-    p.WaitAll()
+    wg.Wait()
     fmt.Println(results) // [1 4 9 16 25]
 }
 ```
 
-Acquiring in the submitting goroutine bounds worker creation as well as active
-work. Each worker writes to a separate result slot, and results are read only
-after completion. Protect shared maps, appends, and other shared state separately.
+Acquire before spawning workers to bound their creation. Each worker writes to
+its own result slot; read results after `wg.Wait`. Shared maps and appends need
+separate synchronization. For request-scoped work, pass its context to `Acquire`.
+If submission fails partway through, join already-started workers before returning;
+the [batch example](examples/batch/example.go) demonstrates this with `defer wg.Wait()`.
 
 ## API
 
-| Method | Behavior |
+```go
+type Pool interface {
+    Acquire(ctx context.Context) error
+    Release()
+    Num() int
+    Size() int
+}
+```
+
+- `NewPool(size)`: positive capacity bounds concurrency; negative capacity disables
+  the limit; zero panics. Use the constructor; the zero value is not a public API.
+- `Acquire(ctx)`: blocks for capacity or returns a context error. Pass a non-nil
+  context. `context.Background()` explicitly opts into waiting without a deadline.
+  An already-cancelled context is rejected even when capacity is available or unlimited.
+- Call `Release()` exactly once after each successful acquisition, usually with
+  `defer`. On acquisition failure, do not release. Cancellation after success does
+  not release capacity or stop the work; propagate the context to the work separately.
+- If cancellation races with capacity becoming available, either outcome may win.
+  The return value determines whether the caller owns a token.
+- `Release()` is a no-op in unlimited mode. In bounded mode, it panics when no token
+  is held. Tokens have no owner identity: releasing another worker's token cannot
+  be detected, so correct pairing remains the caller's responsibility.
+- `Num()` reports held bounded-pool tokens, excluding blocked requests. `Size()`
+  reports the capacity. Both return zero in unlimited mode. Neither tracks completion.
+- No `Close` is needed. Use `sync.WaitGroup` for joining work, and call `Add` before
+  starting a worker and before beginning the completion wait for an idle group.
+  The pool does not recover panics or aggregate errors.
+
+## Cancellation
+
+Inside an error-returning function with a pool `p` and parent context `ctx`:
+
+```go
+ctx, cancel := context.WithTimeout(ctx, time.Second)
+defer cancel()
+if err := p.Acquire(ctx); err != nil {
+    return err // No token acquired; do not Release.
+}
+defer p.Release()
+// Perform work here.
+```
+
+Import `context` and `time`. `Acquire` waits in the calling goroutine without
+spawning an internal waiter. For asynchronous execution, launch and manage your
+own goroutine; acquiring before launching usually provides better backpressure.
+
+## Examples and validation
+
+Run from `pools/`:
+
+| Example | Command |
 | --- | --- |
-| `NewPool(size)` | Returns a `Pool`; use a positive capacity for bounded work. |
-| `Wait()` | Blocks until a token is acquired. |
-| `AsyncWait()` | Starts an acquisition in a new goroutine; the returned channel closes once acquired. |
-| `Done()` | Returns one token and marks that unit of work complete. |
-| `Num()` | Snapshot of currently held tokens, excluding blocked acquisition attempts. |
-| `Size()` | Token channel capacity; zero for both zero and negative configured sizes. |
-| `WaitAll()` | Blocks until registered work completes, subject to the ordering rules below. |
-| `AsyncWaitAll()` | Runs `WaitAll` in a new goroutine and closes the returned channel when it finishes. |
-
-## Ordering and limitations
-
-- Pair every successful acquisition with exactly one `Done()`, usually deferred
-  inside the worker. An unmatched `Done()` may block or consume another worker's token.
-- `WaitAll` follows `sync.WaitGroup` ordering rules. Finish submitting a batch
-  before waiting. Do not put `Wait()` inside newly launched workers and immediately
-  call `WaitAll()`: it can observe no registered work and return too early.
-- `AsyncWait()` returning does not mean its acquisition has been registered or
-  completed. Receive from its signal before starting the associated work or
-  relying on a completion wait to cover it.
-- Async signals cannot cancel operations. Abandoning an `AsyncWait()` signal can
-  leave a pending goroutine or an acquired token without a matching `Done()`.
-  A timeout around `AsyncWaitAll()` also leaves its waiter running until completion.
-- A size of **zero** creates an unbuffered token channel: the normal
-  `Wait → work → Done` sequence blocks at `Wait`. It is not an unlimited pool.
-- A **negative** size disables both limiting and completion tracking. `Wait` and
-  `Done` do nothing, and `WaitAll` does not wait for your goroutines.
-- Reuse a positive-capacity pool for a new batch after the previous completion
-  wait returns. There is no `Close` method or persistent worker to shut down.
-- The pool does not collect results/errors, recover panics, or cancel work.
-  `Num()` is an observation, not a synchronization barrier.
-
-## Runnable examples
-
-Run from this module directory (`pools/`):
-
-| Example | Command | Demonstrates |
-| --- | --- | --- |
-| [Batch](examples/batch/example.go) | `go run ./examples/batch` | Bounded workers and ordered results with `WaitAll`. |
-| [Async acquisition](examples/async-acquire/example.go) | `go run ./examples/async-acquire` | Work while waiting for a token, then receive the signal and return the token. |
-| [Async completion](examples/async-wait/example.go) | `go run ./examples/async-wait` | Continue other work before receiving the batch completion signal. |
-
-Validate this module independently of the repository workspace:
+| [Bounded batch and ordered results](examples/batch/example.go) | `go run ./examples/batch` |
+| [Acquisition timeout](examples/cancellation/example.go) | `go run ./examples/cancellation` |
+| [Caller-owned completion notification](examples/completion/example.go) | `go run ./examples/completion` |
 
 ```sh
 GOWORK=off go test -race ./...
 GOWORK=off go vet ./...
 ```
+
+## Breaking migration
+
+| Removed API | Replacement |
+| --- | --- |
+| `Wait()` | Handle the error from `Acquire(ctx)`; use `context.Background()` for unbounded waiting. |
+| `WaitContext(ctx)` | `Acquire(ctx)` |
+| `Done()` | `Release()` |
+| `AsyncWait()` | Call `Acquire(ctx)` directly, or manage your own goroutine and its result. |
+| `WaitAll()` | Caller-owned `sync.WaitGroup`. |
+| `AsyncWaitAll()` | Caller-owned goroutine that waits on a `sync.WaitGroup` and closes a channel. |
+
+Custom implementations and mocks must implement the new `Pool` interface.
+Zero capacity now panics. Unlimited mode does not track completion, and neither
+does bounded mode: move all batch completion tracking to the caller. Unmatched
+bounded releases now panic instead of blocking. `Num` and `Size` remain available.

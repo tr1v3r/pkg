@@ -1,103 +1,54 @@
 package pools
 
-import (
-	"sync"
-)
+import "context"
 
-// Pool goroutine pool
+// Pool limits concurrent work. It does not start workers or track task completion.
+// Use NewPool to construct a Pool; callers must not pass a nil context.
 type Pool interface {
-	// Wait 等待令牌
-	Wait()
-	// AsyncWait 异步等待令牌
-	AsyncWait() <-chan struct{}
-	// Done 归还令牌
-	Done()
-	// Num 当前发放的令牌书
+	// Acquire waits for capacity or cancellation. Call Release exactly once after
+	// success; on error no token is retained. Cancellation after success does not
+	// release the token. If cancellation races with capacity, either may win.
+	Acquire(ctx context.Context) error
+	// Release returns one token. In bounded mode it panics if no token is held.
+	// In unlimited mode it is a no-op. Tokens are not tied to a goroutine or owner.
+	Release()
+	// Num is a snapshot of held bounded-pool tokens, or zero in unlimited mode.
+	// It is not a completion barrier and excludes pending acquisitions.
 	Num() int
-	// Size 总令牌数
+	// Size is the concurrency limit, or zero in unlimited mode.
 	Size() int
-
-	// WaitAll 同步等待令牌全部归还
-	WaitAll()
-	// AsyncWaitAll 异步等待令牌全部归还
-	AsyncWaitAll() <-chan struct{}
 }
 
 type pool struct {
-	pool chan struct{}
-
-	wg sync.WaitGroup
+	tokens chan struct{}
 }
 
-// Init initializes the pool with the given capacity.
-func (p *pool) Init(size int) {
-	if size >= 0 {
-		p.pool = make(chan struct{}, size)
+func (p *pool) Acquire(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if p.tokens == nil {
+		return nil
+	}
+	select {
+	case p.tokens <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
-// Wait acquires a pool token (blocking or async).
-func (p *pool) Wait() {
-	if p.pool != nil {
-		p.wg.Add(1)
-		p.pool <- struct{}{}
+func (p *pool) Release() {
+	if p.tokens == nil {
+		return
+	}
+	select {
+	case <-p.tokens:
+	default:
+		panic("pools: release without acquisition")
 	}
 }
 
-// AsyncWait acquires a pool token (blocking or async).
-func (p *pool) AsyncWait() <-chan struct{} {
-	sig := make(chan struct{})
-	if p == nil || p.pool == nil {
-		close(sig)
-		return sig
-	}
+func (p *pool) Num() int { return len(p.tokens) }
 
-	go func() {
-		p.Wait()
-		close(sig)
-	}()
-	return sig
-}
-
-// Done releases a pool token.
-func (p *pool) Done() {
-	if p != nil && p.pool != nil {
-		<-p.pool
-		p.wg.Done()
-	}
-}
-
-// Num returns the number of issued tokens.
-func (p *pool) Num() int {
-	if p != nil && p.pool != nil {
-		return len(p.pool)
-	}
-	return 0
-}
-
-// Size returns the total token capacity.
-func (p *pool) Size() int {
-	if p != nil && p.pool != nil {
-		return cap(p.pool)
-	}
-	return 0
-}
-
-// WaitAll blocks until every issued token has been returned.
-// Like sync.WaitGroup, all Wait() calls that begin while the pool is idle
-// must happen before WaitAll is called, or WaitAll may return early.
-func (p *pool) WaitAll() {
-	if p != nil {
-		p.wg.Wait()
-	}
-}
-
-// AsyncWaitAll acquires a pool token (blocking or async).
-func (p *pool) AsyncWaitAll() <-chan struct{} {
-	sig := make(chan struct{})
-	go func() {
-		p.WaitAll()
-		close(sig)
-	}()
-	return sig
-}
+func (p *pool) Size() int { return cap(p.tokens) }
