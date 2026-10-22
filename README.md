@@ -63,12 +63,12 @@ Comprehensive Notion API integration with rate limiting and structured types.
 - Organized manager classes for different resource types
 - Context cancellation support
 
-### [pools](./pools) - Concurrency Limiter
-Context-aware token acquisition without worker management or completion tracking.
+### [pools](./pools) - Goroutine Pool Management
+Simple goroutine pool for concurrent task management using token-based patterns.
 
 **Features:**
-- Context-aware Acquire/Release concurrency limits; caller-owned completion tracking
-- Cancellable acquisition without background waiter goroutines
+- Token-based Wait/Done pattern for resource management
+- Both synchronous and asynchronous wait patterns
 - Configurable pool size limits
 - Resource tracking for monitoring active resources
 

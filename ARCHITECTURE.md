@@ -16,7 +16,7 @@
 | `log` | 结构化日志：多 Sink、异步写入、log↔slog 双向桥接 | `Setup` `Logger` `Sink` `Console` `File` `RotateFile` `AsSlogHandler` `SlogHandler` | skr、ivy、pkg 内部（notion/websocket） |
 | `fetch` | 弹性 HTTP 客户端：重试、中间件、错误分类、响应限长 | `Get/CtxGet/Post/CtxPost/Patch/CtxPatch` `DoRequestWithOptions` `WithRetry` `RetryConfig` `HTTPError` `RetryableError` `Middleware` | skr、ivy、pkg 内部（config） |
 | `notion` | Notion API 类型安全客户端：六大域 Manager + 限流 + 自动分页 | `Client` `NewClient` `DatabaseAPI` `PageAPI` `QueryIter` `Condition` `FilterCondition` `APIError` | skr、pkg 内部（依赖 log） |
-| `pools` | 支持 context 取消等待的并发限制器（Acquire/Release，完成等待由调用方管理） | `Pool` `NewPool` | skr |
+| `pools` | 轻量 goroutine 池（WaitGroup 语义封装） | `Pool` `NewPool` | skr |
 | `alfred` | Alfred Workflow JSON 输出构建器 | `WorkFlow` `NewWorkFlow` `FlowItem` `ModifierKey` | skr |
 | `rss` | RSS / Atom / JSON Feed / OPML 解析 | `Parse` `ParseRSS` `ParseAtom` `ParseJSONFeed` `DetectFeedType` `ParseTyped` | skr |
 | `guard` | 进程级信号守卫：全局取消 Context + panic 栈捕获 | `InspectShutSignal` `Cancel` `Cancelled` `Context` `Stop` `CatchStack` | skr、ivy |
@@ -207,10 +207,8 @@ status, body, _, err := fetch.WithRetry(ctx, fetch.NewRetryConfig(
   便捷方法；filter.go 为每种属性提供 Filter 类型，`Condition` 组合 filter+sorts。
 - 错误：`APIError` 携带 Notion 返回的 code/message；所有方法首参 `context.Context`。
 
-**并发模型**：Client 本身无锁（Manager 只读构造）；并发由调用方用 `pools` 控制。
-原盘点中 skr 使用 `pools.NewPool(12)` 配合各协程调用 `mgr.Database.Query`。
-新 API 在启动 worker 前调用 `Acquire(ctx)`，成功后恰好调用一次 `Release()`；
-调用方通过 `sync.WaitGroup` 等待任务完成，并将 context 另行传给查询以取消任务本身。
+**并发模型**：Client 本身无锁（Manager 只读构造）；并发由调用方用 `pools` 控制——
+skr 的实践是 `pools.NewPool(12)` + 每协程调 `mgr.Database.Query`，限流器天然跨协程生效。
 
 **典型用法**（改写自 notion/doc.go 与 skr `internal/service/notion`）：
 
@@ -262,10 +260,10 @@ if errors.Is(err, circuitbreaker.ErrOpen) { /* fast-fail 降级路径 */ }
 
 | 维度 | 约定 | 一致性 |
 |---|---|---|
-| context 传递 | 领域层公开 API 一律 `ctx` 首参（notion 全接口、fetch `Ctx*`、websocket `ConnectWebsocket`）；基础层 `pools` 的 `Acquire(ctx)` 支持取消容量等待，hash/sort 不需要 ctx | ✅ 良好；fetch 的非 Ctx 便捷函数是显式补充而非缺口 |
+| context 传递 | 领域层公开 API 一律 `ctx` 首参（notion 全接口、fetch `Ctx*`、websocket `ConnectWebsocket`）；基础层（hash/pools/sort）不需要 ctx | ✅ 良好；fetch 的非 Ctx 便捷函数是显式补充而非缺口 |
 | 错误处理 | 关键包用结构化错误 + `Unwrap`（fetch `HTTPError/RetryableError`、circuitbreaker `Error/ErrOpen`、notion `APIError`）；简单包直接返回 error | ✅ 分层合理：复杂度高的包抽象错误，简单包不过度设计 |
 | 日志接入 | 只有 notion、websocket 内部调 pkg/log（错误路径 debug）；fetch 不直接依赖 log，而是暴露 `RequestLogger` 接口由调用方注入 | ✅ 刻意解耦，避免 fetch 被 log 绑死〔接口注入是优于硬连线的模式〕 |
-| 并发原语 | `pools`（Acquire/Release 控制并发准入，完成等待由调用方管理）、`thread`（Job 超时 + 终止语义）、circuitbreaker（互斥状态机）各司其职 | ✅ 职责边界明确 |
+| 并发原语 | 池类三件套各司其职：`pools`（WaitGroup 语义）、`thread`（Job 超时 + 终止语义）、circuitbreaker（互斥状态机） | ✅ 无重叠职责 |
 | 全局状态 | `fetch` 的包级 client、`log` 的 globalLogger、`guard` 的包级 ctx——均提供置换/查询 API 且线程安全 | ✅ |
 | 泛型 | Go 1.18+ 泛型用在刀刃上：`brute`（`Bruter[S State]`）、`sort`（`By[T]`）、`rss`（`ParseTyped[T]`） | ✅ |
 
@@ -282,9 +280,9 @@ if errors.Is(err, circuitbreaker.ErrOpen) { /* fast-fail 降级路径 */ }
    并处理旧根模块与新子模块同时被选中时的迁移，详见 MODULES.md。
 2. **熔断与重试不内建进 fetch**：fetch 文档明确指引调用点组合。推断动机：保持
    fetch 可单独编译进最小依赖场景，且组合策略（先熔断后重试/反之）因场景而异。
-3. **`pools` 与 `thread` 并存**：pools 通过 `Acquire(ctx)` / `Release()` 限制并发，
-   不创建 worker、不维护任务队列，也不跟踪任务完成；调用方负责 goroutine 生命周期与完成等待。
-   thread 提供 Job 级超时、优雅终止和 worker 复用，两者覆盖不同层次的并发管理需求。
+3. **`pools` 与 `thread` 并存**：pools 是"等待一批任务完成"的最薄封装（skr 高频用），
+   thread 解决"Job 级超时 + 优雅终止 + worker 复用"的完整生命周期——推断为不同时期、
+   不同复杂度的两次抽象，尚未合并。
 4. **log 自研而非直接用 slog**：包同时提供 slog 双向桥（`AsSlogHandler`/`SlogHandler`），
    推断意图是保留自有 Sink/轮转/异步模型的同时兼容标准生态，而非替代。
 5. **notion 接口驱动 + mock 全覆盖**：`interfaces.go` 六接口 + `mock_test.go`，
