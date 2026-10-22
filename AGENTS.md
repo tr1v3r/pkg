@@ -9,6 +9,16 @@ Go utility collection, Go 1.24+. Each of the 17 top-level library directories is
 
 CI test coverage is explicit: Go 1.24.x, 1.25.x, 1.26.x and 1.27.x for every module, module tooling, cache stress and release validation. Keep these matrices aligned.
 
+## Component Knowledge Base
+
+Complex packages carry a `knowledge/` directory beside their code with the
+intent, active constraints, failure history, and acceptance scenarios that the
+source alone cannot express. Start from the root `knowledge/INDEX.md` map.
+Before changing a package's control flow, contracts, or error semantics, read
+its FLOW/DECISIONS; after changes, verify against its SCENARIOS and update
+only the affected parts. TODO entries are background, not an authorization
+list.
+
 ## Common Commands
 
 ```bash
