@@ -122,3 +122,9 @@ fabric.properties
 # Local module tooling and coverage artifacts
 __pycache__/
 coverage.html
+
+# Workspace hash cache, regenerated per machine/toolchain (CI spans Go 1.24-1.27)
+/go.work.sum
+
+# Local development worktrees
+/.worktrees/
