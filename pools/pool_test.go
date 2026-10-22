@@ -17,12 +17,7 @@ func TestNewPool(t *testing.T) {
 }
 
 func TestPoolZeroSize(t *testing.T) {
-	size := 0
-	pool := NewPool(size)
-
-	assert.NotNil(t, pool)
-	assert.Equal(t, 0, pool.Size())
-	assert.Equal(t, 0, pool.Num())
+	assert.PanicsWithValue(t, "pools: size must not be zero", func() { NewPool(0) })
 }
 
 func TestPoolNegativeSize(t *testing.T) {

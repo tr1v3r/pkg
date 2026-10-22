@@ -1,6 +1,7 @@
 package pools
 
 import (
+	"context"
 	"sync"
 )
 
@@ -8,7 +9,12 @@ import (
 type Pool interface {
 	// Wait 等待令牌
 	Wait()
+	// WaitContext waits for a token or cancellation. On success, call Done once.
+	// On error, no token or completion count is retained.
+	WaitContext(ctx context.Context) error
 	// AsyncWait 异步等待令牌
+	//
+	// Deprecated: use WaitContext for cancellable acquisition.
 	AsyncWait() <-chan struct{}
 	// Done 归还令牌
 	Done()
@@ -31,23 +37,47 @@ type pool struct {
 
 // Init initializes the pool with the given capacity.
 func (p *pool) Init(size int) {
-	if size >= 0 {
+	if size == 0 {
+		panic("pools: size must not be zero")
+	}
+	if size > 0 {
 		p.pool = make(chan struct{}, size)
 	}
 }
 
-// Wait acquires a pool token (blocking or async).
+// Wait blocks until a token is acquired and registers work for WaitAll.
 func (p *pool) Wait() {
-	if p.pool != nil {
-		p.wg.Add(1)
-		p.pool <- struct{}{}
+	_ = p.WaitContext(context.Background())
+}
+
+// WaitContext acquires a token or returns ctx.Err(). It does not start a goroutine.
+// An already-cancelled context is rejected before registering work. If cancellation
+// races with available capacity, either outcome is possible: only a nil return
+// requires Done. Cancellation after success does not release the token.
+// As with Wait, submit work before calling WaitAll, including in unlimited mode.
+func (p *pool) WaitContext(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	p.wg.Add(1)
+	if p.pool == nil {
+		return nil
+	}
+	select {
+	case p.pool <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		p.wg.Done()
+		return ctx.Err()
 	}
 }
 
-// AsyncWait acquires a pool token (blocking or async).
+// AsyncWait closes its signal after acquiring a token. It cannot be cancelled.
+//
+// Deprecated: use WaitContext for cancellable acquisition.
 func (p *pool) AsyncWait() <-chan struct{} {
 	sig := make(chan struct{})
-	if p == nil || p.pool == nil {
+	if p == nil {
 		close(sig)
 		return sig
 	}
@@ -61,13 +91,15 @@ func (p *pool) AsyncWait() <-chan struct{} {
 
 // Done releases a pool token.
 func (p *pool) Done() {
-	if p != nil && p.pool != nil {
-		<-p.pool
+	if p != nil {
+		if p.pool != nil {
+			<-p.pool
+		}
 		p.wg.Done()
 	}
 }
 
-// Num returns the number of issued tokens.
+// Num returns the number of held bounded-pool tokens, or zero in unlimited mode.
 func (p *pool) Num() int {
 	if p != nil && p.pool != nil {
 		return len(p.pool)
@@ -92,7 +124,7 @@ func (p *pool) WaitAll() {
 	}
 }
 
-// AsyncWaitAll acquires a pool token (blocking or async).
+// AsyncWaitAll closes its signal when WaitAll returns.
 func (p *pool) AsyncWaitAll() <-chan struct{} {
 	sig := make(chan struct{})
 	go func() {

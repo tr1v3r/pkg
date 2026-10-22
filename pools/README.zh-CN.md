@@ -48,12 +48,13 @@ func main() {
 
 | 方法 | 行为 |
 | --- | --- |
-| `NewPool(size)` | 返回 `Pool`；限制并发时应使用正容量。 |
+| `NewPool(size)` | 正数限制并发；负数不限并发但跟踪完成；零会 panic。 |
 | `Wait()` | 阻塞直到获取一个令牌。 |
-| `AsyncWait()` | 在新 goroutine 中获取令牌；成功后关闭返回的 channel。 |
+| `WaitContext(ctx)` | 获取令牌或返回 context 错误；仅成功时需要调用 `Done`。 |
+| `AsyncWait()`（已弃用） | 在新 goroutine 中获取令牌；成功后关闭返回的 channel。 |
 | `Done()` | 归还一个令牌，并标记该工作单元完成。 |
-| `Num()` | 当前已持有令牌数的快照，不包含阻塞中的获取请求。 |
-| `Size()` | 令牌 channel 的容量；配置为零或负数时均返回零。 |
+| `Num()` | 有界池当前持有令牌数的快照，不包含阻塞请求；无限并发模式返回零。 |
+| `Size()` | 令牌 channel 的容量；无限并发模式返回零。 |
 | `WaitAll()` | 等待已登记的工作完成，调用顺序要求见下文。 |
 | `AsyncWaitAll()` | 在新 goroutine 中执行 `WaitAll`，返回后关闭通知 channel。 |
 
@@ -67,11 +68,13 @@ func main() {
   或依赖完成等待来覆盖该任务。
 - 异步通知不提供取消能力。放弃接收 `AsyncWait()` 的通知，可能遗留等待中的 goroutine，
   或导致已获取的令牌无人归还。给 `AsyncWaitAll()` 的接收操作设置超时，也不会取消内部等待。
-- 容量为 **零** 时创建无缓冲令牌 channel，常规的 `Wait → 执行任务 → Done` 流程会阻塞在 `Wait`；
-  零不表示无限并发。
-- 容量为 **负数** 时，同时禁用并发限制和完成跟踪。`Wait`、`Done` 不做任何操作，
-  `WaitAll` 也不会等待调用方的 goroutine。
-- 正容量池可在上一批次完成等待返回后复用。没有 `Close` 方法，也没有需要关闭的常驻 worker。
+- 容量为 **零** 时在构造阶段直接 panic，避免创建无法正常使用的池。
+- 容量为 **负数** 时仅禁用并发限制，仍跟踪完成状态。每次成功获取都必须调用 `Done()`，
+  `WaitAll()` 会等待这些工作完成。
+- `WaitContext` 在登记工作前拒绝已取消的 context；等待期间取消会回滚计数，不持有令牌。
+  取消与令牌可用同时发生时，可能成功，也可能返回取消错误；以返回值决定是否调用 `Done()`。
+  成功后的取消不会自动归还令牌或停止 worker。
+- 池可在上一批次完成等待返回后复用。没有 `Close` 方法，也没有需要关闭的常驻 worker。
 - 池不收集结果或错误、不恢复 panic，也不取消任务。`Num()` 仅供观察，不能用作同步屏障。
 
 ## 可运行示例
@@ -90,3 +93,24 @@ func main() {
 GOWORK=off go test -race ./...
 GOWORK=off go vet ./...
 ```
+
+## 可取消的获取
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+defer cancel()
+if err := p.WaitContext(ctx); err != nil {
+    return err // 失败时不调用 Done。
+}
+defer p.Done()
+// 执行任务；若任务也需要支持取消，应另外向任务传递 ctx。
+```
+
+片段假设已有池 `p`，且外层函数返回 `error`；需导入 `context` 和 `time`。
+`WaitContext` 在调用方 goroutine 中执行，建议用它替代无法取消的 `AsyncWait`。
+
+## 兼容性变更
+
+零容量现在会 panic，负容量现在会跟踪完成状态。`Pool` 接口新增
+`WaitContext(context.Context) error`，自定义实现和 mock 需要补充该方法。
+`AsyncWait` 保留兼容，但已标记弃用。

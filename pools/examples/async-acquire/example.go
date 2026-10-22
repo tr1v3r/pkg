@@ -10,7 +10,7 @@ import (
 func main() {
 	p := pools.NewPool(1)
 	p.Wait()
-	ready := p.AsyncWait()
+	ready := p.AsyncWait() //nolint:staticcheck // Demonstrate the legacy API; prefer WaitContext in new code.
 	// The existing token keeps the asynchronous acquisition pending.
 	fmt.Println("doing other work while waiting")
 	p.Done()
